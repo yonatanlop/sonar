@@ -12,6 +12,7 @@ from app.database import get_db
 from app.models.anomaly import Anomaly
 from app.models.entity import Country, Entity, EntityAlias, EntityType, Keyword
 from app.models.mention import Mention
+from app.models.mention_entity import MentionEntity
 from app.models.summary import DailySummary
 from app.models.trend import TrendForecast
 from app.models.user import User
@@ -523,6 +524,63 @@ def get_entity_forecast(
         ],
         "model_used":   model_used,
         "generated_at": generated_at.isoformat() if generated_at else None,
+    }
+
+
+# ── Entidades relacionadas NER (v2) ──────────────────────────
+
+@router.get("/{entity_id}/related-entities")
+def get_related_entities(
+    entity_id: uuid.UUID,
+    days: int = Query(30, ge=1, le=90),
+    limit: int = Query(20, ge=5, le=50),
+    db: Session = Depends(get_db),
+    _=Depends(get_current_user),
+):
+    """
+    Co-ocurrencias más frecuentes extraídas por NER en los últimos N días.
+    Agrupa por tipo (PER/ORG/LOC) y texto, ordenado por frecuencia descendente.
+    """
+    entity = db.query(Entity).filter(Entity.id == entity_id).first()
+    if not entity:
+        raise HTTPException(status_code=404, detail="Entidad no encontrada")
+
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+
+    rows = (
+        db.query(
+            MentionEntity.entity_type,
+            MentionEntity.entity_text,
+            func.count(MentionEntity.id).label("count"),
+        )
+        .join(Mention, Mention.id == MentionEntity.mention_id)
+        .filter(
+            Mention.entity_id    == entity_id,
+            Mention.collected_at >= since,
+            MentionEntity.entity_type.in_(["PER", "ORG", "LOC"]),
+        )
+        .group_by(MentionEntity.entity_type, MentionEntity.entity_text)
+        .order_by(func.count(MentionEntity.id).desc())
+        .limit(limit)
+        .all()
+    )
+
+    total = sum(r.count for r in rows)
+
+    return {
+        "entity_id":   str(entity_id),
+        "entity_name": entity.name,
+        "days":        days,
+        "total_cooccurrences": total,
+        "items": [
+            {
+                "entity_type": r.entity_type,
+                "entity_text": r.entity_text,
+                "count":       r.count,
+                "pct":         round(r.count / total * 100, 1) if total else 0,
+            }
+            for r in rows
+        ],
     }
 
 

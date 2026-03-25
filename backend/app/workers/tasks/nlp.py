@@ -1,12 +1,8 @@
 """
-Tarea Celery para el procesamiento NLP de menciones.
-Programada en celery_app.py (Beat): cada 5 minutos.
-
-Lee la cola Redis 'nlp:pending' y aplica el pipeline completo:
-  1. Detección de idioma
-  2. Análisis de sentimiento
-  3. Detección de discurso de odio
-  4. Actualiza mención en BD (sentiment_label, sentiment_score, hate_score, processed)
+Tareas Celery para procesamiento NLP de menciones.
+Programadas en celery_app.py (Beat):
+  - process_pending_mentions → cada 5 min
+  - extract_ner              → cada hora
 """
 import logging
 
@@ -45,6 +41,32 @@ def process_pending_mentions(self):
     except Exception as exc:
         db.rollback()
         logger.error(f"[NLP Task] Fallo: {exc}", exc_info=True)
+        raise self.retry(exc=exc)
+    finally:
+        db.close()
+
+
+@celery_app.task(
+    name="app.workers.tasks.nlp.extract_ner",
+    bind=True,
+    max_retries=1,
+    default_retry_delay=300,
+    soft_time_limit=300,
+    time_limit=360,
+)
+def extract_ner(self):
+    """
+    Extrae entidades nombradas (PER/ORG/LOC) de menciones recientes usando spaCy.
+    Corre cada hora sobre los últimos 7 días de menciones procesadas sin NER.
+    """
+    db = SessionLocal()
+    try:
+        from app.workers.nlp.ner import run_ner_extraction
+        result = run_ner_extraction(db)
+        logger.info(f"[NER Task] {result}")
+        return result
+    except Exception as exc:
+        logger.error(f"[NER Task] Fallo: {exc}", exc_info=True)
         raise self.retry(exc=exc)
     finally:
         db.close()

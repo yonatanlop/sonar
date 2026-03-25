@@ -16,6 +16,8 @@ RUN apt-get update && apt-get install -y \
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+# Modelo spaCy para NER en español (12 MB, sin PyTorch)
+RUN python -m spacy download es_core_news_sm
 
 COPY . .
 

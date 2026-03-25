@@ -21,15 +21,15 @@
 - [x] API `GET /entities/{id}/topics` + `POST .../analyze` (trigger manual)
 - [x] Nube de temas en `EntityDetail.jsx` — píldoras de tamaño proporcional al conteo
 
-### 1.2 Extracción de entidades nombradas (NER)
-- [ ] Crear `backend/app/workers/nlp/ner.py` con clase `EntityExtractor`
-  - Usa `spacy` con modelo `es_core_news_sm` (gratuito, 12 MB)
-  - Extrae personas, organizaciones, lugares mencionados junto a la entidad monitoreada
-  - Guarda en tabla nueva `mention_entities`
-- [ ] Migración Alembic: tabla `mention_entities (id, mention_id, entity_type, entity_text)`
-- [ ] Tarea Celery `extract_ner` — corre cada hora
-- [ ] Endpoint `GET /api/v1/entities/{id}/related-entities` — co-ocurrencias más frecuentes
-- [ ] Componente React `RelatedEntities.jsx` — grafo de co-menciones en EntityDetail
+### 1.2 Extracción de entidades nombradas (NER) ✅ commit pendiente
+- [x] Crear `backend/app/workers/nlp/ner.py`
+  - Usa `spacy` con modelo `es_core_news_sm` (singleton con cache); fallback a modelo en blanco
+  - Extrae PER/ORG/LOC; filtra la propia entidad monitoreada y sus aliases
+  - Guarda en `mention_entities`; registros sentinel `__done__` para evitar re-procesamiento
+- [x] Migración Alembic 009: tabla `mention_entities (id, mention_id, entity_type, entity_text)`
+- [x] Tarea Celery `extract_ner` — corre cada hora (minuto 30); Dockerfile descarga `es_core_news_sm`
+- [x] Endpoint `GET /api/v1/entities/{id}/related-entities` — co-ocurrencias agrupadas por tipo y conteo
+- [x] Panel "Co-menciones frecuentes" en EntityDetail — píldoras agrupadas por PER/ORG/LOC
 
 ### 1.3 Clasificación automática de urgencia ✅ commit e262292
 - [x] Crear `backend/app/workers/nlp/urgency.py`

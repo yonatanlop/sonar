@@ -18,7 +18,8 @@ const fetchRules     = (id) => client.get('/alerts/rules', { params: { entity_id
 const fetchAnomalies = (id) => client.get(`/entities/${id}/anomalies`, { params: { days: 7 } }).then(r => r.data)
 const fetchSummaries = (id) => client.get(`/entities/${id}/summaries`, { params: { limit: 1 } }).then(r => r.data)
 const fetchTopics    = (id) => client.get(`/entities/${id}/topics`,    { params: { days: 7 } }).then(r => r.data)
-const fetchForecast  = (id) => client.get(`/entities/${id}/forecast`,  { params: { history_days: 14 } }).then(r => r.data)
+const fetchForecast        = (id) => client.get(`/entities/${id}/forecast`,  { params: { history_days: 14 } }).then(r => r.data)
+const fetchRelatedEntities = (id) => client.get(`/entities/${id}/related-entities`, { params: { days: 30, limit: 20 } }).then(r => r.data)
 
 // ── Constantes ────────────────────────────────────────────────
 const WEIGHT_LABEL = { 1: 'Normal', 2: 'Importante', 3: 'Crítico' }
@@ -101,7 +102,14 @@ export default function EntityDetail() {
     queryKey: ['forecast', id],
     queryFn: () => fetchForecast(id),
     enabled: tab === 'overview',
-    staleTime: 30 * 60 * 1000,  // 30 min — el pronóstico se regenera cada día
+    staleTime: 30 * 60 * 1000,
+  })
+
+  const { data: relatedData } = useQuery({
+    queryKey: ['related-entities', id],
+    queryFn: () => fetchRelatedEntities(id),
+    enabled: tab === 'overview',
+    staleTime: 60 * 60 * 1000,  // 1 h — NER corre cada hora
   })
 
   const triggerSummary = useMutation({
@@ -479,6 +487,48 @@ export default function EntityDetail() {
               </div>
             )}
           </div>
+
+          {/* Panel de entidades relacionadas (NER) */}
+          {relatedData?.items?.filter(i => i.entity_type !== '__done__').length > 0 && (
+            <div className="card">
+              <div className="flex items-center gap-2 mb-3">
+                <AtSign className="w-4 h-4 text-teal-500" />
+                <h2 className="text-sm font-semibold text-gray-700">
+                  Co-menciones frecuentes — últimos 30 días
+                </h2>
+                <span className="ml-auto text-xs text-gray-400 italic">NER · spaCy</span>
+              </div>
+              <div className="space-y-3">
+                {['PER', 'ORG', 'LOC'].map(type => {
+                  const typeItems = relatedData.items.filter(i => i.entity_type === type)
+                  if (!typeItems.length) return null
+                  const TYPE_CONFIG = {
+                    PER: { label: 'Personas',        cls: 'bg-purple-100 text-purple-800' },
+                    ORG: { label: 'Organizaciones',  cls: 'bg-blue-100 text-blue-800' },
+                    LOC: { label: 'Lugares',         cls: 'bg-teal-100 text-teal-800' },
+                  }
+                  const { label, cls } = TYPE_CONFIG[type]
+                  return (
+                    <div key={type}>
+                      <p className="text-xs font-medium text-gray-400 mb-1.5">{label}</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {typeItems.slice(0, 8).map(item => (
+                          <span
+                            key={`${item.entity_type}-${item.entity_text}`}
+                            className={`text-xs rounded-full px-2.5 py-0.5 font-medium ${cls}`}
+                            title={`${item.count} menciones`}
+                          >
+                            {item.entity_text}
+                            <span className="ml-1 opacity-60">({item.count})</span>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Panel de anomalías */}
           {anomaliesData?.items?.length > 0 && (
