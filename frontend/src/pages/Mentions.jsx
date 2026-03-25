@@ -1,9 +1,23 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ExternalLink, Bot } from 'lucide-react'
+import { ExternalLink, Bot, Flame } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import client from '../api/client'
+
+function UrgencyBadge({ score }) {
+  if (score == null || score < 30) return null
+  const cfg =
+    score >= 80 ? { label: 'Crítico',  cls: 'bg-red-600 text-white' } :
+    score >= 60 ? { label: 'Urgente',  cls: 'bg-red-100 text-red-700' } :
+                  { label: 'Atención', cls: 'bg-orange-100 text-orange-700' }
+  return (
+    <span className={`badge ${cfg.cls} flex items-center gap-1`}>
+      <Flame className="w-3 h-3" />
+      {cfg.label} {score.toFixed(0)}
+    </span>
+  )
+}
 
 const fetchMentions  = (p) => {
   // Omitir parámetros vacíos para evitar errores de validación en el backend
@@ -23,7 +37,7 @@ const PLATFORM_ICON = {
 
 export default function Mentions() {
   const [filters, setFilters] = useState({
-    entity_id: '', platform: '', sentiment: '', language: '', page: 1,
+    entity_id: '', platform: '', sentiment: '', language: '', min_urgency: '', page: 1,
   })
 
   const { data, isLoading }     = useQuery({ queryKey: ['mentions', filters], queryFn: () => fetchMentions(filters) })
@@ -69,6 +83,14 @@ export default function Mentions() {
             <option value="es">Español</option>
             <option value="en">Inglés</option>
           </select>
+
+          <select className="input w-auto" value={filters.min_urgency}
+            onChange={e => setFilter('min_urgency', e.target.value)}>
+            <option value="">Todas las urgencias</option>
+            <option value="30">🟠 Media o mayor (≥30)</option>
+            <option value="60">🔴 Alta o mayor (≥60)</option>
+            <option value="80">🔥 Solo críticas (≥80)</option>
+          </select>
         </div>
       </div>
 
@@ -105,6 +127,7 @@ export default function Mentions() {
                   <p className="text-sm text-gray-700 leading-relaxed">{m.content}</p>
 
                   <div className="flex items-center gap-3 mt-2">
+                    <UrgencyBadge score={m.urgency_score} />
                     <span className={`badge badge-${m.sentiment_label}`}>
                       {m.sentiment_label?.replace('_', ' ') ?? '—'}
                     </span>

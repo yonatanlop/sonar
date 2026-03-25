@@ -52,6 +52,7 @@ class Mention(Base):
     is_hate_speech: Mapped[bool] = mapped_column(Boolean, default=False)
     is_relevant: Mapped[bool] = mapped_column(Boolean, default=True)
     reach: Mapped[int] = mapped_column(Integer, default=0)
+    urgency_score: Mapped[float] = mapped_column(Numeric(5, 1), default=0)
     processed: Mapped[bool] = mapped_column(Boolean, default=False)
 
     entity: Mapped["Entity"] = relationship("Entity", back_populates="mentions")

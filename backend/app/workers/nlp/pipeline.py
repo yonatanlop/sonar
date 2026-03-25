@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session
 from app.workers.nlp.language_detector import detect_language
 from app.workers.nlp.sentiment import analyze_sentiment
 from app.workers.nlp.hate_speech import analyze_hate_speech
+from app.workers.nlp.urgency import compute_urgency_score
 from app.models.mention import Mention
 
 logger = logging.getLogger(__name__)
@@ -61,7 +62,16 @@ def process_mention(mention: Mention) -> bool:
         mention.hate_score      = Decimal(str(hate["hate_score"]))
         mention.is_hate_speech  = hate["is_hate"]
 
-        # ── 4. Marcar como procesado ─────────────────────────
+        # ── 4. Urgency Score ─────────────────────────────────
+        mention.urgency_score = compute_urgency_score(
+            sentiment_label=mention.sentiment_label,
+            sentiment_score=float(mention.sentiment_score) if mention.sentiment_score else None,
+            hate_score=float(mention.hate_score) if mention.hate_score else None,
+            is_hate_speech=mention.is_hate_speech,
+            reach=mention.reach or 0,
+        )
+
+        # ── 5. Marcar como procesado ─────────────────────────
         mention.processed = True
         return True
 
