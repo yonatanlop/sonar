@@ -53,3 +53,4 @@ twscrape>=0.14.6          # Scraper Twitter/X (sin API key oficial)
 
 # ─── v2: IA / Agentes ────────────────────────────────────────
 groq>=0.9.0               # LLM gratuito: Llama 3.1 vía Groq API (14,400 tok/min free tier)
+scikit-learn>=1.4.0       # Topic modeling (TF-IDF + KMeans) y clasificación bots (Módulos 1.1, 2.1)

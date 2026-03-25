@@ -385,3 +385,80 @@ def trigger_summary(
         "model_used":    result.model_used,
         "mention_count": result.mention_count,
     }
+
+
+# ── Topics / Temas (v2) ────────────────────────────────────────
+
+@router.get("/{entity_id}/topics")
+def get_entity_topics(
+    entity_id: uuid.UUID,
+    days: int = Query(7, ge=1, le=30),
+    db: Session = Depends(get_db),
+    _=Depends(get_current_user),
+):
+    """
+    Devuelve la distribución de temas detectados para la entidad
+    en los últimos N días, agrupados por topic_label.
+    """
+    entity = db.query(Entity).filter(Entity.id == entity_id).first()
+    if not entity:
+        raise HTTPException(status_code=404, detail="Entidad no encontrada")
+
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+
+    rows = (
+        db.query(
+            Mention.topic_id,
+            Mention.topic_label,
+            func.count(Mention.id).label("count"),
+        )
+        .filter(
+            Mention.entity_id    == entity_id,
+            Mention.collected_at >= since,
+            Mention.topic_id.isnot(None),
+        )
+        .group_by(Mention.topic_id, Mention.topic_label)
+        .order_by(func.count(Mention.id).desc())
+        .all()
+    )
+
+    total = sum(r.count for r in rows)
+
+    return {
+        "entity_id":   str(entity_id),
+        "entity_name": entity.name,
+        "days":        days,
+        "total_labeled": total,
+        "topics": [
+            {
+                "topic_id": r.topic_id,
+                "label":    r.topic_label,
+                "count":    r.count,
+                "pct":      round(r.count / total * 100, 1) if total else 0,
+            }
+            for r in rows
+        ],
+    }
+
+
+@router.post("/{entity_id}/topics/analyze", status_code=200)
+def trigger_topic_analysis(
+    entity_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    _=Depends(require_analyst),
+):
+    """Ejecuta topic modeling manualmente para la entidad."""
+    entity = db.query(Entity).filter(Entity.id == entity_id).first()
+    if not entity:
+        raise HTTPException(status_code=404, detail="Entidad no encontrada")
+
+    from app.workers.nlp.topics import detect_topics_for_entity
+    result = detect_topics_for_entity(db, entity)
+    db.commit()
+
+    if result.get("status") != "ok":
+        raise HTTPException(
+            status_code=422,
+            detail=f"No se pudo detectar temas: {result.get('reason', 'unknown')}",
+        )
+    return result

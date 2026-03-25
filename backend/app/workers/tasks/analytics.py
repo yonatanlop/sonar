@@ -1,8 +1,9 @@
 """
 Tareas Celery para análisis estadístico e IA.
 Programadas en celery_app.py (Beat):
-  - detect_anomalies        → cada 30 min
+  - detect_anomalies         → cada 30 min
   - generate_daily_summaries → diario a las 23:50
+  - detect_topics            → cada hora
 """
 import logging
 
@@ -51,6 +52,28 @@ def generate_daily_summaries(self):
         return run_daily_summaries(db)
     except Exception as exc:
         logger.error(f"[Summary] Error en tarea: {exc}", exc_info=True)
+        raise self.retry(exc=exc)
+    finally:
+        db.close()
+
+
+@celery_app.task(
+    name="app.workers.tasks.analytics.detect_topics",
+    bind=True,
+    max_retries=1,
+    default_retry_delay=300,
+)
+def detect_topics(self):
+    """
+    Agrupa las menciones recientes por temas usando TF-IDF + K-Means.
+    Corre cada hora sobre los últimos 7 días de menciones.
+    """
+    db = SessionLocal()
+    try:
+        from app.workers.nlp.topics import run_topic_detection
+        return run_topic_detection(db)
+    except Exception as exc:
+        logger.error(f"[Topics] Error en tarea: {exc}", exc_info=True)
         raise self.retry(exc=exc)
     finally:
         db.close()

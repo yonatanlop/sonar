@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import ReactECharts from 'echarts-for-react'
 import {
   ArrowLeft, Building2, Tag, AtSign, Plus, Trash2,
-  ToggleLeft, ToggleRight, AlertTriangle, TrendingUp, Sparkles, RefreshCw,
+  ToggleLeft, ToggleRight, AlertTriangle, TrendingUp, Sparkles, RefreshCw, Hash,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -17,6 +17,7 @@ const fetchEntity    = (id) => client.get(`/entities/${id}`).then(r => r.data)
 const fetchRules     = (id) => client.get('/alerts/rules', { params: { entity_id: id } }).then(r => r.data)
 const fetchAnomalies = (id) => client.get(`/entities/${id}/anomalies`, { params: { days: 7 } }).then(r => r.data)
 const fetchSummaries = (id) => client.get(`/entities/${id}/summaries`, { params: { limit: 1 } }).then(r => r.data)
+const fetchTopics    = (id) => client.get(`/entities/${id}/topics`,    { params: { days: 7 } }).then(r => r.data)
 
 // ── Constantes ────────────────────────────────────────────────
 const WEIGHT_LABEL = { 1: 'Normal', 2: 'Importante', 3: 'Crítico' }
@@ -71,6 +72,22 @@ export default function EntityDetail() {
     queryFn: () => fetchAnomalies(id),
     enabled: tab === 'overview',
     refetchInterval: 5 * 60 * 1000,
+  })
+
+  const { data: topicsData } = useQuery({
+    queryKey: ['topics', id],
+    queryFn: () => fetchTopics(id),
+    enabled: tab === 'overview',
+    refetchInterval: 60 * 60 * 1000,  // refrescar cada hora
+  })
+
+  const triggerTopics = useMutation({
+    mutationFn: () => client.post(`/entities/${id}/topics/analyze`),
+    onSuccess: () => {
+      toast.success('Análisis de temas completado')
+      qc.invalidateQueries({ queryKey: ['topics', id] })
+    },
+    onError: (err) => toast.error(err?.response?.data?.detail ?? 'Error en análisis de temas'),
   })
 
   const { data: summaryData, isLoading: summaryLoading } = useQuery({
@@ -264,6 +281,71 @@ export default function EntityDetail() {
             ) : (
               <div className="text-center text-gray-400 py-12 text-sm">
                 Sin menciones procesadas en los últimos 7 días
+              </div>
+            )}
+          </div>
+
+          {/* Panel de temas (Topic Modeling) */}
+          <div className="card">
+            <div className="flex items-center gap-2 mb-3">
+              <Hash className="w-4 h-4 text-blue-500" />
+              <h2 className="text-sm font-semibold text-gray-700">Temas detectados — últimos 7 días</h2>
+              {isAnalyst && (
+                <button
+                  onClick={() => triggerTopics.mutate()}
+                  disabled={triggerTopics.isPending}
+                  className="ml-auto text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                >
+                  <RefreshCw className={`w-3 h-3 ${triggerTopics.isPending ? 'animate-spin' : ''}`} />
+                  {triggerTopics.isPending ? 'Analizando...' : 'Analizar ahora'}
+                </button>
+              )}
+            </div>
+
+            {topicsData?.topics?.length > 0 ? (
+              <div>
+                <p className="text-xs text-gray-400 mb-3">
+                  {topicsData.total_labeled} menciones agrupadas en {topicsData.topics.length} temas · IA (TF-IDF)
+                </p>
+                {/* Nube de temas — píldoras con tamaño proporcional */}
+                <div className="flex flex-wrap gap-2">
+                  {topicsData.topics.map((t, i) => {
+                    // Tamaño de fuente entre 11px y 18px según porcentaje
+                    const maxPct = topicsData.topics[0]?.pct ?? 1
+                    const fontSize = Math.round(11 + (t.pct / maxPct) * 7)
+                    const COLORS = [
+                      'bg-blue-100 text-blue-800',
+                      'bg-indigo-100 text-indigo-800',
+                      'bg-sky-100 text-sky-800',
+                      'bg-cyan-100 text-cyan-800',
+                      'bg-teal-100 text-teal-800',
+                      'bg-violet-100 text-violet-800',
+                      'bg-purple-100 text-purple-800',
+                      'bg-fuchsia-100 text-fuchsia-800',
+                    ]
+                    const colorCls = COLORS[i % COLORS.length]
+                    return (
+                      <span
+                        key={t.topic_id}
+                        className={`rounded-full px-3 py-1 font-medium cursor-default ${colorCls}`}
+                        style={{ fontSize }}
+                        title={`${t.count} menciones (${t.pct}%)`}
+                      >
+                        {t.label}
+                        <span className="ml-1 opacity-60 text-xs">({t.count})</span>
+                      </span>
+                    )
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="text-sm text-gray-400 text-center py-4">
+                <p>Los temas se detectan automáticamente cada hora.</p>
+                {isAnalyst && (
+                  <p className="mt-1 text-xs">
+                    Necesita mínimo 10 menciones en los últimos 7 días.
+                  </p>
+                )}
               </div>
             )}
           </div>

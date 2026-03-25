@@ -66,4 +66,8 @@ celery_app.conf.beat_schedule = {
         "task": "app.workers.tasks.analytics.generate_daily_summaries",
         "schedule": crontab(hour=23, minute=50),  # diario a las 23:50
     },
+    "detect-topics": {
+        "task": "app.workers.tasks.analytics.detect_topics",
+        "schedule": crontab(minute=0),  # cada hora en punto
+    },
 }
