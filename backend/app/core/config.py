@@ -43,6 +43,9 @@ class Settings(BaseSettings):
     GROQ_API_KEY: str = ""
     SUMMARY_MODEL: str = "llama-3.1-8b-instant"  # modelo más rápido y gratuito de Groq
 
+    # Bot Classifier ML (v2)
+    BOT_THRESHOLD: float = 0.7  # probabilidad mínima para clasificar como "bot"
+
     # Entorno
     ENVIRONMENT: str = "development"
     FRONTEND_URL: str = "http://localhost:3000"

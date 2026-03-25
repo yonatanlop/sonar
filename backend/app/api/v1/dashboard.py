@@ -7,9 +7,9 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user
 from app.database import get_db
 from app.models.entity import Entity
-from app.models.mention import Mention
+from app.models.mention import Mention, SocialPlatform
 from app.models.alert import Alert
-from app.models.bot import BotAnalysis
+from app.models.bot import AccountProfile, BotAnalysis
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 
@@ -101,6 +101,34 @@ def get_dashboard(db: Session = Depends(get_db),
         for a in alert_rows
     ]
 
+    # ── Bots por plataforma (v2) ──────────────────────────────
+    bot_rows = (
+        db.query(
+            SocialPlatform.name.label("platform_name"),
+            SocialPlatform.code.label("platform_code"),
+            func.count(AccountProfile.id).label("total"),
+            func.sum(
+                case((AccountProfile.bot_probability >= 0.7, 1), else_=0)
+            ).label("bots"),
+        )
+        .join(AccountProfile, AccountProfile.platform_id == SocialPlatform.id)
+        .filter(AccountProfile.bot_probability.isnot(None))
+        .group_by(SocialPlatform.id, SocialPlatform.name, SocialPlatform.code)
+        .all()
+    )
+
+    bots_by_platform = [
+        {
+            "platform":  r.platform_name,
+            "code":      r.platform_code,
+            "total":     r.total,
+            "bots":      int(r.bots or 0),
+            "bot_pct":   round(int(r.bots or 0) / max(r.total, 1) * 100, 1),
+        }
+        for r in bot_rows
+        if r.total > 0
+    ]
+
     return {
         "stats": {
             "today_mentions": today_total,
@@ -120,6 +148,7 @@ def get_dashboard(db: Session = Depends(get_db),
             "neutral":       sentiment.get("neutral",       0),
             "positive":      sentiment.get("positive",      0),
         },
-        "top_entities":  top_entities,
-        "recent_alerts": recent_alerts,
+        "top_entities":      top_entities,
+        "recent_alerts":     recent_alerts,
+        "bots_by_platform":  bots_by_platform,
     }

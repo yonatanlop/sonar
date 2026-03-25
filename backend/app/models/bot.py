@@ -24,6 +24,7 @@ class AccountProfile(Base):
     verified: Mapped[bool] = mapped_column(Boolean, default=False)
     bio: Mapped[str | None] = mapped_column(Text)
     last_analyzed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    bot_probability: Mapped[float | None] = mapped_column(Numeric(5, 4), nullable=True)
 
     bot_analyses: Mapped[list["BotAnalysis"]] = relationship("BotAnalysis", back_populates="account",
                                                                cascade="all, delete-orphan")

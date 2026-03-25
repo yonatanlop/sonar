@@ -4,6 +4,7 @@ Programadas en celery_app.py (Beat):
   - detect_anomalies         → cada 30 min
   - generate_daily_summaries → diario a las 23:50
   - detect_topics            → cada hora
+  - classify_bots            → cada 6 horas
 """
 import logging
 
@@ -74,6 +75,28 @@ def detect_topics(self):
         return run_topic_detection(db)
     except Exception as exc:
         logger.error(f"[Topics] Error en tarea: {exc}", exc_info=True)
+        raise self.retry(exc=exc)
+    finally:
+        db.close()
+
+
+@celery_app.task(
+    name="app.workers.tasks.analytics.classify_bots",
+    bind=True,
+    max_retries=1,
+    default_retry_delay=600,
+)
+def classify_bots(self):
+    """
+    Clasifica cuentas no analizadas en las últimas 24h con el modelo ML de bots.
+    Si el modelo pkl no existe usa heurísticas como fallback.
+    """
+    db = SessionLocal()
+    try:
+        from app.workers.nlp.bot_classifier import run_bot_classification
+        return run_bot_classification(db)
+    except Exception as exc:
+        logger.error(f"[BotML] Error en tarea: {exc}", exc_info=True)
         raise self.retry(exc=exc)
     finally:
         db.close()

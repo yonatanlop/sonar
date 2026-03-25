@@ -65,6 +65,28 @@ export default function Dashboard() {
     }],
   }
 
+  // Gráfica: % bots por plataforma (donut)
+  const PLATFORM_ICON = { twitter: '🐦', reddit: '🤖', youtube: '▶️', rss: '📰', telegram: '✈️' }
+  const botPlatformOption = {
+    tooltip: {
+      trigger: 'item',
+      formatter: (p) => `${p.name}<br/>Bots: ${p.data.bots} / ${p.data.total} (${p.data.value}%)`,
+    },
+    legend: { bottom: 0, textStyle: { fontSize: 11 } },
+    series: [{
+      type: 'pie',
+      radius: ['40%', '68%'],
+      label: { show: false },
+      data: (data?.bots_by_platform ?? []).map(p => ({
+        name:  `${PLATFORM_ICON[p.code] ?? '🌐'} ${p.platform}`,
+        value: p.bot_pct,
+        bots:  p.bots,
+        total: p.total,
+        itemStyle: { color: { twitter: '#1DA1F2', reddit: '#FF4500', youtube: '#FF0000', rss: '#FFA500', telegram: '#2CA5E0' }[p.code] ?? '#6B7280' },
+      })),
+    }],
+  }
+
   // Gráfica: top 5 entidades con más menciones negativas
   const topEntitiesOption = {
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
@@ -148,9 +170,23 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="card">
-        <h2 className="font-semibold text-gray-800 mb-4">Top 5 entidades — menciones negativas (últimos 7 días)</h2>
-        <ReactECharts option={topEntitiesOption} style={{ height: 220 }} />
+      {/* Fila inferior: bots por plataforma + top entidades */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div className="card">
+          <h2 className="font-semibold text-gray-800 mb-1">% Bots por plataforma</h2>
+          <p className="text-xs text-gray-400 mb-3">Clasificación ML — cuentas analizadas</p>
+          {(data?.bots_by_platform?.length ?? 0) > 0 ? (
+            <ReactECharts option={botPlatformOption} style={{ height: 220 }} />
+          ) : (
+            <div className="text-center text-gray-400 py-10 text-sm">
+              Sin datos aún — el clasificador corre cada 6h
+            </div>
+          )}
+        </div>
+        <div className="card xl:col-span-2">
+          <h2 className="font-semibold text-gray-800 mb-4">Top 5 entidades — menciones negativas (últimos 7 días)</h2>
+          <ReactECharts option={topEntitiesOption} style={{ height: 220 }} />
+        </div>
       </div>
     </div>
   )
