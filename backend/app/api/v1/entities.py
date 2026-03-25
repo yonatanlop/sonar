@@ -584,6 +584,36 @@ def get_related_entities(
     }
 
 
+# ── Sugerencias de keywords (v2) ──────────────────────────────
+
+@router.get("/{entity_id}/keyword-suggestions")
+def get_keyword_suggestions(
+    entity_id: uuid.UUID,
+    days: int = Query(30, ge=7, le=90),
+    db: Session = Depends(get_db),
+    _=Depends(get_current_user),
+):
+    """
+    Sugiere keywords relevantes que aún no están en la entidad,
+    basándose en TF-IDF sobre las menciones de los últimos N días.
+    """
+    entity = db.query(Entity).options(
+        # Cargar keywords y aliases para el filtrado
+    ).filter(Entity.id == entity_id).first()
+    if not entity:
+        raise HTTPException(status_code=404, detail="Entidad no encontrada")
+
+    from app.workers.agents.keyword_suggester import get_keyword_suggestions
+    suggestions = get_keyword_suggestions(db, entity, days=days, top_n=10)
+
+    return {
+        "entity_id":   str(entity_id),
+        "entity_name": entity.name,
+        "days":        days,
+        "suggestions": suggestions,
+    }
+
+
 @router.post("/{entity_id}/topics/analyze", status_code=200)
 def trigger_topic_analysis(
     entity_id: uuid.UUID,

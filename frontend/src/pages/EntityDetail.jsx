@@ -19,7 +19,8 @@ const fetchAnomalies = (id) => client.get(`/entities/${id}/anomalies`, { params:
 const fetchSummaries = (id) => client.get(`/entities/${id}/summaries`, { params: { limit: 1 } }).then(r => r.data)
 const fetchTopics    = (id) => client.get(`/entities/${id}/topics`,    { params: { days: 7 } }).then(r => r.data)
 const fetchForecast        = (id) => client.get(`/entities/${id}/forecast`,  { params: { history_days: 14 } }).then(r => r.data)
-const fetchRelatedEntities = (id) => client.get(`/entities/${id}/related-entities`, { params: { days: 30, limit: 20 } }).then(r => r.data)
+const fetchRelatedEntities   = (id) => client.get(`/entities/${id}/related-entities`,   { params: { days: 30, limit: 20 } }).then(r => r.data)
+const fetchKwSuggestions     = (id) => client.get(`/entities/${id}/keyword-suggestions`, { params: { days: 30 } }).then(r => r.data)
 
 // ── Constantes ────────────────────────────────────────────────
 const WEIGHT_LABEL = { 1: 'Normal', 2: 'Importante', 3: 'Crítico' }
@@ -109,7 +110,24 @@ export default function EntityDetail() {
     queryKey: ['related-entities', id],
     queryFn: () => fetchRelatedEntities(id),
     enabled: tab === 'overview',
-    staleTime: 60 * 60 * 1000,  // 1 h — NER corre cada hora
+    staleTime: 60 * 60 * 1000,
+  })
+
+  const { data: kwSuggestions, refetch: refetchSuggestions } = useQuery({
+    queryKey: ['kw-suggestions', id],
+    queryFn: () => fetchKwSuggestions(id),
+    enabled: tab === 'overview',
+    staleTime: 30 * 60 * 1000,
+  })
+
+  const quickAddKw = useMutation({
+    mutationFn: (keyword) => client.post(`/entities/${id}/keywords`, { keyword, language: 'es', weight: 1 }),
+    onSuccess: (_, keyword) => {
+      toast.success(`Keyword "${keyword}" agregada`)
+      qc.invalidateQueries({ queryKey: ['entity', id] })
+      qc.invalidateQueries({ queryKey: ['kw-suggestions', id] })
+    },
+    onError: (err) => toast.error(err?.response?.data?.detail ?? 'Error al agregar keyword'),
   })
 
   const triggerSummary = useMutation({
@@ -487,6 +505,38 @@ export default function EntityDetail() {
               </div>
             )}
           </div>
+
+          {/* Banner de sugerencias de keywords */}
+          {isAnalyst && kwSuggestions?.suggestions?.length > 0 && (
+            <div className="card border-amber-200 border bg-amber-50">
+              <div className="flex items-start gap-3">
+                <Sparkles className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-amber-800 mb-1">
+                    Sugerimos agregar estas keywords
+                  </p>
+                  <p className="text-xs text-amber-600 mb-3">
+                    Términos frecuentes en las menciones de los últimos 30 días que no están en tu lista.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {kwSuggestions.suggestions.map(s => (
+                      <button
+                        key={s.keyword}
+                        onClick={() => isAnalyst && quickAddKw.mutate(s.keyword)}
+                        disabled={quickAddKw.isPending}
+                        className="flex items-center gap-1.5 text-xs bg-white border border-amber-300 text-amber-800 rounded-full px-3 py-1 hover:bg-amber-100 transition-colors font-medium"
+                        title={`Relevancia: ${Math.round(s.relevance * 100)}%`}
+                      >
+                        <Plus className="w-3 h-3" />
+                        {s.keyword}
+                        <span className="opacity-60">{Math.round(s.relevance * 100)}%</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Panel de entidades relacionadas (NER) */}
           {relatedData?.items?.filter(i => i.entity_type !== '__done__').length > 0 && (

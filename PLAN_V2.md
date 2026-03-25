@@ -116,13 +116,13 @@
 - [x] Integrar con motor de alertas — `anomaly_id` vincula alerta ↔ anomalía; `_alert_dict` expone `context_explanation`
 - [x] Mostrar "¿Por qué?" expandible en tarjeta de alerta en `Alerts.jsx`
 
-### 5.2 Sugerencia automática de palabras clave
-- [ ] Crear `backend/app/workers/agents/keyword_suggester.py`
-  - Analiza menciones de los últimos 30 días por entidad
-  - Extrae términos frecuentes co-ocurrentes que NO están en las keywords actuales
-  - Genera lista de sugerencias con score de relevancia
-- [ ] Endpoint `GET /api/v1/entities/{id}/keyword-suggestions`
-- [ ] Banner en `EntityDetail.jsx` — "Sugerimos agregar estas keywords: ..."
+### 5.2 Sugerencia automática de palabras clave ✅ commit pendiente
+- [x] Crear `backend/app/workers/agents/keyword_suggester.py`
+  - TF-IDF (1,2)-gramas sobre las menciones de los últimos 30 días
+  - Filtra: keywords existentes, nombre/aliases de la entidad, stopwords es/en/digital
+  - Normaliza scores a relevancia 0-1
+- [x] Endpoint `GET /api/v1/entities/{id}/keyword-suggestions`
+- [x] Banner en `EntityDetail.jsx` — píldoras con botón "+" para agregar en un clic
 
 ---
 
