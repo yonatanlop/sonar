@@ -72,11 +72,11 @@
 - [x] Widget en `EntityDetail.jsx` — texto IA con fondo púrpura, botón "Generar ahora"
 - [x] `requirements.txt`: `groq>=0.9.0`
 
-### 3.2 Narrativa automática en reportes PDF
-- [ ] Modificar `backend/app/reports/generator.py`
-  - Antes de generar PDF, llamar a `DailySummarizer` para obtener párrafo introductorio
+### 3.2 Narrativa automática en reportes PDF ✅ commit pendiente
+- [x] Modificar `backend/app/reports/generator.py`
+  - Antes de generar PDF, llamar a Groq para obtener párrafo introductorio
   - Incluir sección "Análisis Ejecutivo" generado por IA al inicio del reporte
-- [ ] Indicador visual en PDF: "Generado con IA — Llama 3.1 (Groq)"
+- [x] Indicador visual en PDF: "Generado con IA — Llama 3.1 (Groq)"
 
 ---
 

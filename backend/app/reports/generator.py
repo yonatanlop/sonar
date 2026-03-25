@@ -100,6 +100,49 @@ def generate_report(report, db) -> str:
     return generator_fn(report, db)
 
 
+def _generate_ai_narrative(entity_name: str, stats: dict, top_mentions: list) -> dict | None:
+    """Genera narrativa ejecutiva con Groq. Retorna {text, model} o None si no hay API key."""
+    try:
+        from app.core.config import settings
+        if not settings.GROQ_API_KEY:
+            return None
+
+        import groq
+
+        sample_texts = []
+        for m in top_mentions[:15]:
+            label = (m.sentiment_label or "neutral").replace("_", " ")
+            content = (m.content or "")[:200].replace("\n", " ")
+            sample_texts.append(f"- [{label}] {content}")
+        mentions_block = "\n".join(sample_texts) if sample_texts else "(sin menciones en el período)"
+
+        prompt = (
+            f"Eres un analista de reputación corporativa. "
+            f"Redacta un análisis ejecutivo en español (3 párrafos, sin markdown) para el siguiente informe:\n\n"
+            f"Entidad: {entity_name}\n"
+            f"Total menciones: {stats['total']}\n"
+            f"Menciones negativas: {stats['negative_pct']}%\n"
+            f"Bots detectados: {stats['bot_count']}\n"
+            f"Alertas generadas: {stats['alert_count']}\n\n"
+            f"Menciones más impactantes:\n{mentions_block}\n\n"
+            f"Estructura: (1) estado general de la reputación, "
+            f"(2) principales focos de riesgo identificados, "
+            f"(3) recomendación ejecutiva concreta. Sé directo y profesional."
+        )
+
+        client = groq.Groq(api_key=settings.GROQ_API_KEY)
+        response = client.chat.completions.create(
+            model=settings.SUMMARY_MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3,
+            max_tokens=500,
+        )
+        text = response.choices[0].message.content.strip()
+        return {"text": text, "model": settings.SUMMARY_MODEL}
+    except Exception:
+        return None
+
+
 def _render_to_pdf(template_name: str, context: dict, filename: str) -> str:
     template = jinja_env.get_template(template_name)
     html_str = template.render(**context)
@@ -188,6 +231,13 @@ def _generate_entity(report, db) -> str:
     chart_sentiment = make_sentiment_pie(sentiment)
     chart_platforms = make_platforms_bar(platforms)
 
+    # Narrativa IA
+    ai_narrative = _generate_ai_narrative(
+        entity.name,
+        {"total": total, "negative_pct": neg_pct, "bot_count": bot_count, "alert_count": len(alerts)},
+        top_mentions,
+    )
+
     context = {
         "entity": entity,
         "report": report,
@@ -203,6 +253,7 @@ def _generate_entity(report, db) -> str:
         "alerts": alerts,
         "chart_sentiment": chart_sentiment,
         "chart_platforms": chart_platforms,
+        "ai_narrative": ai_narrative,
     }
 
     filename = f"entidad_{entity.id}_{date_from}_{date_to}.pdf"

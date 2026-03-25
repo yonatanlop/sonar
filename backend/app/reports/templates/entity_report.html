@@ -16,6 +16,27 @@
   <div class="confidential">CONFIDENCIAL</div>
 </div>
 
+<!-- ANÁLISIS EJECUTIVO IA -->
+{% if ai_narrative %}
+<div style="background:#f5f3ff; border:2pt solid #7c3aed; border-radius:6pt; padding:14pt 16pt; margin-bottom:18pt; page-break-inside:avoid;">
+  <div style="display:flex; align-items:center; gap:8pt; margin-bottom:10pt;">
+    <div style="background:#7c3aed; color:#fff; font-size:8pt; font-weight:bold; padding:2pt 8pt; border-radius:10pt; letter-spacing:0.5pt;">
+      ANÁLISIS EJECUTIVO IA
+    </div>
+    <div style="background:#ede9fe; color:#6d28d9; font-size:7pt; padding:2pt 7pt; border-radius:10pt;">
+      Generado con IA — {{ ai_narrative.model }}
+    </div>
+  </div>
+  <div style="font-size:9.5pt; color:#1e1b4b; line-height:1.6;">
+    {% for paragraph in ai_narrative.text.split('\n\n') %}
+    {% if paragraph.strip() %}
+    <p style="margin:0 0 8pt 0;">{{ paragraph.strip() }}</p>
+    {% endif %}
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
 <!-- RESUMEN EJECUTIVO -->
 <h1>1. Resumen Ejecutivo</h1>
 
