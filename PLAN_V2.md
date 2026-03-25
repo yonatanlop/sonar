@@ -58,17 +58,17 @@
 
 ## Módulo 3 — Agente de Resumen Automático (LLM gratuito)
 
-### 3.1 Resumen diario con Groq API (Llama 3 gratuito)
-- [ ] Agregar `GROQ_API_KEY=` a `.env.example` y `.env`
-  - Groq ofrece tier gratuito: 14,400 tokens/minuto con Llama-3.1-8b
-- [ ] Crear `backend/app/workers/nlp/summarizer.py`
-  - Clase `DailySummarizer` — llama a Groq API con las menciones del día
-  - Prompt estructurado: "Resume en 3 bullets los principales temas mencionados sobre {entidad} hoy..."
-  - Guarda resumen en tabla `daily_summaries`
-- [ ] Migración Alembic: tabla `daily_summaries (id, entity_id, date, summary_text, model_used)`
-- [ ] Tarea Celery `generate_daily_summary` — corre a las 23:50 cada día
-- [ ] Endpoint `GET /api/v1/entities/{id}/summaries` — historial de resúmenes
-- [ ] Widget en `EntityDetail.jsx` — "Resumen de hoy" con texto generado
+### 3.1 Resumen diario con Groq API (Llama 3 gratuito) ✅ commit ad618d1
+- [x] Agregar `GROQ_API_KEY` y `SUMMARY_MODEL` a `.env.example`, `.env`, `config.py`
+- [x] Crear `backend/app/workers/nlp/summarizer.py`
+  - Prompt estructurado: temas principales, tono general, punto de atención
+  - Muestra balanceada por sentimiento (máx 40 menciones)
+  - Upsert por (entity_id, date) — no duplica si se llama dos veces
+- [x] Migración 004: tabla `daily_summaries` con unique constraint por entidad+fecha
+- [x] Tarea Celery `generate_daily_summaries` — diario a las 23:50
+- [x] API `GET /entities/{id}/summaries` + `POST .../generate` (trigger manual)
+- [x] Widget en `EntityDetail.jsx` — texto IA con fondo púrpura, botón "Generar ahora"
+- [x] `requirements.txt`: `groq>=0.9.0`
 
 ### 3.2 Narrativa automática en reportes PDF
 - [ ] Modificar `backend/app/reports/generator.py`
