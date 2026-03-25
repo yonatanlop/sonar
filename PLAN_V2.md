@@ -128,21 +128,26 @@
 
 ## Módulo 6 — Mejoras de UX con IA
 
-### 6.1 Búsqueda semántica de menciones
-- [ ] Instalar `sentence-transformers` (ya incluido en 1.1)
-- [ ] Crear `backend/app/workers/nlp/embeddings.py`
-  - Genera embeddings para cada mención al procesarse (vector 384 dims)
-  - Guarda en tabla `mention_embeddings` o columna `embedding VECTOR` (pgvector)
-- [ ] Migración Alembic: extensión `pgvector` + columna `embedding vector(384)` en `mentions`
-- [ ] Endpoint `GET /api/v1/mentions/search?q=texto+semantico` — búsqueda por similitud coseno
-- [ ] Barra de búsqueda semántica en `Mentions.jsx`
+### 6.1 Búsqueda semántica de menciones ✅ commit ed3c24b
+- [x] Instalar `pgvector>=0.3.0` (HF Inference API; sin PyTorch local)
+- [x] Crear `backend/app/workers/nlp/embeddings.py`
+  - HF Inference API `paraphrase-multilingual-MiniLM-L12-v2` (384 dims, multilingüe)
+  - `run_embedding_generation()` procesa 15/run con 2s delay (free tier ~720/día)
+  - `semantic_search()` coseno con umbral similitud < 0.3 (~0.7 similitud)
+- [x] Migration 010: extensión `pgvector` + columna `embedding vector(384)` + IVFFlat index
+- [x] docker-compose: `pgvector/pgvector:pg15` (reemplaza postgres:15-alpine)
+- [x] Tarea Celery `generate_embeddings` — cada 30 min
+- [x] Endpoint `GET /api/v1/mentions/search?q=texto` — búsqueda por similitud coseno
+- [x] Mentions.jsx: toggle "Filtros / Búsqueda semántica"; form con entidad+query; badge % similitud
 
-### 6.2 Clustering de menciones similares (deduplicación inteligente)
-- [ ] En `backend/app/workers/nlp/pipeline.py` — al procesar mención nueva
-  - Comparar embedding con últimas 1000 menciones de la misma entidad
-  - Si similitud coseno > 0.92 → marcar como `is_duplicate=True`
-- [ ] Migración Alembic: columna `is_duplicate BOOLEAN DEFAULT FALSE` en `mentions`
-- [ ] Filtro por defecto en `GET /api/v1/mentions?exclude_duplicates=true`
+### 6.2 Clustering de menciones similares (deduplicación inteligente) ✅ commit f7b2a56
+- [x] En `backend/app/workers/nlp/pipeline.py` — al procesar mención nueva
+  - `_is_near_duplicate()` compara embedding contra candidato más cercano de la entidad
+  - Umbral coseno 0.92; solo actúa si la mención ya tiene embedding generado
+- [x] Migración 011: columna `is_duplicate BOOLEAN DEFAULT FALSE` + índice
+- [x] `is_duplicate` en dict de respuesta del API
+- [x] Parámetro `exclude_duplicates=true` en `GET /api/v1/mentions`
+- [x] Mentions.jsx: toggle switch "Ocultar duplicados" en filtros; badge gris en menciones marcadas
 
 ---
 
