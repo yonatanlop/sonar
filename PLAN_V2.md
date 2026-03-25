@@ -44,16 +44,17 @@
 
 ## Módulo 2 — Detección de Bots Mejorada
 
-### 2.1 Clasificador de bots con ML (reemplaza heurísticas simples)
-- [ ] Crear `backend/app/workers/nlp/bot_classifier.py`
-  - Features: ratio tweets/día, % retweets, diversidad léxica, hora media de actividad, antigüedad cuenta
-  - Modelo: `sklearn.ensemble.GradientBoostingClassifier` entrenado con dataset público (Botometer-lite)
-  - Serializar modelo en `backend/storage/models/bot_model.pkl`
-- [ ] Migración Alembic: columna `bot_probability FLOAT` en `account_profiles`
-- [ ] Script de entrenamiento `backend/scripts/train_bot_model.py` (se corre una vez)
-- [ ] Integrar en pipeline NLP existente — enriquecer perfil al scraping
-- [ ] Umbral configurable en `.env`: `BOT_THRESHOLD=0.7`
-- [ ] Visualización en `Dashboard.jsx` — donut chart porcentaje bots por plataforma
+### 2.1 Clasificador de bots con ML ✅ commit f055419
+- [x] Crear `backend/app/workers/nlp/bot_classifier.py`
+  - 8 features: ff_ratio, posts_per_day, has_photo, has_bio, is_verified, digit_ratio, username_len, account_age
+  - GradientBoostingClassifier (pkl) con fallback heurístico si el modelo no existe
+- [x] Migración 006: `bot_probability FLOAT` en `account_profiles` + índice
+- [x] Script `backend/scripts/train_bot_model.py` — genera 4 arquetipos sintéticos → pkl
+  - Uso: `docker compose exec backend python scripts/train_bot_model.py`
+- [x] Tarea Celery `classify_bots` → cada 6 horas
+- [x] `BOT_THRESHOLD=0.7` en config.py y .env.example
+- [x] Dashboard API: campo `bots_by_platform` con conteo y % por plataforma
+- [x] `Dashboard.jsx`: donut chart % bots por plataforma con colores por red social
 
 ---
 
