@@ -3,6 +3,7 @@ Tareas Celery para procesamiento NLP de menciones.
 Programadas en celery_app.py (Beat):
   - process_pending_mentions → cada 5 min
   - extract_ner              → cada hora
+  - generate_embeddings      → cada 30 min
 """
 import logging
 
@@ -67,6 +68,33 @@ def extract_ner(self):
         return result
     except Exception as exc:
         logger.error(f"[NER Task] Fallo: {exc}", exc_info=True)
+        raise self.retry(exc=exc)
+    finally:
+        db.close()
+
+
+@celery_app.task(
+    name="app.workers.tasks.nlp.generate_embeddings",
+    bind=True,
+    max_retries=1,
+    default_retry_delay=300,
+    soft_time_limit=200,
+    time_limit=240,
+)
+def generate_embeddings(self):
+    """
+    Genera embeddings semánticos (384 dims) para menciones sin embedding
+    usando HuggingFace Inference API. Procesa máx 15 menciones por run
+    para respetar el free tier. Corre cada 30 min.
+    """
+    db = SessionLocal()
+    try:
+        from app.workers.nlp.embeddings import run_embedding_generation
+        result = run_embedding_generation(db)
+        logger.info(f"[Embeddings Task] {result}")
+        return result
+    except Exception as exc:
+        logger.error(f"[Embeddings Task] Fallo: {exc}", exc_info=True)
         raise self.retry(exc=exc)
     finally:
         db.close()

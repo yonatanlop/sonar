@@ -2,7 +2,7 @@ version: "3.9"
 
 services:
   db:
-    image: postgres:15-alpine
+    image: pgvector/pgvector:pg15   # pg15 + extensión vector (módulo 6.1)
     container_name: sonar_db
     environment:
       POSTGRES_DB: ${POSTGRES_DB}

@@ -56,6 +56,11 @@ class Mention(Base):
     topic_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     topic_label: Mapped[str | None] = mapped_column(String(120), nullable=True)
     processed: Mapped[bool] = mapped_column(Boolean, default=False)
+    # v2 módulo 6.1: embedding semántico 384 dims (pgvector)
+    embedding: Mapped[None] = mapped_column(
+        __import__("pgvector.sqlalchemy", fromlist=["Vector"]).Vector(384),
+        nullable=True,
+    )
 
     entity: Mapped["Entity"] = relationship("Entity", back_populates="mentions")
     platform: Mapped["SocialPlatform"] = relationship("SocialPlatform", back_populates="mentions")

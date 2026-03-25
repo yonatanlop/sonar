@@ -53,6 +53,10 @@ celery_app.conf.beat_schedule = {
         "task": "app.workers.tasks.nlp.extract_ner",
         "schedule": crontab(minute=30),      # cada hora en el minuto 30
     },
+    "generate-embeddings": {
+        "task": "app.workers.tasks.nlp.generate_embeddings",
+        "schedule": crontab(minute="*/30"),  # cada 30 min
+    },
     "evaluate-alert-rules": {
         "task": "app.workers.tasks.alerts.evaluate_alert_rules",
         "schedule": crontab(minute="*/5"),   # cada 5 min

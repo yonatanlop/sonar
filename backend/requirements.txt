@@ -56,3 +56,4 @@ groq>=0.9.0               # LLM gratuito: Llama 3.1 vía Groq API (14,400 tok/mi
 scikit-learn>=1.4.0       # Topic modeling (TF-IDF + KMeans) y clasificación bots (Módulos 1.1, 2.1)
 statsmodels>=0.14.0       # Suavizado exponencial Holt-Winters para pronóstico de tendencias (Módulo 4.2)
 spacy>=3.7.0,<4.0.0       # NER: extracción de entidades nombradas PER/ORG/LOC (Módulo 1.2)
+pgvector>=0.3.0           # Tipo vector + operadores coseno en SQLAlchemy/PostgreSQL (Módulo 6.1)

@@ -112,3 +112,30 @@ def list_mentions(
         "pages": (total + PAGE_SIZE - 1) // PAGE_SIZE,
         "items": [_mention_dict(m, db) for m in items],
     }
+
+
+# ── Búsqueda semántica (v2 — módulo 6.1) ─────────────────────────
+
+@router.get("/search")
+def semantic_search_mentions(
+    q: str                       = Query(..., min_length=3, description="Texto de búsqueda semántica"),
+    entity_id: Optional[uuid.UUID] = Query(None),
+    limit: int                   = Query(20, ge=5, le=50),
+    db: Session = Depends(get_db),
+    _=Depends(get_current_user),
+):
+    """
+    Búsqueda semántica de menciones por similitud de contenido.
+    Usa embeddings 384-dim (paraphrase-multilingual-MiniLM-L12-v2) + pgvector coseno.
+    Requiere HUGGINGFACE_TOKEN configurado; retorna lista vacía si no hay token.
+    """
+    from app.core.config import settings
+    from app.workers.nlp.embeddings import semantic_search
+
+    if not settings.HUGGINGFACE_TOKEN:
+        return {"query": q, "results": [], "note": "Requiere HUGGINGFACE_TOKEN"}
+
+    results = semantic_search(db, q, settings.HUGGINGFACE_TOKEN,
+                              entity_id=entity_id, limit=limit)
+
+    return {"query": q, "total": len(results), "results": results}
