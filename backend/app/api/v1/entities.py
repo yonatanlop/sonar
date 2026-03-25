@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, require_analyst
 from app.database import get_db
+from app.models.anomaly import Anomaly
 from app.models.entity import Country, Entity, EntityAlias, EntityType, Keyword
 from app.models.mention import Mention
 from app.models.user import User
@@ -252,3 +253,52 @@ def delete_keyword(
         raise HTTPException(status_code=404, detail="Keyword no encontrada")
     db.delete(kw)
     db.commit()
+
+
+# ── Anomalías (v2) ─────────────────────────────────────────────
+
+@router.get("/{entity_id}/anomalies")
+def get_entity_anomalies(
+    entity_id: uuid.UUID,
+    days: int = Query(7, ge=1, le=30, description="Número de días hacia atrás"),
+    db: Session = Depends(get_db),
+    _=Depends(get_current_user),
+):
+    """
+    Retorna las anomalías detectadas para la entidad en los últimos N días.
+    """
+    entity = db.query(Entity).filter(Entity.id == entity_id).first()
+    if not entity:
+        raise HTTPException(status_code=404, detail="Entidad no encontrada")
+
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+    anomalies = (
+        db.query(Anomaly)
+        .filter(
+            Anomaly.entity_id   == entity_id,
+            Anomaly.detected_at >= since,
+        )
+        .order_by(Anomaly.detected_at.desc())
+        .limit(50)
+        .all()
+    )
+
+    return {
+        "entity_id":   str(entity_id),
+        "entity_name": entity.name,
+        "days":        days,
+        "total":       len(anomalies),
+        "items": [
+            {
+                "id":           str(a.id),
+                "detected_at":  a.detected_at.isoformat(),
+                "metric":       a.metric,
+                "z_score":      round(a.z_score, 2),
+                "value":        round(a.value, 1),
+                "baseline":     round(a.baseline, 1),
+                "std_dev":      round(a.std_dev, 2),
+                "severity":     "critical" if a.z_score >= 4 else "high" if a.z_score >= 3 else "medium",
+            }
+            for a in anomalies
+        ],
+    }

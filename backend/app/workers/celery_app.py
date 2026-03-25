@@ -11,6 +11,7 @@ celery_app = Celery(
         "app.workers.tasks.scraping",
         "app.workers.tasks.nlp",
         "app.workers.tasks.alerts",
+        "app.workers.tasks.analytics",
     ],
 )
 
@@ -55,5 +56,10 @@ celery_app.conf.beat_schedule = {
     "cleanup-old-mentions": {
         "task": "app.workers.tasks.scraping.cleanup_old_mentions",
         "schedule": crontab(hour=3, minute=0),  # diario a las 3am
+    },
+    # ── v2: Analytics ─────────────────────────────────────────────
+    "detect-anomalies": {
+        "task": "app.workers.tasks.analytics.detect_anomalies",
+        "schedule": crontab(minute="*/30"),  # cada 30 min
     },
 }

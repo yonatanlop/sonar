@@ -4,15 +4,18 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import ReactECharts from 'echarts-for-react'
 import {
   ArrowLeft, Building2, Tag, AtSign, Plus, Trash2,
-  ToggleLeft, ToggleRight, AlertTriangle,
+  ToggleLeft, ToggleRight, AlertTriangle, TrendingUp,
 } from 'lucide-react'
+import { format } from 'date-fns'
+import { es } from 'date-fns/locale'
 import toast from 'react-hot-toast'
 import client from '../api/client'
 import { useAuthStore } from '../store/authStore'
 
 // ── API helpers ────────────────────────────────────────────────
-const fetchEntity  = (id) => client.get(`/entities/${id}`).then(r => r.data)
-const fetchRules   = (id) => client.get('/alerts/rules', { params: { entity_id: id } }).then(r => r.data)
+const fetchEntity    = (id) => client.get(`/entities/${id}`).then(r => r.data)
+const fetchRules     = (id) => client.get('/alerts/rules', { params: { entity_id: id } }).then(r => r.data)
+const fetchAnomalies = (id) => client.get(`/entities/${id}/anomalies`, { params: { days: 7 } }).then(r => r.data)
 
 // ── Constantes ────────────────────────────────────────────────
 const WEIGHT_LABEL = { 1: 'Normal', 2: 'Importante', 3: 'Crítico' }
@@ -60,6 +63,13 @@ export default function EntityDetail() {
     queryKey: ['rules', id],
     queryFn: () => fetchRules(id),
     enabled: tab === 'rules',
+  })
+
+  const { data: anomaliesData } = useQuery({
+    queryKey: ['anomalies', id],
+    queryFn: () => fetchAnomalies(id),
+    enabled: tab === 'overview',
+    refetchInterval: 5 * 60 * 1000,  // refrescar cada 5 min
   })
 
   // ── Mutations: keywords ──
@@ -241,6 +251,61 @@ export default function EntityDetail() {
               </div>
             )}
           </div>
+
+          {/* Panel de anomalías */}
+          {anomaliesData?.items?.length > 0 && (
+            <div className="card border-orange-200 border">
+              <div className="flex items-center gap-2 mb-3">
+                <TrendingUp className="w-4 h-4 text-orange-500" />
+                <h2 className="text-sm font-semibold text-gray-700">
+                  Anomalías detectadas — últimos 7 días
+                </h2>
+                <span className="ml-auto badge bg-orange-100 text-orange-700">
+                  {anomaliesData.total}
+                </span>
+              </div>
+              <div className="space-y-2">
+                {anomaliesData.items.slice(0, 5).map(a => {
+                  const severityColor =
+                    a.severity === 'critical' ? 'text-red-600' :
+                    a.severity === 'high'     ? 'text-orange-600' : 'text-yellow-600'
+                  const metricLabel =
+                    a.metric === 'volume' ? 'Volumen de menciones' : 'Menciones negativas'
+                  const unit = a.metric === 'negative_pct' ? '%' : ''
+                  // barra proporcional al z-score (max visual = 5)
+                  const barWidth = Math.min((a.z_score / 5) * 100, 100)
+
+                  return (
+                    <div key={a.id} className="rounded-lg bg-gray-50 px-3 py-2">
+                      <div className="flex items-center justify-between text-xs mb-1">
+                        <span className="font-medium text-gray-700">{metricLabel}</span>
+                        <span className={`font-bold ${severityColor}`}>
+                          z = {a.z_score.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-1.5 mb-1">
+                        <div
+                          className={`h-1.5 rounded-full ${
+                            a.severity === 'critical' ? 'bg-red-500' :
+                            a.severity === 'high'     ? 'bg-orange-500' : 'bg-yellow-400'
+                          }`}
+                          style={{ width: `${barWidth}%` }}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-gray-400">
+                        <span>
+                          Actual: <strong className="text-gray-600">{a.value.toFixed(1)}{unit}</strong>
+                          &nbsp;·&nbsp;
+                          Media 7d: {a.baseline.toFixed(1)}{unit}
+                        </span>
+                        <span>{format(new Date(a.detected_at), "d MMM, HH:mm", { locale: es })}</span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Accesos rápidos */}
           <div className="flex flex-wrap gap-3">
