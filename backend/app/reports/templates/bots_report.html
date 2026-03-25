@@ -1,0 +1,14 @@
+{% extends "base_report.html" %}
+{% block content %}
+<div class="cover">
+  <div class="cover-logo">SONAR</div>
+  <div class="cover-title">Reporte de Actividad de Bots</div>
+  <div class="cover-meta">
+    <p><strong>Período:</strong> {{ report.date_from }} — {{ report.date_to }}</p>
+    <p><strong>Generado:</strong> {{ generated_at }}</p>
+  </div>
+  <div class="confidential">CONFIDENCIAL</div>
+</div>
+<h1>Reporte de Bots — En construcción</h1>
+<p>Este tipo de reporte estará disponible cuando el módulo de detección de bots esté implementado.</p>
+{% endblock %}

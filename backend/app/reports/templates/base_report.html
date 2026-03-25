@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    @page {
+      size: A4;
+      margin: 2cm 2.5cm;
+      @bottom-right {
+        content: "Página " counter(page) " de " counter(pages);
+        font-size: 9pt;
+        color: #9ca3af;
+      }
+      @bottom-left {
+        content: "SONAR — Monitoreo Reputacional · CONFIDENCIAL";
+        font-size: 9pt;
+        color: #9ca3af;
+      }
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: "Helvetica Neue", Arial, sans-serif; font-size: 10pt; color: #1f2937; line-height: 1.5; }
+
+    /* Portada */
+    .cover { page-break-after: always; text-align: center; padding-top: 80pt; }
+    .cover-logo { font-size: 48pt; font-weight: 900; color: #1d4ed8; letter-spacing: -2pt; }
+    .cover-subtitle { font-size: 11pt; color: #6b7280; margin-top: 6pt; }
+    .cover-title { font-size: 22pt; font-weight: 700; color: #111827; margin-top: 60pt; }
+    .cover-entity { font-size: 16pt; color: #1d4ed8; margin-top: 8pt; }
+    .cover-meta { margin-top: 40pt; font-size: 10pt; color: #6b7280; }
+    .cover-meta p { margin: 4pt 0; }
+    .confidential { display: inline-block; margin-top: 60pt; padding: 6pt 16pt;
+                    background: #fee2e2; color: #dc2626; border-radius: 4pt;
+                    font-size: 9pt; font-weight: 700; letter-spacing: 1pt; }
+
+    /* Secciones */
+    h1 { font-size: 16pt; font-weight: 700; color: #111827; margin: 20pt 0 8pt; border-bottom: 2pt solid #1d4ed8; padding-bottom: 4pt; }
+    h2 { font-size: 13pt; font-weight: 600; color: #374151; margin: 16pt 0 6pt; }
+    h3 { font-size: 11pt; font-weight: 600; color: #4b5563; margin: 12pt 0 4pt; }
+    p  { margin-bottom: 6pt; }
+
+    /* Tarjetas de métricas */
+    .metrics { display: flex; gap: 12pt; margin: 12pt 0; flex-wrap: wrap; }
+    .metric-card { flex: 1; min-width: 100pt; background: #f9fafb; border: 1pt solid #e5e7eb;
+                   border-radius: 8pt; padding: 10pt; text-align: center; }
+    .metric-value { font-size: 22pt; font-weight: 700; color: #1d4ed8; }
+    .metric-label { font-size: 8pt; color: #6b7280; margin-top: 2pt; }
+
+    /* Tablas */
+    table { width: 100%; border-collapse: collapse; margin: 8pt 0; font-size: 9pt; }
+    th { background: #1d4ed8; color: white; padding: 6pt 8pt; text-align: left; font-weight: 600; }
+    td { padding: 5pt 8pt; border-bottom: 0.5pt solid #e5e7eb; }
+    tr:nth-child(even) td { background: #f9fafb; }
+
+    /* Badges */
+    .badge { display: inline-block; padding: 2pt 7pt; border-radius: 99pt; font-size: 8pt; font-weight: 600; }
+    .badge-critical { background: #fee2e2; color: #dc2626; }
+    .badge-high     { background: #ffedd5; color: #ea580c; }
+    .badge-medium   { background: #fef9c3; color: #ca8a04; }
+    .badge-low      { background: #dbeafe; color: #1d4ed8; }
+    .badge-negative { background: #ffedd5; color: #ea580c; }
+    .badge-very_negative { background: #fee2e2; color: #dc2626; }
+    .badge-neutral  { background: #f3f4f6; color: #6b7280; }
+    .badge-positive { background: #dcfce7; color: #16a34a; }
+
+    /* Gráficas */
+    .chart { text-align: center; margin: 12pt 0; page-break-inside: avoid; }
+    .chart img { max-width: 100%; height: auto; }
+    .charts-row { display: flex; gap: 16pt; align-items: flex-start; margin: 12pt 0; }
+    .charts-row .chart { flex: 1; }
+
+    /* Menciones */
+    .mention { border-left: 3pt solid #e5e7eb; padding: 6pt 10pt; margin: 6pt 0; background: #f9fafb; page-break-inside: avoid; }
+    .mention.negative { border-color: #f97316; }
+    .mention.very_negative { border-color: #dc2626; }
+    .mention-header { font-size: 8.5pt; color: #6b7280; margin-bottom: 3pt; }
+    .mention-content { font-size: 9pt; color: #374151; }
+
+    /* Riesgo */
+    .risk-box { border-radius: 8pt; padding: 12pt; margin: 12pt 0; text-align: center; page-break-inside: avoid; }
+    .risk-score { font-size: 36pt; font-weight: 900; }
+    .risk-label { font-size: 14pt; font-weight: 700; margin-top: 4pt; }
+
+    /* Firma */
+    .signature { margin-top: 40pt; border-top: 1pt solid #e5e7eb; padding-top: 20pt; }
+    .signature-line { display: inline-block; border-bottom: 1pt solid #374151; width: 200pt; margin-top: 30pt; }
+
+    .page-break { page-break-after: always; }
+  </style>
+</head>
+<body>
+  {% block content %}{% endblock %}
+</body>
+</html>

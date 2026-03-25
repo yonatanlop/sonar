@@ -1,0 +1,125 @@
+{% extends "base_report.html" %}
+{% block content %}
+
+<!-- PORTADA -->
+<div class="cover">
+  <div class="cover-logo">SONAR</div>
+  <div class="cover-subtitle">Sistema de Observación y Navegación en Ambientes de Redes</div>
+  <div class="cover-title">Reporte de Monitoreo Reputacional</div>
+  <div class="cover-entity">{{ entity.name }}</div>
+  <div class="cover-meta">
+    <p><strong>Tipo:</strong> {{ entity.entity_type.name if entity.entity_type else '—' }}</p>
+    <p><strong>País:</strong> {{ entity.country_code or '—' }}</p>
+    <p><strong>Período:</strong> {{ report.date_from }} — {{ report.date_to }}</p>
+    <p><strong>Generado:</strong> {{ generated_at }}</p>
+  </div>
+  <div class="confidential">CONFIDENCIAL</div>
+</div>
+
+<!-- RESUMEN EJECUTIVO -->
+<h1>1. Resumen Ejecutivo</h1>
+
+<div class="risk-box" style="background: {{ risk_color }}15; border: 2pt solid {{ risk_color }};">
+  <div class="risk-score" style="color: {{ risk_color }};">{{ risk_score }}</div>
+  <div class="risk-label" style="color: {{ risk_color }};">RIESGO REPUTACIONAL {{ risk_label }}</div>
+  <p style="font-size:9pt; color:#6b7280; margin-top:4pt;">Score calculado sobre el período analizado (0 = sin riesgo, 100 = riesgo máximo)</p>
+</div>
+
+<p>Durante el período analizado se recolectaron un total de <strong>{{ stats.total }}</strong> menciones
+relacionadas con <strong>{{ entity.name }}</strong>, de las cuales el
+<strong>{{ stats.negative_pct }}%</strong> fueron clasificadas como negativas o muy negativas.</p>
+
+<p>Se detectaron <strong>{{ stats.bot_count }}</strong> cuentas automatizadas (bots) con actividad
+relacionada y se generaron <strong>{{ stats.alert_count }}</strong> alertas durante el período.</p>
+
+<!-- ESTADÍSTICAS GENERALES -->
+<h1>2. Estadísticas Generales</h1>
+
+<div class="metrics">
+  <div class="metric-card">
+    <div class="metric-value">{{ stats.total }}</div>
+    <div class="metric-label">Total menciones</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-value" style="color:#dc2626;">{{ stats.negative_pct }}%</div>
+    <div class="metric-label">Menciones negativas</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-value" style="color:#d97706;">{{ stats.bot_count }}</div>
+    <div class="metric-label">Bots detectados</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-value" style="color:#dc2626;">{{ stats.alert_count }}</div>
+    <div class="metric-label">Alertas generadas</div>
+  </div>
+</div>
+
+<div class="charts-row">
+  {% if chart_sentiment %}
+  <div class="chart">
+    <img src="data:image/png;base64,{{ chart_sentiment }}" alt="Sentimiento" />
+  </div>
+  {% endif %}
+  {% if chart_platforms %}
+  <div class="chart">
+    <img src="data:image/png;base64,{{ chart_platforms }}" alt="Plataformas" />
+  </div>
+  {% endif %}
+</div>
+
+<!-- MENCIONES MÁS RELEVANTES -->
+{% if top_mentions %}
+<h1>3. Menciones de Mayor Impacto</h1>
+<p>Las siguientes menciones negativas registraron el mayor alcance durante el período:</p>
+
+{% for m in top_mentions %}
+<div class="mention {{ m.sentiment_label or '' }}">
+  <div class="mention-header">
+    <span class="badge badge-{{ m.sentiment_label or 'neutral' }}">{{ (m.sentiment_label or 'sin clasificar').replace('_',' ') }}</span>
+    &nbsp; @{{ m.author_username or '—' }} &nbsp;·&nbsp;
+    {{ m.published_at.strftime('%d/%m/%Y %H:%M') if m.published_at else '—' }}
+    &nbsp;·&nbsp; Alcance: {{ m.reach }}
+  </div>
+  <div class="mention-content">{{ m.content[:300] }}{% if m.content|length > 300 %}…{% endif %}</div>
+</div>
+{% endfor %}
+{% endif %}
+
+<!-- ALERTAS DEL PERÍODO -->
+{% if alerts %}
+<h1>4. Alertas Generadas</h1>
+<table>
+  <thead>
+    <tr>
+      <th>Fecha</th>
+      <th>Severidad</th>
+      <th>Tipo</th>
+      <th>Descripción</th>
+      <th>Estado</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for a in alerts %}
+    <tr>
+      <td>{{ a.triggered_at.strftime('%d/%m/%Y %H:%M') }}</td>
+      <td><span class="badge badge-{{ a.severity }}">{{ a.severity.upper() }}</span></td>
+      <td>{{ a.rule.rule_type.replace('_',' ') if a.rule else '—' }}</td>
+      <td>{{ a.message[:100] }}</td>
+      <td>{{ 'Atendida' if a.acknowledged else 'Pendiente' }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+<!-- CONCLUSIONES -->
+<h1>5. Conclusiones</h1>
+<p style="color:#9ca3af; font-style:italic;">[El analista puede agregar sus conclusiones en este espacio antes de generar el reporte final.]</p>
+
+<div class="signature">
+  <p>Elaborado por:</p>
+  <div class="signature-line"></div>
+  <p style="margin-top:4pt; font-size:9pt; color:#6b7280;">Firma del Analista &nbsp;/&nbsp; Fecha: ___________________</p>
+</div>
+
+{% endblock %}

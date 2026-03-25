@@ -1,0 +1,248 @@
+"""
+Generador de reportes PDF con WeasyPrint + Jinja2 + Matplotlib.
+Cada tipo de reporte tiene su propia función y plantilla HTML.
+"""
+import base64
+import io
+import os
+from datetime import datetime
+from pathlib import Path
+
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+
+from jinja2 import Environment, FileSystemLoader
+from weasyprint import HTML
+
+TEMPLATES_DIR = Path(__file__).parent / "templates"
+STORAGE_DIR   = Path("/app/storage/reports")
+STORAGE_DIR.mkdir(parents=True, exist_ok=True)
+
+jinja_env = Environment(loader=FileSystemLoader(str(TEMPLATES_DIR)))
+
+
+def fig_to_b64(fig) -> str:
+    """Convierte figura matplotlib a PNG base64 para embeber en HTML."""
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=150, bbox_inches="tight",
+                facecolor="white", edgecolor="none")
+    buf.seek(0)
+    plt.close(fig)
+    return base64.b64encode(buf.read()).decode("utf-8")
+
+
+def make_sentiment_pie(sentiment: dict) -> str:
+    labels = ["Muy negativo", "Negativo", "Neutral", "Positivo"]
+    values = [
+        sentiment.get("very_negative", 0),
+        sentiment.get("negative", 0),
+        sentiment.get("neutral", 0),
+        sentiment.get("positive", 0),
+    ]
+    colors = ["#dc2626", "#f97316", "#9ca3af", "#22c55e"]
+    # Excluir etiquetas con valor 0
+    filtered = [(l, v, c) for l, v, c in zip(labels, values, colors) if v > 0]
+    if not filtered:
+        return ""
+    labels, values, colors = zip(*filtered)
+
+    fig, ax = plt.subplots(figsize=(5, 4))
+    ax.pie(values, labels=labels, colors=colors, autopct="%1.1f%%",
+           startangle=90, textprops={"fontsize": 9})
+    ax.set_title("Distribución de Sentimiento", fontsize=11, fontweight="bold")
+    return fig_to_b64(fig)
+
+
+def make_timeline_bar(dates: list, negative: list, neutral: list, positive: list) -> str:
+    fig, ax = plt.subplots(figsize=(10, 4))
+    x = range(len(dates))
+    ax.bar(x, negative, label="Negativo", color="#ef4444")
+    ax.bar(x, neutral,  label="Neutral",  color="#d1d5db", bottom=negative)
+    pos_bottom = [n + nu for n, nu in zip(negative, neutral)]
+    ax.bar(x, positive, label="Positivo", color="#22c55e", bottom=pos_bottom)
+    ax.set_xticks(list(x))
+    ax.set_xticklabels(dates, rotation=45, ha="right", fontsize=8)
+    ax.set_ylabel("Menciones", fontsize=9)
+    ax.set_title("Menciones por Día", fontsize=11, fontweight="bold")
+    ax.legend(fontsize=8)
+    ax.grid(axis="y", alpha=0.3)
+    fig.tight_layout()
+    return fig_to_b64(fig)
+
+
+def make_platforms_bar(platforms: list) -> str:
+    if not platforms:
+        return ""
+    names  = [p["name"]  for p in platforms]
+    counts = [p["count"] for p in platforms]
+    fig, ax = plt.subplots(figsize=(6, 3))
+    bars = ax.barh(names, counts, color="#3b82f6")
+    ax.bar_label(bars, padding=4, fontsize=8)
+    ax.set_xlabel("Menciones", fontsize=9)
+    ax.set_title("Menciones por Plataforma", fontsize=11, fontweight="bold")
+    ax.grid(axis="x", alpha=0.3)
+    fig.tight_layout()
+    return fig_to_b64(fig)
+
+
+# ── Generador principal ───────────────────────────────────────
+
+def generate_report(report, db) -> str:
+    """Genera el PDF según el tipo de reporte y retorna la ruta del archivo."""
+    dispatch = {
+        "entity":   _generate_entity,
+        "country":  _generate_country,
+        "bots":     _generate_bots,
+        "alerts":   _generate_alerts,
+    }
+    generator_fn = dispatch.get(report.report_type, _generate_entity)
+    return generator_fn(report, db)
+
+
+def _render_to_pdf(template_name: str, context: dict, filename: str) -> str:
+    template = jinja_env.get_template(template_name)
+    html_str = template.render(**context)
+    out_path = str(STORAGE_DIR / filename)
+    HTML(string=html_str, base_url=str(TEMPLATES_DIR)).write_pdf(out_path)
+    return out_path
+
+
+def _get_sentiment_data(entity_id, date_from, date_to, db) -> dict:
+    from sqlalchemy import func
+    from app.models.mention import Mention
+    rows = db.query(
+        Mention.sentiment_label,
+        func.count(Mention.id).label("cnt")
+    ).filter(
+        Mention.entity_id == entity_id,
+        Mention.collected_at >= datetime.combine(date_from, datetime.min.time()),
+        Mention.collected_at <= datetime.combine(date_to,   datetime.max.time()),
+        Mention.sentiment_label.isnot(None),
+    ).group_by(Mention.sentiment_label).all()
+    return {r.sentiment_label: r.cnt for r in rows}
+
+
+def _generate_entity(report, db) -> str:
+    from sqlalchemy import func
+    from app.models.entity import Entity
+    from app.models.mention import Mention, SocialPlatform
+    from app.models.bot import BotAnalysis
+    from app.models.alert import Alert
+
+    entity = db.query(Entity).filter(Entity.id == report.entity_id).first()
+    if not entity:
+        raise ValueError("Entidad no encontrada")
+
+    date_from = report.date_from
+    date_to   = report.date_to
+    dt_from   = datetime.combine(date_from, datetime.min.time())
+    dt_to     = datetime.combine(date_to,   datetime.max.time())
+
+    # Estadísticas
+    total = db.query(func.count(Mention.id)).filter(
+        Mention.entity_id == entity.id,
+        Mention.collected_at.between(dt_from, dt_to)
+    ).scalar() or 0
+
+    sentiment = _get_sentiment_data(entity.id, date_from, date_to, db)
+    neg = sentiment.get("negative", 0) + sentiment.get("very_negative", 0)
+    neg_pct = round(neg / total * 100, 1) if total else 0
+
+    # Plataformas
+    plat_rows = db.query(
+        SocialPlatform.name,
+        func.count(Mention.id).label("cnt")
+    ).join(Mention, Mention.platform_id == SocialPlatform.id
+    ).filter(
+        Mention.entity_id == entity.id,
+        Mention.collected_at.between(dt_from, dt_to)
+    ).group_by(SocialPlatform.name).all()
+    platforms = [{"name": r.name, "count": r.cnt} for r in plat_rows]
+
+    # Top menciones por alcance
+    top_mentions = db.query(Mention).filter(
+        Mention.entity_id == entity.id,
+        Mention.collected_at.between(dt_from, dt_to),
+        Mention.sentiment_label.in_(["negative", "very_negative"]),
+    ).order_by(Mention.reach.desc()).limit(10).all()
+
+    # Alertas del período
+    alerts = db.query(Alert).filter(
+        Alert.entity_id == entity.id,
+        Alert.triggered_at.between(dt_from, dt_to),
+    ).order_by(Alert.triggered_at.desc()).all()
+
+    # Bots
+    bot_count = db.query(func.count(BotAnalysis.id)).filter(
+        BotAnalysis.classification == "bot",
+        BotAnalysis.analyzed_at.between(dt_from, dt_to),
+    ).scalar() or 0
+
+    # Risk score (simple)
+    risk_score = min(100, int(neg_pct * 0.7 + (bot_count / max(total, 1) * 100) * 0.3))
+    risk_label = "ALTO" if risk_score >= 66 else "MEDIO" if risk_score >= 36 else "BAJO"
+    risk_color = "#dc2626" if risk_score >= 66 else "#d97706" if risk_score >= 36 else "#16a34a"
+
+    # Gráficas
+    chart_sentiment = make_sentiment_pie(sentiment)
+    chart_platforms = make_platforms_bar(platforms)
+
+    context = {
+        "entity": entity,
+        "report": report,
+        "generated_at": datetime.now().strftime("%d/%m/%Y %H:%M"),
+        "stats": {
+            "total": total, "negative_pct": neg_pct,
+            "bot_count": bot_count, "alert_count": len(alerts),
+        },
+        "risk_score": risk_score, "risk_label": risk_label, "risk_color": risk_color,
+        "sentiment": sentiment,
+        "platforms": platforms,
+        "top_mentions": top_mentions,
+        "alerts": alerts,
+        "chart_sentiment": chart_sentiment,
+        "chart_platforms": chart_platforms,
+    }
+
+    filename = f"entidad_{entity.id}_{date_from}_{date_to}.pdf"
+    return _render_to_pdf("entity_report.html", context, filename)
+
+
+def _generate_alerts(report, db) -> str:
+    from sqlalchemy import func
+    from app.models.alert import Alert
+    from app.models.entity import Entity
+
+    dt_from = datetime.combine(report.date_from, datetime.min.time())
+    dt_to   = datetime.combine(report.date_to,   datetime.max.time())
+
+    alerts = db.query(Alert).filter(
+        Alert.triggered_at.between(dt_from, dt_to)
+    ).order_by(Alert.triggered_at.desc()).all()
+
+    totals = {sev: sum(1 for a in alerts if a.severity == sev)
+              for sev in ["critical", "high", "medium", "low"]}
+
+    context = {
+        "report":       report,
+        "alerts":       alerts,
+        "totals":       totals,
+        "generated_at": datetime.now().strftime("%d/%m/%Y %H:%M"),
+        "db":           db,
+    }
+    filename = f"alertas_{report.date_from}_{report.date_to}.pdf"
+    return _render_to_pdf("alerts_report.html", context, filename)
+
+
+def _generate_country(report, db) -> str:
+    # Implementación similar a entity pero agrupada por país
+    filename = f"pais_{report.country_code}_{report.date_from}_{report.date_to}.pdf"
+    context = {"report": report, "generated_at": datetime.now().strftime("%d/%m/%Y %H:%M")}
+    return _render_to_pdf("country_report.html", context, filename)
+
+
+def _generate_bots(report, db) -> str:
+    filename = f"bots_{report.date_from}_{report.date_to}.pdf"
+    context = {"report": report, "generated_at": datetime.now().strftime("%d/%m/%Y %H:%M")}
+    return _render_to_pdf("bots_report.html", context, filename)

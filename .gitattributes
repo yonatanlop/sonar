@@ -1,0 +1,6 @@
+# Normalizar saltos de línea automáticamente
+* text=auto
+
+# Scripts de shell: siempre LF (necesario para Docker/Linux)
+*.sh text eol=lf
+entrypoint.sh text eol=lf
