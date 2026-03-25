@@ -13,6 +13,7 @@ from app.models.anomaly import Anomaly
 from app.models.entity import Country, Entity, EntityAlias, EntityType, Keyword
 from app.models.mention import Mention
 from app.models.summary import DailySummary
+from app.models.trend import TrendForecast
 from app.models.user import User
 
 router = APIRouter(prefix="/entities", tags=["Entidades"])
@@ -438,6 +439,90 @@ def get_entity_topics(
             }
             for r in rows
         ],
+    }
+
+
+# ── Pronóstico de tendencias (v2) ─────────────────────────────
+
+@router.get("/{entity_id}/forecast")
+def get_entity_forecast(
+    entity_id: uuid.UUID,
+    history_days: int = Query(14, ge=7, le=60, description="Días de historial a incluir en la respuesta"),
+    db: Session = Depends(get_db),
+    _=Depends(get_current_user),
+):
+    """
+    Devuelve historial de menciones diarias (últimos N días) + pronóstico de
+    los próximos 7 días almacenado en trend_forecasts.
+    Si no hay pronóstico guardado, lo genera en el momento.
+    """
+    entity = db.query(Entity).filter(Entity.id == entity_id).first()
+    if not entity:
+        raise HTTPException(status_code=404, detail="Entidad no encontrada")
+
+    # ── Historial diario ──────────────────────────────────────
+    today  = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    history = []
+    for i in range(history_days - 1, -1, -1):
+        day_start = today - timedelta(days=i)
+        day_end   = day_start + timedelta(days=1)
+        cnt = db.query(func.count(Mention.id)).filter(
+            Mention.entity_id    == entity_id,
+            Mention.collected_at >= day_start,
+            Mention.collected_at <  day_end,
+        ).scalar() or 0
+        history.append({"date": day_start.date().isoformat(), "count": cnt})
+
+    # ── Pronóstico almacenado ─────────────────────────────────
+    tomorrow = today.date() + timedelta(days=1)
+    forecasts = (
+        db.query(TrendForecast)
+        .filter(
+            TrendForecast.entity_id    == entity_id,
+            TrendForecast.forecast_date >= tomorrow,
+        )
+        .order_by(TrendForecast.forecast_date)
+        .limit(7)
+        .all()
+    )
+
+    # Si no hay pronóstico, generarlo ahora
+    if not forecasts:
+        try:
+            from app.workers.analytics.trends import forecast_entity
+            forecast_entity(db, entity)
+            db.commit()
+            forecasts = (
+                db.query(TrendForecast)
+                .filter(
+                    TrendForecast.entity_id    == entity_id,
+                    TrendForecast.forecast_date >= tomorrow,
+                )
+                .order_by(TrendForecast.forecast_date)
+                .limit(7)
+                .all()
+            )
+        except Exception:
+            pass  # Devuelve lista vacía si no hay datos suficientes
+
+    model_used    = forecasts[0].model_used    if forecasts else None
+    generated_at  = forecasts[0].generated_at  if forecasts else None
+
+    return {
+        "entity_id":    str(entity_id),
+        "entity_name":  entity.name,
+        "history":      history,
+        "forecast": [
+            {
+                "date":      f.forecast_date.isoformat(),
+                "predicted": round(f.predicted_count, 1),
+                "low":       round(f.confidence_low,  1),
+                "high":      round(f.confidence_high, 1),
+            }
+            for f in forecasts
+        ],
+        "model_used":   model_used,
+        "generated_at": generated_at.isoformat() if generated_at else None,
     }
 
 

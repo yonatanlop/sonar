@@ -92,15 +92,15 @@
 - [x] Panel en `EntityDetail.jsx` — lista con barras de z-score por severidad
 - [x] API `GET /entities/{id}/anomalies?days=7`
 
-### 4.2 Predicción de tendencia (7 días)
-- [ ] Crear `backend/app/workers/analytics/trends.py`
-  - Usa `statsmodels` ARIMA simple o suavizado exponencial (Holt-Winters)
+### 4.2 Predicción de tendencia (7 días) ✅ commit pendiente
+- [x] Crear `backend/app/workers/analytics/trends.py`
+  - Holt-Winters amortiguado (statsmodels) con fallback a regresión lineal OLS
   - Predice menciones diarias para los próximos 7 días por entidad
-  - Guarda en tabla `trend_forecasts`
-- [ ] Migración Alembic: tabla `trend_forecasts (id, entity_id, forecast_date, predicted_count, confidence_low, confidence_high)`
-- [ ] Tarea Celery `compute_trends` — corre diariamente a las 00:30
-- [ ] Endpoint `GET /api/v1/entities/{id}/forecast`
-- [ ] Gráfico de línea punteada en `EntityDetail.jsx` — proyección 7 días
+  - Guarda en tabla `trend_forecasts` (upsert diario)
+- [x] Migración Alembic 007: tabla `trend_forecasts (id, entity_id, forecast_date, predicted_count, confidence_low, confidence_high)`
+- [x] Tarea Celery `compute_trends` — corre diariamente a las 00:30
+- [x] Endpoint `GET /api/v1/entities/{id}/forecast` — historial + pronóstico en una sola llamada
+- [x] Gráfico combinado en `EntityDetail.jsx` — historial sólido + proyección punteada + banda de confianza 95%
 
 ---
 

@@ -18,6 +18,7 @@ const fetchRules     = (id) => client.get('/alerts/rules', { params: { entity_id
 const fetchAnomalies = (id) => client.get(`/entities/${id}/anomalies`, { params: { days: 7 } }).then(r => r.data)
 const fetchSummaries = (id) => client.get(`/entities/${id}/summaries`, { params: { limit: 1 } }).then(r => r.data)
 const fetchTopics    = (id) => client.get(`/entities/${id}/topics`,    { params: { days: 7 } }).then(r => r.data)
+const fetchForecast  = (id) => client.get(`/entities/${id}/forecast`,  { params: { history_days: 14 } }).then(r => r.data)
 
 // ── Constantes ────────────────────────────────────────────────
 const WEIGHT_LABEL = { 1: 'Normal', 2: 'Importante', 3: 'Crítico' }
@@ -94,6 +95,13 @@ export default function EntityDetail() {
     queryKey: ['summaries', id],
     queryFn: () => fetchSummaries(id),
     enabled: tab === 'overview',
+  })
+
+  const { data: forecastData } = useQuery({
+    queryKey: ['forecast', id],
+    queryFn: () => fetchForecast(id),
+    enabled: tab === 'overview',
+    staleTime: 30 * 60 * 1000,  // 30 min — el pronóstico se regenera cada día
   })
 
   const triggerSummary = useMutation({
@@ -192,6 +200,84 @@ export default function EntityDetail() {
       data: pieData.length ? pieData : [{ value: 1, name: 'Sin datos', itemStyle: { color: '#e5e7eb' } }],
     }],
   }
+
+  // ── Gráfica pronóstico (historial sólido + proyección punteada) ──
+  const hasForecast = (forecastData?.history?.length > 0) && (forecastData?.forecast?.length > 0)
+  const forecastOption = hasForecast ? (() => {
+    const histDates = forecastData.history.map(h => h.date.slice(5))   // MM-DD
+    const fcDates   = forecastData.forecast.map(f => f.date.slice(5))
+    const allDates  = [...histDates, ...fcDates]
+    const pad       = (arr, before, after) => [...Array(before).fill(null), ...arr, ...Array(after).fill(null)]
+    const hLen = histDates.length, fLen = fcDates.length
+
+    return {
+      tooltip: {
+        trigger: 'axis',
+        formatter: (params) => {
+          const lines = params
+            .filter(p => p.value != null)
+            .map(p => `${p.marker}${p.seriesName}: <b>${typeof p.value === 'number' ? p.value.toFixed(1) : p.value}</b>`)
+          return `${params[0]?.axisValue}<br/>${lines.join('<br/>')}`
+        },
+      },
+      legend: { bottom: 0, textStyle: { fontSize: 10 }, data: ['Historial', 'Pronóstico', 'Confianza ±'] },
+      grid: { top: 10, bottom: 40, left: 36, right: 16 },
+      xAxis: {
+        type: 'category',
+        data: allDates,
+        axisLabel: { fontSize: 10 },
+        axisLine: { lineStyle: { color: '#e5e7eb' } },
+      },
+      yAxis: { type: 'value', axisLabel: { fontSize: 10 }, minInterval: 1 },
+      series: [
+        {
+          name: 'Historial',
+          type: 'line',
+          data: pad(forecastData.history.map(h => h.count), 0, fLen),
+          smooth: true,
+          symbol: 'circle',
+          symbolSize: 4,
+          lineStyle: { color: '#3b82f6', width: 2 },
+          itemStyle: { color: '#3b82f6' },
+        },
+        {
+          name: 'Pronóstico',
+          type: 'line',
+          data: pad(forecastData.forecast.map(f => f.predicted), hLen, 0),
+          smooth: true,
+          symbol: 'diamond',
+          symbolSize: 5,
+          lineStyle: { color: '#f59e0b', width: 2, type: 'dashed' },
+          itemStyle: { color: '#f59e0b' },
+        },
+        {
+          name: 'Confianza ±',
+          type: 'line',
+          data: pad(forecastData.forecast.map(f => f.high), hLen, 0),
+          lineStyle: { opacity: 0 },
+          itemStyle: { opacity: 0 },
+          symbol: 'none',
+          areaStyle: { color: 'rgba(245,158,11,0.12)', origin: 'start' },
+          stack: 'ci',
+          legendHoverLink: false,
+          tooltip: { show: false },
+        },
+        {
+          name: '',
+          type: 'line',
+          data: pad(forecastData.forecast.map(f => f.low), hLen, 0),
+          lineStyle: { opacity: 0 },
+          itemStyle: { opacity: 0 },
+          symbol: 'none',
+          areaStyle: { color: '#ffffff', origin: 'start' },
+          stack: 'ci',
+          legendHoverLink: false,
+          tooltip: { show: false },
+          showInLegend: false,
+        },
+      ],
+    }
+  })() : null
 
   const TABS = [
     { key: 'overview',  label: 'Resumen' },
@@ -448,6 +534,30 @@ export default function EntityDetail() {
               </div>
             </div>
           )}
+
+          {/* Panel de pronóstico */}
+          <div className="card">
+            <div className="flex items-center gap-2 mb-3">
+              <TrendingUp className="w-4 h-4 text-amber-500" />
+              <h2 className="text-sm font-semibold text-gray-700">Pronóstico — próximos 7 días</h2>
+              {forecastData?.model_used && (
+                <span className="ml-auto text-xs text-gray-400 italic">{forecastData.model_used}</span>
+              )}
+            </div>
+            {hasForecast ? (
+              <div>
+                <p className="text-xs text-gray-400 mb-2">
+                  Línea sólida: historial · Punteada: proyección · Banda: intervalo de confianza 95%
+                </p>
+                <ReactECharts option={forecastOption} style={{ height: 220 }} />
+              </div>
+            ) : (
+              <div className="text-sm text-gray-400 text-center py-6">
+                <p>El pronóstico se genera diariamente a las 00:30.</p>
+                <p className="text-xs mt-1">Necesita al menos 7 días con menciones registradas.</p>
+              </div>
+            )}
+          </div>
 
           {/* Accesos rápidos */}
           <div className="flex flex-wrap gap-3">

@@ -5,6 +5,7 @@ Programadas en celery_app.py (Beat):
   - generate_daily_summaries → diario a las 23:50
   - detect_topics            → cada hora
   - classify_bots            → cada 6 horas
+  - compute_trends           → diario a las 00:30
 """
 import logging
 
@@ -97,6 +98,29 @@ def classify_bots(self):
         return run_bot_classification(db)
     except Exception as exc:
         logger.error(f"[BotML] Error en tarea: {exc}", exc_info=True)
+        raise self.retry(exc=exc)
+    finally:
+        db.close()
+
+
+@celery_app.task(
+    name="app.workers.tasks.analytics.compute_trends",
+    bind=True,
+    max_retries=1,
+    default_retry_delay=600,
+)
+def compute_trends(self):
+    """
+    Genera pronósticos de menciones para los próximos 7 días usando
+    suavizado exponencial de Holt (con fallback a regresión lineal).
+    Corre diariamente a las 00:30.
+    """
+    db = SessionLocal()
+    try:
+        from app.workers.analytics.trends import run_trend_forecasting
+        return run_trend_forecasting(db)
+    except Exception as exc:
+        logger.error(f"[Trends] Error en tarea: {exc}", exc_info=True)
         raise self.retry(exc=exc)
     finally:
         db.close()

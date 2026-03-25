@@ -74,4 +74,8 @@ celery_app.conf.beat_schedule = {
         "task": "app.workers.tasks.analytics.classify_bots",
         "schedule": crontab(minute=0, hour="*/6"),  # cada 6 horas
     },
+    "compute-trends": {
+        "task": "app.workers.tasks.analytics.compute_trends",
+        "schedule": crontab(hour=0, minute=30),  # diario a las 00:30
+    },
 }
