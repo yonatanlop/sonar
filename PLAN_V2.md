@@ -80,15 +80,15 @@
 
 ## Módulo 4 — Detección de Tendencias y Anomalías
 
-### 4.1 Detección de picos anómalos (sin modelo externo)
-- [ ] Crear `backend/app/workers/analytics/anomaly.py`
-  - Algoritmo: Z-score sobre ventana de 7 días por entidad y plataforma
-  - Si `z_score > 2.5` → anomalía (pico inusual de menciones o sentimiento)
-  - Guarda en tabla `anomalies`
-- [ ] Migración Alembic: tabla `anomalies (id, entity_id, detected_at, metric, z_score, value, baseline)`
-- [ ] Tarea Celery `detect_anomalies` — corre cada 30 minutos
-- [ ] Nuevo tipo de alerta `ANOMALY` en motor de alertas existente
-- [ ] Línea de alerta en gráfico de `EntityDetail.jsx` cuando hay anomalía
+### 4.1 Detección de picos anómalos ✅ commit 5e52881
+- [x] Crear `backend/app/workers/analytics/anomaly.py`
+  - Algoritmo: Z-score sobre ventana de 7 días (volumen + % negativo)
+  - Si `z_score >= 2.5` → Anomaly + Alert automática con regla de sistema
+- [x] Migración 003: tabla `anomalies` + ENUM `anomaly_detected` + `created_by` nullable
+- [x] Tarea Celery `detect_anomalies` — corre cada 30 minutos
+- [x] Alertas automáticas con severidad escalada (medium/high/critical por z-score)
+- [x] Panel en `EntityDetail.jsx` — lista con barras de z-score por severidad
+- [x] API `GET /entities/{id}/anomalies?days=7`
 
 ### 4.2 Predicción de tendencia (7 días)
 - [ ] Crear `backend/app/workers/analytics/trends.py`
