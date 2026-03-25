@@ -40,18 +40,28 @@ def _alert_dict(a: Alert, db: Session) -> dict:
     if a.acknowledged_by:
         u = db.query(User).filter(User.id == a.acknowledged_by).first()
         ack_user = u.full_name if u else None
+
+    # v2: contexto IA si la alerta viene de una anomalía
+    context_explanation = None
+    if a.anomaly_id:
+        from app.models.anomaly import Anomaly
+        anomaly = db.query(Anomaly).filter(Anomaly.id == a.anomaly_id).first()
+        if anomaly:
+            context_explanation = anomaly.context_explanation
+
     return {
-        "id":                  str(a.id),
-        "rule_id":             str(a.rule_id),
-        "entity_id":           str(a.entity_id),
-        "entity_name":         entity.name if entity else "—",
-        "rule_type":           a.rule.rule_type if a.rule else None,
-        "message":             a.message,
-        "severity":            a.severity,
-        "acknowledged":        a.acknowledged,
+        "id":                   str(a.id),
+        "rule_id":              str(a.rule_id),
+        "entity_id":            str(a.entity_id),
+        "entity_name":          entity.name if entity else "—",
+        "rule_type":            a.rule.rule_type if a.rule else None,
+        "message":              a.message,
+        "severity":             a.severity,
+        "acknowledged":         a.acknowledged,
         "acknowledged_by_name": ack_user,
-        "acknowledged_at":     a.acknowledged_at.isoformat() if a.acknowledged_at else None,
-        "triggered_at":        a.triggered_at.isoformat(),
+        "acknowledged_at":      a.acknowledged_at.isoformat() if a.acknowledged_at else None,
+        "triggered_at":         a.triggered_at.isoformat(),
+        "context_explanation":  context_explanation,   # v2: explicación IA (solo en anomalías)
     }
 
 

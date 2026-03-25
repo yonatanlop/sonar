@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, String, func
+from sqlalchemy import DateTime, Float, ForeignKey, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -19,5 +19,6 @@ class Anomaly(Base):
     value: Mapped[float] = mapped_column(Float, nullable=False)        # valor actual
     baseline: Mapped[float] = mapped_column(Float, nullable=False)     # media histórica
     std_dev: Mapped[float] = mapped_column(Float, nullable=False)      # desviación estándar
+    context_explanation: Mapped[str | None] = mapped_column(Text, nullable=True)  # explicación IA (v2)
 
     entity: Mapped["Entity"] = relationship("Entity")

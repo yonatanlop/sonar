@@ -106,13 +106,15 @@
 
 ## Módulo 5 — Agente de Monitoreo Autónomo
 
-### 5.1 Agente de investigación de contexto (Groq + búsqueda)
-- [ ] Crear `backend/app/workers/agents/context_agent.py`
-  - Cuando se detecta pico anómalo → agente busca contexto en RSS feeds ya configurados
-  - Envía al LLM: "¿Por qué podría estar aumentando la mención de {entidad}? Contexto: {titulares recientes}"
+### 5.1 Agente de investigación de contexto (Groq + búsqueda) ✅ commit pendiente
+- [x] Crear `backend/app/workers/agents/context_agent.py`
+  - Cuando se detecta pico anómalo → agente descarga RSS del país de la entidad + GLOBAL_SOURCES
+  - Filtra titulares relevantes (entity.name + keywords + aliases, case-insensitive)
+  - Envía a Groq: "¿Por qué está elevado {metric} de {entidad}? Contexto: {titulares}"
   - Guarda explicación en `anomalies.context_explanation`
-- [ ] Integrar con motor de alertas — adjuntar contexto a alertas tipo ANOMALY
-- [ ] Mostrar "¿Por qué?" en tarjeta de alerta en `Alerts.jsx`
+- [x] Migración 008: `anomalies.context_explanation TEXT` + `alerts.anomaly_id UUID FK`
+- [x] Integrar con motor de alertas — `anomaly_id` vincula alerta ↔ anomalía; `_alert_dict` expone `context_explanation`
+- [x] Mostrar "¿Por qué?" expandible en tarjeta de alerta en `Alerts.jsx`
 
 ### 5.2 Sugerencia automática de palabras clave
 - [ ] Crear `backend/app/workers/agents/keyword_suggester.py`

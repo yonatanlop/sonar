@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Bell, Check, Eye, ChevronDown } from 'lucide-react'
+import { Bell, Check, ChevronDown, ChevronUp, Sparkles } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import toast from 'react-hot-toast'
@@ -18,6 +18,7 @@ export default function Alerts() {
   const [filters, setFilters] = useState({
     severity: '', entity_id: '', acknowledged: '', page: 1,
   })
+  const [expandedCtx, setExpandedCtx] = useState(null)  // id de alerta con contexto expandido
 
   const { data, isLoading } = useQuery({
     queryKey: ['alerts', filters],
@@ -102,6 +103,39 @@ export default function Alerts() {
                     <> · Atendida por <strong>{alert.acknowledged_by_name}</strong></>
                   )}
                 </p>
+
+                {/* Contexto IA — solo en alertas de anomalía */}
+                {alert.rule_type === 'anomaly_detected' && (
+                  <div className="mt-2">
+                    {alert.context_explanation ? (
+                      <>
+                        <button
+                          onClick={() => setExpandedCtx(expandedCtx === alert.id ? null : alert.id)}
+                          className="flex items-center gap-1 text-xs text-purple-600 hover:text-purple-800 font-medium"
+                        >
+                          <Sparkles className="w-3 h-3" />
+                          ¿Por qué ocurrió esto?
+                          {expandedCtx === alert.id
+                            ? <ChevronUp className="w-3 h-3" />
+                            : <ChevronDown className="w-3 h-3" />}
+                        </button>
+                        {expandedCtx === alert.id && (
+                          <div className="mt-2 p-3 bg-purple-50 rounded-lg border border-purple-100 text-xs text-gray-700 leading-relaxed">
+                            <div className="flex items-center gap-1 mb-1.5 text-purple-500 font-medium">
+                              <Sparkles className="w-3 h-3" />
+                              Análisis de contexto — IA
+                            </div>
+                            {alert.context_explanation}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <span className="text-xs text-gray-400 italic">
+                        Contexto IA pendiente (requiere GROQ_API_KEY)
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-2 shrink-0">

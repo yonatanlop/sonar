@@ -49,5 +49,8 @@ class Alert(Base):
     acknowledged: Mapped[bool] = mapped_column(Boolean, default=False)
     acknowledged_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
     acknowledged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    anomaly_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("anomalies.id", ondelete="SET NULL"), nullable=True
+    )  # v2: vínculo directo a la anomalía que originó esta alerta
 
     rule: Mapped["AlertRule"] = relationship("AlertRule", back_populates="alerts")

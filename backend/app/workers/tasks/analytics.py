@@ -25,11 +25,24 @@ def detect_anomalies(self):
     """
     Detecta picos anómalos en volumen y sentimiento negativo
     usando Z-score sobre ventana de 7 días.
+    Tras la detección, llama al agente de contexto para explicar
+    las anomalías nuevas usando titulares RSS + Groq.
     """
     db = SessionLocal()
     try:
         from app.workers.analytics.anomaly import run_anomaly_detection
-        return run_anomaly_detection(db)
+        result = run_anomaly_detection(db)
+
+        # Explicar anomalías nuevas con contexto IA (no bloquea si Groq falla)
+        if result.get("anomalies_detected", 0) > 0:
+            try:
+                from app.workers.agents.context_agent import run_context_analysis
+                context_result = run_context_analysis(db)
+                result["context"] = context_result
+            except Exception as ctx_exc:
+                logger.warning(f"[ContextAgent] No se pudo explicar anomalías: {ctx_exc}")
+
+        return result
     except Exception as exc:
         logger.error(f"[Anomaly] Error en tarea: {exc}", exc_info=True)
         raise self.retry(exc=exc)

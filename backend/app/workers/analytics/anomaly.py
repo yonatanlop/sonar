@@ -169,6 +169,7 @@ def _create_alert_for_anomaly(
         entity_id    = entity.id,
         message      = message,
         severity     = severity,
+        anomaly_id   = anomaly.id,   # v2: vínculo directo para contexto IA
     )
     db.add(alert)
     db.flush()
