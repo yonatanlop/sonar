@@ -38,6 +38,11 @@ class Settings(BaseSettings):
     # NLP
     NLP_MODE: str = "api"   # 'api' | 'local'
 
+    # Groq API (v2 — resúmenes y agentes con Llama 3 gratuito)
+    # Obtener token gratis en: console.groq.com
+    GROQ_API_KEY: str = ""
+    SUMMARY_MODEL: str = "llama-3.1-8b-instant"  # modelo más rápido y gratuito de Groq
+
     # Entorno
     ENVIRONMENT: str = "development"
     FRONTEND_URL: str = "http://localhost:3000"

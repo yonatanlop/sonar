@@ -12,6 +12,7 @@ from app.database import get_db
 from app.models.anomaly import Anomaly
 from app.models.entity import Country, Entity, EntityAlias, EntityType, Keyword
 from app.models.mention import Mention
+from app.models.summary import DailySummary
 from app.models.user import User
 
 router = APIRouter(prefix="/entities", tags=["Entidades"])
@@ -301,4 +302,86 @@ def get_entity_anomalies(
             }
             for a in anomalies
         ],
+    }
+
+
+# ── Resúmenes diarios (v2) ─────────────────────────────────────
+
+@router.get("/{entity_id}/summaries")
+def get_entity_summaries(
+    entity_id: uuid.UUID,
+    limit: int = Query(7, ge=1, le=30, description="Número de resúmenes a retornar"),
+    db: Session = Depends(get_db),
+    _=Depends(get_current_user),
+):
+    """
+    Retorna los últimos N resúmenes diarios generados por IA para la entidad.
+    """
+    entity = db.query(Entity).filter(Entity.id == entity_id).first()
+    if not entity:
+        raise HTTPException(status_code=404, detail="Entidad no encontrada")
+
+    summaries = (
+        db.query(DailySummary)
+        .filter(DailySummary.entity_id == entity_id)
+        .order_by(DailySummary.summary_date.desc())
+        .limit(limit)
+        .all()
+    )
+
+    return {
+        "entity_id":   str(entity_id),
+        "entity_name": entity.name,
+        "total":       len(summaries),
+        "items": [
+            {
+                "id":            str(s.id),
+                "summary_date":  s.summary_date.isoformat(),
+                "summary_text":  s.summary_text,
+                "model_used":    s.model_used,
+                "mention_count": s.mention_count,
+                "generated_at":  s.generated_at.isoformat(),
+            }
+            for s in summaries
+        ],
+    }
+
+
+@router.post("/{entity_id}/summaries/generate", status_code=200)
+def trigger_summary(
+    entity_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    _=Depends(require_analyst),
+):
+    """
+    Genera manualmente el resumen del día para la entidad (útil para testing).
+    Requiere GROQ_API_KEY configurada.
+    """
+    from app.core.config import settings
+    if not settings.GROQ_API_KEY:
+        raise HTTPException(
+            status_code=422,
+            detail="GROQ_API_KEY no está configurada en .env",
+        )
+
+    entity = db.query(Entity).filter(Entity.id == entity_id).first()
+    if not entity:
+        raise HTTPException(status_code=404, detail="Entidad no encontrada")
+
+    from app.workers.nlp.summarizer import summarize_entity
+    result = summarize_entity(db, entity)
+    db.commit()
+
+    if not result:
+        raise HTTPException(
+            status_code=422,
+            detail="No hay suficientes menciones hoy para generar un resumen (mínimo 3).",
+        )
+
+    return {
+        "id":            str(result.id),
+        "summary_date":  result.summary_date.isoformat(),
+        "summary_text":  result.summary_text,
+        "model_used":    result.model_used,
+        "mention_count": result.mention_count,
     }

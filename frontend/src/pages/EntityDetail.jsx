@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import ReactECharts from 'echarts-for-react'
 import {
   ArrowLeft, Building2, Tag, AtSign, Plus, Trash2,
-  ToggleLeft, ToggleRight, AlertTriangle, TrendingUp,
+  ToggleLeft, ToggleRight, AlertTriangle, TrendingUp, Sparkles, RefreshCw,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -16,6 +16,7 @@ import { useAuthStore } from '../store/authStore'
 const fetchEntity    = (id) => client.get(`/entities/${id}`).then(r => r.data)
 const fetchRules     = (id) => client.get('/alerts/rules', { params: { entity_id: id } }).then(r => r.data)
 const fetchAnomalies = (id) => client.get(`/entities/${id}/anomalies`, { params: { days: 7 } }).then(r => r.data)
+const fetchSummaries = (id) => client.get(`/entities/${id}/summaries`, { params: { limit: 1 } }).then(r => r.data)
 
 // ── Constantes ────────────────────────────────────────────────
 const WEIGHT_LABEL = { 1: 'Normal', 2: 'Importante', 3: 'Crítico' }
@@ -69,7 +70,22 @@ export default function EntityDetail() {
     queryKey: ['anomalies', id],
     queryFn: () => fetchAnomalies(id),
     enabled: tab === 'overview',
-    refetchInterval: 5 * 60 * 1000,  // refrescar cada 5 min
+    refetchInterval: 5 * 60 * 1000,
+  })
+
+  const { data: summaryData, isLoading: summaryLoading } = useQuery({
+    queryKey: ['summaries', id],
+    queryFn: () => fetchSummaries(id),
+    enabled: tab === 'overview',
+  })
+
+  const triggerSummary = useMutation({
+    mutationFn: () => client.post(`/entities/${id}/summaries/generate`),
+    onSuccess: () => {
+      toast.success('Resumen generado')
+      qc.invalidateQueries({ queryKey: ['summaries', id] })
+    },
+    onError: (err) => toast.error(err?.response?.data?.detail ?? 'Error al generar resumen'),
   })
 
   // ── Mutations: keywords ──
@@ -248,6 +264,50 @@ export default function EntityDetail() {
             ) : (
               <div className="text-center text-gray-400 py-12 text-sm">
                 Sin menciones procesadas en los últimos 7 días
+              </div>
+            )}
+          </div>
+
+          {/* Widget resumen IA */}
+          <div className="card">
+            <div className="flex items-center gap-2 mb-3">
+              <Sparkles className="w-4 h-4 text-purple-500" />
+              <h2 className="text-sm font-semibold text-gray-700">Resumen del día — IA</h2>
+              {isAnalyst && (
+                <button
+                  onClick={() => triggerSummary.mutate()}
+                  disabled={triggerSummary.isPending}
+                  className="ml-auto text-xs text-purple-600 hover:text-purple-800 flex items-center gap-1"
+                >
+                  <RefreshCw className={`w-3 h-3 ${triggerSummary.isPending ? 'animate-spin' : ''}`} />
+                  {triggerSummary.isPending ? 'Generando...' : 'Generar ahora'}
+                </button>
+              )}
+            </div>
+
+            {summaryLoading ? (
+              <p className="text-sm text-gray-400">Cargando...</p>
+            ) : summaryData?.items?.length > 0 ? (
+              <div>
+                <div className="text-xs text-gray-400 mb-2">
+                  {format(new Date(summaryData.items[0].summary_date), "EEEE d 'de' MMMM", { locale: es })}
+                  &nbsp;·&nbsp;{summaryData.items[0].mention_count} menciones analizadas
+                  &nbsp;·&nbsp;
+                  <span className="italic">{summaryData.items[0].model_used}</span>
+                </div>
+                <div className="text-sm text-gray-700 whitespace-pre-line leading-relaxed bg-purple-50 rounded-lg p-3">
+                  {summaryData.items[0].summary_text}
+                </div>
+              </div>
+            ) : (
+              <div className="text-sm text-gray-400 text-center py-4">
+                <p>El resumen se genera automáticamente a las 23:50.</p>
+                {isAnalyst && (
+                  <p className="mt-1 text-xs">
+                    Puedes generarlo manualmente con el botón de arriba
+                    (requiere <code className="bg-gray-100 px-1 rounded">GROQ_API_KEY</code>).
+                  </p>
+                )}
               </div>
             )}
           </div>
