@@ -9,16 +9,17 @@
 
 ## Módulo 1 — NLP Avanzado (mejoras al pipeline existente)
 
-### 1.1 Detección de narrativas y temas (Topic Modeling)
-- [ ] Instalar `bertopic` + `sentence-transformers` en `requirements.txt`
-- [ ] Crear `backend/app/workers/nlp/topics.py` con clase `TopicDetector`
-  - Usa `BERTopic` con modelo `paraphrase-multilingual-MiniLM-L12-v2` (gratuito, local)
-  - Agrupa menciones por entidad en clústeres temáticos
-  - Guarda `topic_label` y `topic_id` en tabla `mentions`
-- [ ] Migración Alembic: agregar columnas `topic_label VARCHAR(100)`, `topic_id INT` a `mentions`
-- [ ] Tarea Celery `detect_topics` — corre cada hora sobre menciones sin topic
-- [ ] Endpoint `GET /api/v1/entities/{id}/topics` — devuelve top-10 temas con conteo
-- [ ] Componente React `TopicsCloud.jsx` — nube de temas en EntityDetail
+### 1.1 Detección de narrativas y temas (Topic Modeling) ✅ commit 4dca314
+- [x] Instalar `scikit-learn>=1.4.0` (TF-IDF+KMeans; se usa también en módulo 2.1)
+  - Nota: se descartó BERTopic/sentence-transformers para evitar añadir PyTorch (~2 GB Docker)
+- [x] Crear `backend/app/workers/nlp/topics.py`
+  - TF-IDF bilingüe (es/en) + MiniBatchKMeans con K dinámico (2–8 clusters)
+  - Stopwords 100+ términos + ruido digital; etiquetas: top-5 términos del centroide
+  - Re-etiqueta menciones de los últimos 7 días en cada ejecución
+- [x] Migración 005: columnas `topic_id INT` + `topic_label VARCHAR(120)` en mentions
+- [x] Tarea Celery `detect_topics` → cada hora
+- [x] API `GET /entities/{id}/topics` + `POST .../analyze` (trigger manual)
+- [x] Nube de temas en `EntityDetail.jsx` — píldoras de tamaño proporcional al conteo
 
 ### 1.2 Extracción de entidades nombradas (NER)
 - [ ] Crear `backend/app/workers/nlp/ner.py` con clase `EntityExtractor`
