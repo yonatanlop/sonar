@@ -30,14 +30,14 @@
 - [ ] Endpoint `GET /api/v1/entities/{id}/related-entities` — co-ocurrencias más frecuentes
 - [ ] Componente React `RelatedEntities.jsx` — grafo de co-menciones en EntityDetail
 
-### 1.3 Clasificación automática de urgencia
-- [ ] Crear `backend/app/workers/nlp/urgency.py`
+### 1.3 Clasificación automática de urgencia ✅ commit e262292
+- [x] Crear `backend/app/workers/nlp/urgency.py`
   - Combina: sentimiento negativo + hate speech + reach alto → score 0-100
   - Usa reglas + pesos (no requiere modelo extra)
   - Guarda `urgency_score FLOAT` en `mentions`
-- [ ] Migración Alembic: columna `urgency_score FLOAT DEFAULT 0` en `mentions`
-- [ ] Filtro en `GET /api/v1/mentions?min_urgency=70` — para vista prioritaria
-- [ ] Badge de urgencia en `Mentions.jsx` (rojo/naranja/verde según score)
+- [x] Migración Alembic: columna `urgency_score NUMERIC(5,1)` + índice en `mentions`
+- [x] Filtro en `GET /api/v1/mentions?min_urgency=70` — para vista prioritaria
+- [x] Badge de urgencia en `Mentions.jsx` (Crítico/Urgente/Atención + filtro)
 
 ---
 
