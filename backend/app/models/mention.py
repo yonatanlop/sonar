@@ -56,6 +56,8 @@ class Mention(Base):
     topic_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     topic_label: Mapped[str | None] = mapped_column(String(120), nullable=True)
     processed: Mapped[bool] = mapped_column(Boolean, default=False)
+    # v2 módulo 6.2: deduplicación inteligente por coseno de embeddings
+    is_duplicate: Mapped[bool] = mapped_column(Boolean, default=False)
     # v2 módulo 6.1: embedding semántico 384 dims (pgvector)
     embedding: Mapped[None] = mapped_column(
         __import__("pgvector.sqlalchemy", fromlist=["Vector"]).Vector(384),

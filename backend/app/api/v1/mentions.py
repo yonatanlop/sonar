@@ -54,6 +54,7 @@ def _mention_dict(m: Mention, db: Session) -> dict:
         "reach":           m.reach,
         "urgency_score":   float(m.urgency_score) if m.urgency_score is not None else 0.0,
         "is_bot":          is_bot,
+        "is_duplicate":    m.is_duplicate,
     }
 
 
@@ -63,11 +64,12 @@ def list_mentions(
     platform:   Optional[str]       = Query(None),
     sentiment:  Optional[str]       = Query(None),
     language:   Optional[str]       = Query(None),
-    hate_only:    bool                = Query(False),
-    min_urgency:  Optional[float]    = Query(None, ge=0, le=100, description="Filtrar menciones con urgency_score >= valor (0-100)"),
-    date_from:    Optional[str]      = Query(None),
-    date_to:      Optional[str]      = Query(None),
-    page:         int                = Query(1, ge=1),
+    hate_only:         bool             = Query(False),
+    min_urgency:       Optional[float]  = Query(None, ge=0, le=100, description="Filtrar menciones con urgency_score >= valor (0-100)"),
+    exclude_duplicates: bool            = Query(False, description="Excluir menciones marcadas como duplicados semánticos"),
+    date_from:         Optional[str]   = Query(None),
+    date_to:           Optional[str]   = Query(None),
+    page:              int             = Query(1, ge=1),
     db: Session = Depends(get_db),
     _=Depends(get_current_user),
 ):
@@ -89,6 +91,9 @@ def list_mentions(
 
     if hate_only:
         query = query.filter(Mention.is_hate_speech == True)
+
+    if exclude_duplicates:
+        query = query.filter(Mention.is_duplicate == False)
 
     if min_urgency is not None:
         query = query.filter(Mention.urgency_score >= min_urgency)

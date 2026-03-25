@@ -26,6 +26,50 @@ from app.workers.nlp.hate_speech import analyze_hate_speech
 from app.workers.nlp.urgency import compute_urgency_score
 from app.models.mention import Mention
 
+_COSINE_THRESHOLD = 0.92   # similitud mínima para considerarlo duplicado
+
+
+def _is_near_duplicate(mention: Mention, limit: int = 1000) -> bool:
+    """
+    Compara el embedding de la mención contra las últimas `limit` menciones
+    con embedding de la misma entidad, excluyendo ella misma.
+    Devuelve True si hay otra mención con similitud coseno >= 0.92.
+    Requiere que la mención tenga embedding y que pgvector esté disponible.
+    """
+    try:
+        from pgvector.sqlalchemy import cosine_distance
+        from sqlalchemy import inspect
+        # Necesitamos la sesión — se obtiene a través del objeto instanciado
+        session = inspect(mention).session
+        if session is None:
+            return False
+
+        candidate = (
+            session.query(Mention)
+            .filter(
+                Mention.entity_id == mention.entity_id,
+                Mention.id != mention.id,
+                Mention.embedding.isnot(None),
+                Mention.is_duplicate == False,
+            )
+            .order_by(cosine_distance(Mention.embedding, mention.embedding))
+            .first()
+        )
+        if candidate is None:
+            return False
+
+        # cosine_distance devuelve 0 = idéntico, 2 = opuesto
+        # similitud coseno = 1 - distancia
+        dist = session.query(
+            cosine_distance(Mention.embedding, mention.embedding)
+        ).filter(Mention.id == candidate.id).scalar()
+
+        return dist is not None and (1.0 - float(dist)) >= _COSINE_THRESHOLD
+
+    except Exception as exc:
+        logger.debug(f"Dedup check omitido para {mention.id}: {exc}")
+        return False
+
 logger = logging.getLogger(__name__)
 
 BATCH_SIZE = 20   # menciones por lote
@@ -71,7 +115,11 @@ def process_mention(mention: Mention) -> bool:
             reach=mention.reach or 0,
         )
 
-        # ── 5. Marcar como procesado ─────────────────────────
+        # ── 5. Deduplicación por embedding (si ya tiene embedding) ──
+        if mention.embedding is not None:
+            mention.is_duplicate = _is_near_duplicate(mention)
+
+        # ── 6. Marcar como procesado ─────────────────────────
         mention.processed = True
         return True
 
