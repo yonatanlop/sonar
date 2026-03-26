@@ -16,7 +16,7 @@ export default function Entities() {
   const isAnalyst = useAuthStore(s => s.isAnalyst())
   const [search, setSearch]     = useState('')
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm]         = useState({ name: '', entity_type_id: '', country_code: '', description: '' })
+  const [form, setForm]         = useState({ name: '', entity_type_id: '', country_code: '', description: '', photo_url: '' })
 
   const { data: entities = [], isLoading } = useQuery({
     queryKey: ['entities', search],
@@ -30,7 +30,7 @@ export default function Entities() {
       toast.success('Entidad creada')
       qc.invalidateQueries({ queryKey: ['entities'] })
       setShowForm(false)
-      setForm({ name: '', entity_type_id: '', country_code: '', description: '' })
+      setForm({ name: '', entity_type_id: '', country_code: '', description: '', photo_url: '' })
     },
   })
 
@@ -81,6 +81,11 @@ export default function Entities() {
               <input className="input" placeholder="Descripción breve"
                 value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
             </div>
+            <div className="sm:col-span-2">
+              <label className="label">URL de foto <span className="text-gray-400 font-normal">(opcional)</span></label>
+              <input className="input" placeholder="https://ejemplo.com/foto.jpg"
+                value={form.photo_url} onChange={e => setForm(f => ({ ...f, photo_url: e.target.value }))} />
+            </div>
           </div>
           <div className="flex gap-2 mt-4">
             <button onClick={() => create.mutate(form)} disabled={create.isPending || !form.name || !form.entity_type_id}
@@ -108,8 +113,10 @@ export default function Entities() {
             <div key={entity.id} className={`card hover:shadow-md transition-shadow ${!entity.active ? 'opacity-60' : ''}`}>
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center shrink-0">
-                    <Building2 className="w-5 h-5 text-primary-600" />
+                  <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center shrink-0 overflow-hidden">
+                    {entity.photo_url
+                      ? <img src={entity.photo_url} alt={entity.name} className="w-10 h-10 rounded-full object-cover" />
+                      : <Building2 className="w-5 h-5 text-primary-600" />}
                   </div>
                   <div className="min-w-0">
                     <p className="font-semibold text-gray-900 truncate">{entity.name}</p>

@@ -1,0 +1,1278 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SONAR v2 — Propuesta de Inteligencia Artificial para IDMJI y Partido MIRA</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --primary:    #7c3aed;
+    --primary-d:  #4c1d95;
+    --primary-l:  #f5f3ff;
+    --accent:     #a855f7;
+    --accent2:    #0ea5e9;
+    --gray-50:    #f8fafc;
+    --gray-100:   #f1f5f9;
+    --gray-200:   #e2e8f0;
+    --gray-400:   #94a3b8;
+    --gray-600:   #475569;
+    --gray-800:   #1e293b;
+    --red:        #dc2626;
+    --orange:     #ea580c;
+    --green:      #16a34a;
+  }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    color: var(--gray-800);
+    background: #fff;
+    line-height: 1.6;
+  }
+
+  /* ── PORTADA ── */
+  .cover {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #0f172a 0%, #4c1d95 45%, #7c3aed 75%, #a855f7 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 60px 40px;
+    page-break-after: always;
+    position: relative;
+    overflow: hidden;
+  }
+  .cover::before {
+    content: '';
+    position: absolute;
+    width: 700px; height: 700px;
+    border-radius: 50%;
+    background: rgba(168,85,247,0.08);
+    top: -250px; right: -200px;
+  }
+  .cover::after {
+    content: '';
+    position: absolute;
+    width: 500px; height: 500px;
+    border-radius: 50%;
+    background: rgba(124,58,237,0.1);
+    bottom: -200px; left: -150px;
+  }
+  .cover-logo {
+    width: 90px; height: 90px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 22px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 40px;
+    margin: 0 auto 24px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.25);
+  }
+  .cover-v2-badge {
+    display: inline-block;
+    background: rgba(168,85,247,0.4);
+    border: 1px solid rgba(168,85,247,0.7);
+    border-radius: 20px;
+    padding: 5px 18px;
+    font-size: 13px; font-weight: 700;
+    letter-spacing: 2px;
+    color: #e9d5ff;
+    margin-bottom: 16px;
+  }
+  .cover h1 {
+    font-size: 72px;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: -2px;
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+  .cover-tagline {
+    font-size: 20px;
+    color: rgba(255,255,255,0.8);
+    font-weight: 300;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 32px;
+  }
+  .cover-divider {
+    width: 60px; height: 3px;
+    background: rgba(168,85,247,0.7);
+    margin: 0 auto 32px;
+    border-radius: 2px;
+  }
+  .cover-desc {
+    font-size: 17px;
+    color: rgba(255,255,255,0.88);
+    max-width: 580px;
+    line-height: 1.75;
+    margin-bottom: 48px;
+  }
+  .cover-tag-row {
+    display: flex; flex-wrap: wrap; gap: 10px;
+    justify-content: center; margin-bottom: 48px;
+  }
+  .cover-tag {
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: #fff;
+    border-radius: 20px;
+    padding: 5px 14px;
+    font-size: 12.5px; font-weight: 500;
+  }
+  .cover-meta {
+    font-size: 13px;
+    color: rgba(255,255,255,0.5);
+    position: absolute;
+    bottom: 40px;
+  }
+
+  /* ── PÁGINAS ── */
+  .page {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 60px 50px;
+    page-break-after: always;
+  }
+  .page:last-child { page-break-after: auto; }
+
+  /* ── SECCIÓN HEADER ── */
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 36px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid var(--gray-100);
+  }
+  .section-icon {
+    width: 48px; height: 48px;
+    border-radius: 12px;
+    background: var(--primary-l);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+  }
+  .section-title { font-size: 26px; font-weight: 700; color: var(--primary-d); }
+  .section-sub   { font-size: 14px; color: var(--gray-400); margin-top: 2px; }
+
+  /* ── CARDS ── */
+  .card-grid   { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 28px; }
+  .card-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .card {
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-radius: 12px;
+    padding: 20px;
+  }
+  .card-icon { font-size: 28px; margin-bottom: 10px; }
+  .card h3 { font-size: 15px; font-weight: 600; margin-bottom: 6px; color: var(--gray-800); }
+  .card p  { font-size: 13px; color: var(--gray-600); line-height: 1.55; }
+
+  /* ── MÓDULO CARD (v2) ── */
+  .module-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 28px; }
+  .module-card {
+    border-radius: 12px;
+    padding: 18px;
+    border: 1px solid;
+    position: relative;
+    overflow: hidden;
+  }
+  .module-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+  .module-card.ai    { background: #faf5ff; border-color: #e9d5ff; }
+  .module-card.ai::before    { background: linear-gradient(90deg,#7c3aed,#a855f7); }
+  .module-card.alert { background: #fff7ed; border-color: #fed7aa; }
+  .module-card.alert::before { background: linear-gradient(90deg,#ea580c,#f97316); }
+  .module-card.data  { background: #eff6ff; border-color: #bfdbfe; }
+  .module-card.data::before  { background: linear-gradient(90deg,#2563eb,#0ea5e9); }
+  .module-card.green { background: #f0fdf4; border-color: #bbf7d0; }
+  .module-card.green::before { background: linear-gradient(90deg,#16a34a,#22c55e); }
+
+  .module-num  { font-size: 10px; font-weight: 700; letter-spacing: 1px; color: var(--gray-400); margin-bottom: 6px; }
+  .module-icon { font-size: 26px; margin-bottom: 8px; }
+  .module-title { font-size: 13.5px; font-weight: 700; color: var(--gray-800); margin-bottom: 6px; }
+  .module-desc  { font-size: 12px; color: var(--gray-600); line-height: 1.5; }
+  .module-tag   {
+    display: inline-block; font-size: 10px; font-weight: 600;
+    padding: 2px 8px; border-radius: 10px; margin-top: 8px;
+  }
+
+  /* ── HIGHLIGHT BOX ── */
+  .highlight-box {
+    background: linear-gradient(135deg, var(--primary-d), var(--primary));
+    border-radius: 12px;
+    padding: 24px;
+    color: #fff;
+    margin-bottom: 24px;
+  }
+  .highlight-box h3 { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+  .highlight-box p  { font-size: 14px; opacity: 0.9; line-height: 1.6; }
+
+  .highlight-box.dark {
+    background: linear-gradient(135deg, #0f172a, #1e3a5f);
+  }
+
+  /* ── TABLA ── */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 24px; }
+  th { background: var(--primary-d); color: #fff; padding: 10px 14px; text-align: left; font-weight: 600; }
+  td { padding: 10px 14px; border-bottom: 1px solid var(--gray-200); color: var(--gray-600); }
+  tr:last-child td { border-bottom: none; }
+  tr:nth-child(even) td { background: var(--gray-50); }
+
+  /* ── BADGE ── */
+  .badge {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 600;
+  }
+  .badge-new    { background: #f5f3ff; color: #7c3aed; }
+  .badge-done   { background: #dcfce7; color: #16a34a; }
+  .badge-plan   { background: #fef9c3; color: #ca8a04; }
+  .badge-future { background: #f1f5f9; color: #64748b; }
+
+  /* ── CHECK LIST ── */
+  .check-list { list-style: none; }
+  .check-list li { padding: 5px 0; font-size: 13.5px; color: var(--gray-600); display: flex; gap: 10px; }
+  .check-list li::before { content: '✓'; color: var(--green); font-weight: 700; flex-shrink: 0; }
+
+  /* ── FLOW ── */
+  .flow {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin: 24px 0;
+    overflow: hidden;
+    border-radius: 10px;
+  }
+  .flow-step {
+    flex: 1;
+    padding: 16px 10px;
+    text-align: center;
+    position: relative;
+  }
+  .flow-step:nth-child(odd)  { background: var(--primary); color: #fff; }
+  .flow-step:nth-child(even) { background: var(--primary-d); color: #fff; }
+  .flow-step-icon { font-size: 22px; margin-bottom: 6px; }
+  .flow-step-lbl  { font-size: 11px; font-weight: 600; }
+
+  /* ── SCREEN MOCKUP ── */
+  .screen {
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 24px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+  }
+  .screen-bar {
+    background: var(--primary-d);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .screen-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .screen-url {
+    flex: 1;
+    background: rgba(255,255,255,0.12);
+    border-radius: 5px;
+    padding: 4px 12px;
+    font-size: 11px;
+    color: rgba(255,255,255,0.7);
+    font-family: monospace;
+  }
+  .screen-body { padding: 24px; }
+  .ui-topbar {
+    background: var(--primary-d);
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    border-radius: 8px 8px 0 0;
+    margin: -24px -24px 20px;
+  }
+  .ui-logo { font-size: 14px; font-weight: 700; color: #fff; }
+  .ui-nav  { font-size: 12px; color: rgba(255,255,255,0.6); display: flex; gap: 16px; margin-left: auto; }
+  .ui-nav span { color: rgba(255,255,255,0.9); }
+
+  /* STAT ROW */
+  .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+  .stat-box {
+    background: #fff;
+    border: 1px solid var(--gray-200);
+    border-radius: 8px;
+    padding: 14px;
+  }
+  .stat-num  { font-size: 22px; font-weight: 700; color: var(--primary); }
+  .stat-lbl  { font-size: 11px; color: var(--gray-400); margin-top: 2px; }
+
+  /* MENTION / ALERT ITEMS */
+  .mention-item {
+    background: #fff;
+    border: 1px solid var(--gray-200);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 8px;
+    display: flex;
+    gap: 12px;
+  }
+  .platform-badge {
+    width: 32px; height: 32px;
+    background: var(--primary-l);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; flex-shrink: 0;
+  }
+  .mention-text { font-size: 12px; color: var(--gray-600); margin-top: 3px; }
+  .badge-neg  { background: #fee2e2; color: #dc2626; }
+  .badge-pos  { background: #dcfce7; color: #16a34a; }
+  .badge-neu  { background: #f1f5f9; color: #64748b; }
+
+  /* COMPARATIVA V1 vs V2 */
+  .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0; }
+  .compare-box { border-radius: 12px; padding: 20px; }
+  .compare-box.v1 { background: #f8fafc; border: 1px solid #e2e8f0; }
+  .compare-box.v2 { background: #f5f3ff; border: 1px solid #ede9fe; }
+  .compare-title { font-size: 14px; font-weight: 700; margin-bottom: 12px; }
+  .compare-box.v1 .compare-title { color: #475569; }
+  .compare-box.v2 .compare-title { color: #7c3aed; }
+  .compare-list { list-style: none; font-size: 12.5px; }
+  .compare-list li { padding: 4px 0; color: var(--gray-600); }
+  .compare-list.v1-list li::before { content: '→ '; color: #94a3b8; }
+  .compare-list.v2-list li::before { content: '✨ '; }
+
+  /* TAGS */
+  .tag-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+  .tag {
+    background: var(--primary-l);
+    color: var(--primary);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  /* NÚMERO GRANDE */
+  .big-number {
+    font-size: 48px; font-weight: 800;
+    color: var(--primary);
+    line-height: 1;
+  }
+
+  /* PRINT */
+  @media print {
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .cover { min-height: 100vh; }
+    .page  { padding: 40px; }
+  }
+</style>
+</head>
+<body>
+
+
+<!-- ══════════════════════════════════════════════
+     PORTADA
+════════════════════════════════════════════════ -->
+<div class="cover">
+  <div class="cover-logo">🧠</div>
+  <div class="cover-v2-badge">VERSIÓN 2.0 — INTELIGENCIA ARTIFICIAL</div>
+  <h1>SONAR</h1>
+  <p class="cover-tagline">Sistema de Observación y Navegación en Ambientes de Redes</p>
+  <div class="cover-divider"></div>
+  <p class="cover-desc">
+    Propuesta de mejoras con <strong style="color:#e9d5ff;">Inteligencia Artificial</strong> para el
+    monitoreo de la <strong style="color:#fff;">Iglesia de Dios Ministerial de Jesucristo Internacional</strong>,
+    el partido <strong style="color:#fff;">MIRA</strong>, sus senadores y la
+    <strong style="color:#fff;">Hna. María Luisa Piraquive de Moreno</strong>.
+    12 módulos IA sobre la base ya construida en v1, con costo total de $0.
+  </p>
+  <div class="cover-tag-row">
+    <span class="cover-tag">🤖 LLM Llama 3.1 (Groq)</span>
+    <span class="cover-tag">🧬 Embeddings semánticos</span>
+    <span class="cover-tag">📈 Predicción de tendencias</span>
+    <span class="cover-tag">🕵️ Detección de bots ML</span>
+    <span class="cover-tag">🔍 Búsqueda semántica</span>
+    <span class="cover-tag">💬 Resúmenes IA diarios</span>
+    <span class="cover-tag">100% Gratuito</span>
+  </div>
+  <p class="cover-meta">Versión 2.0 · Marzo 2026 · Documento Confidencial</p>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     RESUMEN EJECUTIVO v2
+════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="section-header">
+    <div class="section-icon">📋</div>
+    <div>
+      <div class="section-title">Resumen Ejecutivo — SONAR v2</div>
+      <div class="section-sub">De la detección de menciones a la inteligencia reputacional proactiva</div>
+    </div>
+  </div>
+
+  <div class="highlight-box">
+    <h3>¿Qué agrega la versión 2?</h3>
+    <p>
+      SONAR v1 ya monitorea menciones, analiza sentimiento y genera alertas automáticas.
+      La versión 2 incorpora <strong>12 módulos de Inteligencia Artificial</strong> que transforman
+      el sistema de un monitor pasivo a un asistente de inteligencia reputacional activo:
+      resume automáticamente lo que está ocurriendo, predice cuándo vendrá el siguiente pico,
+      explica el contexto geopolítico de las anomalías y sugiere acciones preventivas —
+      todo con modelos gratuitos y sin necesidad de servidores adicionales.
+    </p>
+  </div>
+
+  <div class="compare-grid">
+    <div class="compare-box v1">
+      <div class="compare-title">📦 SONAR v1 — Lo que ya tenemos</div>
+      <ul class="compare-list v1-list">
+        <li>Scraping Reddit, YouTube, RSS, Twitter/X</li>
+        <li>Sentimiento: positivo / negativo / neutral</li>
+        <li>Detección de discurso de odio</li>
+        <li>Score de urgencia (0-100)</li>
+        <li>Alertas por volumen, negatividad, bots, campaña</li>
+        <li>Dashboard con gráficas de 14 días</li>
+        <li>Reportes PDF por entidad</li>
+        <li>Sistema de usuarios y roles</li>
+      </ul>
+    </div>
+    <div class="compare-box v2">
+      <div class="compare-title">✨ SONAR v2 — Lo que se agrega</div>
+      <ul class="compare-list v2-list">
+        <li>Resumen diario IA con Llama 3.1 (Groq)</li>
+        <li>Narrativa ejecutiva automática en PDFs</li>
+        <li>Detección de temas y narrativas (topics)</li>
+        <li>Extracción de entidades nombradas (NER)</li>
+        <li>Predicción de tendencias a 7 días (Holt-Winters)</li>
+        <li>Detección de anomalías con Z-score + contexto IA</li>
+        <li>Clasificador de bots con Machine Learning</li>
+        <li>Búsqueda semántica por similitud de contenido</li>
+        <li>Deduplicación inteligente de menciones</li>
+        <li>Sugerencia automática de palabras clave</li>
+        <li>Agente de investigación de contexto (RSS + LLM)</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card-grid card-grid-3" style="margin-top:8px;">
+    <div class="card" style="text-align:center;">
+      <div class="big-number">12</div>
+      <h3 style="text-align:center;margin-top:8px;">Módulos IA nuevos</h3>
+      <p style="text-align:center;">Implementados sobre la base de v1 sin romper ninguna funcionalidad existente</p>
+    </div>
+    <div class="card" style="text-align:center;">
+      <div class="big-number" style="color:#16a34a;">$0</div>
+      <h3 style="text-align:center;margin-top:8px;">Costo adicional</h3>
+      <p style="text-align:center;">Groq (LLM gratuito), HuggingFace (NLP gratuito), scikit-learn (local)</p>
+    </div>
+    <div class="card" style="text-align:center;">
+      <div class="big-number" style="color:#0ea5e9;">24/7</div>
+      <h3 style="text-align:center;margin-top:8px;">Inteligencia activa</h3>
+      <p style="text-align:center;">Los agentes IA trabajan de forma autónoma mientras el equipo descansa</p>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     LOS 12 MÓDULOS IA
+════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="section-header">
+    <div class="section-icon">🧠</div>
+    <div>
+      <div class="section-title">Los 12 Módulos de IA</div>
+      <div class="section-sub">Descripción, valor y tecnología de cada mejora</div>
+    </div>
+  </div>
+
+  <!-- Módulo 1 -->
+  <h3 style="font-size:15px;font-weight:700;color:var(--primary-d);margin:0 0 14px;border-left:4px solid var(--primary);padding-left:10px;">
+    Módulo 1 — NLP Avanzado
+  </h3>
+  <div class="module-grid" style="margin-bottom:24px;">
+    <div class="module-card ai">
+      <div class="module-num">MÓD 1.1</div>
+      <div class="module-icon">🗂️</div>
+      <div class="module-title">Detección de Temas y Narrativas</div>
+      <div class="module-desc">
+        Agrupa automáticamente las menciones en clústeres temáticos usando TF-IDF + KMeans.
+        Etiqueta cada clúster con los 5 términos más representativos.
+        <br><br>
+        <strong>Valor para IDMJI/MIRA:</strong> identificar si las menciones se concentran en
+        "libertad religiosa", "gestión legislativa", "actividad espiritual" o "críticas" —
+        sin leer cada publicación individualmente.
+      </div>
+      <span class="module-tag" style="background:#f5f3ff;color:#7c3aed;">scikit-learn · TF-IDF · KMeans</span>
+    </div>
+    <div class="module-card ai">
+      <div class="module-num">MÓD 1.2</div>
+      <div class="module-icon">🔤</div>
+      <div class="module-title">Extracción de Entidades (NER)</div>
+      <div class="module-desc">
+        Identifica automáticamente personas (PER), organizaciones (ORG) y lugares (LOC)
+        mencionados en las publicaciones usando spaCy en español.
+        <br><br>
+        <strong>Valor para IDMJI/MIRA:</strong> detectar qué otros políticos, medios o
+        instituciones co-aparecen con los senadores del MIRA, revelando alianzas y tensiones.
+      </div>
+      <span class="module-tag" style="background:#f5f3ff;color:#7c3aed;">spaCy · es_core_news_sm · PER/ORG/LOC</span>
+    </div>
+    <div class="module-card ai">
+      <div class="module-num">MÓD 1.3</div>
+      <div class="module-icon">🚨</div>
+      <div class="module-title">Score de Urgencia Inteligente</div>
+      <div class="module-desc">
+        Combina sentimiento negativo + hate speech + alcance (reach) en un score 0-100
+        para priorizar automáticamente qué menciones necesitan atención inmediata.
+        <br><br>
+        <strong>Valor:</strong> el equipo ve primero las publicaciones de mayor riesgo,
+        no simplemente las más recientes.
+      </div>
+      <span class="module-tag" style="background:#fff7ed;color:#ea580c;">Motor de reglas · Score compuesto</span>
+    </div>
+  </div>
+
+  <!-- Módulo 2 -->
+  <h3 style="font-size:15px;font-weight:700;color:var(--primary-d);margin:0 0 14px;border-left:4px solid var(--primary);padding-left:10px;">
+    Módulo 2 — Detección de Bots Mejorada
+  </h3>
+  <div class="module-grid" style="margin-bottom:24px;">
+    <div class="module-card data">
+      <div class="module-num">MÓD 2.1</div>
+      <div class="module-icon">🤖</div>
+      <div class="module-title">Clasificador de Bots con ML</div>
+      <div class="module-desc">
+        Modelo GradientBoosting entrenado con 8 características de comportamiento de la cuenta:
+        ratio de seguidores/seguidos, posts por día, tiene foto, tiene bio, edad de la cuenta, etc.
+        Corre cada 6 horas.
+        <br><br>
+        <strong>Valor para IDMJI/MIRA:</strong> distinguir si una ola de críticas proviene de
+        personas reales o de cuentas automatizadas coordinadas.
+      </div>
+      <span class="module-tag" style="background:#eff6ff;color:#2563eb;">GradientBoosting · scikit-learn · 8 features</span>
+    </div>
+    <div class="module-card data" style="grid-column: span 2;">
+      <div class="module-num">MÓD 2.1 — Visualización en Dashboard</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:10px;">
+        <div>
+          <div class="module-icon">📊</div>
+          <div class="module-title">Gráfica donut por plataforma</div>
+          <div class="module-desc">El dashboard mostrará el porcentaje de bots detectados por plataforma (Reddit, Twitter/X, YouTube) para identificar qué red concentra la actividad automatizada.</div>
+        </div>
+        <div>
+          <div class="module-icon">🔔</div>
+          <div class="module-title">Alerta bot_activity</div>
+          <div class="module-desc">Si 5 o más bots mencionan a la misma entidad en 30 minutos, se dispara una alerta de tipo <em>bot_activity</em> con severidad configurable.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Módulo 3 -->
+  <h3 style="font-size:15px;font-weight:700;color:var(--primary-d);margin:0 0 14px;border-left:4px solid var(--primary);padding-left:10px;">
+    Módulo 3 — Resúmenes Automáticos con LLM (Groq / Llama 3.1)
+  </h3>
+  <div class="module-grid">
+    <div class="module-card green">
+      <div class="module-num">MÓD 3.1</div>
+      <div class="module-icon">📝</div>
+      <div class="module-title">Resumen Diario IA</div>
+      <div class="module-desc">
+        Cada noche a las 23:50 el sistema genera automáticamente un párrafo ejecutivo por
+        entidad con: temas principales del día, tono general, punto de atención y tendencia.
+        Usa Llama 3.1 vía Groq (gratuito, 14,400 tokens/min).
+        <br><br>
+        <strong>Ejemplo de salida:</strong><br>
+        <em>"Hoy la IDMJI recibió 312 menciones. El 68% fue positivo, centrado en la transmisión
+        de la Hna. María Luisa. Se detectó un foco de críticas (11%) en Twitter relacionado con
+        el proyecto de ley de libertad religiosa del MIRA..."</em>
+      </div>
+      <span class="module-tag" style="background:#f0fdf4;color:#16a34a;">Groq API · Llama 3.1-8B · Diario 23:50</span>
+    </div>
+    <div class="module-card green">
+      <div class="module-num">MÓD 3.2</div>
+      <div class="module-icon">📄</div>
+      <div class="module-title">Narrativa IA en Reportes PDF</div>
+      <div class="module-desc">
+        Al generar un reporte PDF, el sistema llama automáticamente a Groq para redactar
+        un párrafo introductorio ejecutivo personalizado con el contexto del período analizado.
+        <br><br>
+        El reporte incluye una sección destacada <em>"Análisis Ejecutivo IA"</em> con el
+        modelo utilizado y temperatura de generación, diferenciando claramente el contenido
+        generado por IA del análisis estadístico.
+      </div>
+      <span class="module-tag" style="background:#f0fdf4;color:#16a34a;">Groq API · WeasyPrint PDF · Jinja2</span>
+    </div>
+    <div class="module-card green">
+      <div class="module-num">GRATUITO</div>
+      <div class="module-icon">💸</div>
+      <div class="module-title">¿Por qué Groq es gratis?</div>
+      <div class="module-desc">
+        Groq ofrece acceso gratuito a Llama 3.1 con un límite de
+        <strong>14,400 tokens por minuto</strong>. El sistema usa llamadas cortas y eficientes
+        (máx. 500 tokens por resumen), permitiendo procesar decenas de entidades diariamente
+        sin costo alguno.
+        <br><br>
+        Registro gratuito en <strong>console.groq.com</strong>.
+      </div>
+      <span class="module-tag" style="background:#f0fdf4;color:#16a34a;">14,400 tok/min · Sin tarjeta · Registro web</span>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     MÓDULOS 4, 5 Y 6
+════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="section-header">
+    <div class="section-icon">📈</div>
+    <div>
+      <div class="section-title">Módulos 4, 5 y 6 — Predicción, Agentes y UX</div>
+      <div class="section-sub">Inteligencia proactiva, automatización y experiencia avanzada</div>
+    </div>
+  </div>
+
+  <!-- Módulo 4 -->
+  <h3 style="font-size:15px;font-weight:700;color:var(--primary-d);margin:0 0 14px;border-left:4px solid var(--primary);padding-left:10px;">
+    Módulo 4 — Detección de Tendencias y Anomalías
+  </h3>
+  <div class="module-grid" style="margin-bottom:24px;">
+    <div class="module-card alert">
+      <div class="module-num">MÓD 4.1</div>
+      <div class="module-icon">📉</div>
+      <div class="module-title">Detección de Picos Anómalos</div>
+      <div class="module-desc">
+        Aplica Z-score sobre una ventana de 7 días de volumen de menciones y porcentaje negativo.
+        Si Z-score ≥ 2.5, se genera automáticamente una anomalía y una alerta de sistema.
+        <br><br>
+        <strong>Para IDMJI/MIRA:</strong> detectar cuando una noticia o evento dispara una
+        conversación inusualmente alta antes de que se vuelva tendencia nacional.
+      </div>
+      <span class="module-tag" style="background:#fff7ed;color:#ea580c;">Z-score · Alertas automáticas · Cada 30 min</span>
+    </div>
+    <div class="module-card alert">
+      <div class="module-num">MÓD 4.2</div>
+      <div class="module-icon">🔮</div>
+      <div class="module-title">Predicción de Tendencia (7 días)</div>
+      <div class="module-desc">
+        Usa suavizado exponencial de Holt-Winters (statsmodels) con amortiguamiento para
+        predecir el volumen de menciones de los próximos 7 días por entidad.
+        Incluye bandas de confianza del 95%.
+        <br><br>
+        <strong>Para IDMJI/MIRA:</strong> anticipar períodos de alta exposición antes de
+        eventos como debates legislativos, fechas religiosas o aniversarios institucionales.
+      </div>
+      <span class="module-tag" style="background:#fff7ed;color:#ea580c;">Holt-Winters · statsmodels · CI 95%</span>
+    </div>
+    <div class="module-card alert">
+      <div class="module-num">MÓD 4.2 — VISTA</div>
+      <div class="module-icon">📊</div>
+      <div class="module-title">Gráfico combinado en EntityDetail</div>
+      <div class="module-desc">
+        El detalle de cada entidad muestra un gráfico de 3 capas:
+        <br>• Línea sólida azul: histórico de menciones (14 días)
+        <br>• Línea punteada naranja: pronóstico (7 días futuros)
+        <br>• Banda semitransparente: intervalo de confianza 95%
+        <br><br>
+        Generado con Apache ECharts, interactivo y exportable.
+      </div>
+      <span class="module-tag" style="background:#fff7ed;color:#ea580c;">Apache ECharts · React · Interactivo</span>
+    </div>
+  </div>
+
+  <!-- Módulo 5 -->
+  <h3 style="font-size:15px;font-weight:700;color:var(--primary-d);margin:0 0 14px;border-left:4px solid var(--primary);padding-left:10px;">
+    Módulo 5 — Agentes Autónomos de Monitoreo
+  </h3>
+  <div class="module-grid" style="margin-bottom:24px;">
+    <div class="module-card ai">
+      <div class="module-num">MÓD 5.1</div>
+      <div class="module-icon">🕵️</div>
+      <div class="module-title">Agente de Contexto (Groq + RSS)</div>
+      <div class="module-desc">
+        Cuando se detecta una anomalía, el agente descarga automáticamente titulares de fuentes
+        RSS nacionales e internacionales, filtra los relevantes a la entidad afectada y pregunta
+        a Groq: <em>"¿Por qué está elevado el volumen de la IDMJI? Contexto: [titulares]"</em>
+        <br><br>
+        La respuesta se muestra como un panel expandible <em>"¿Por qué ocurrió esto?"</em>
+        en la tarjeta de alerta, con el razonamiento del modelo.
+      </div>
+      <span class="module-tag" style="background:#f5f3ff;color:#7c3aed;">Groq · feedparser · RSS · Agente autónomo</span>
+    </div>
+    <div class="module-card ai">
+      <div class="module-num">MÓD 5.2</div>
+      <div class="module-icon">💡</div>
+      <div class="module-title">Sugerencia Automática de Keywords</div>
+      <div class="module-desc">
+        Analiza las menciones de los últimos 30 días de cada entidad con TF-IDF bigrama
+        y sugiere automáticamente nuevas palabras clave que aparecen frecuentemente pero
+        no están configuradas todavía.
+        <br><br>
+        <strong>Para senadores MIRA:</strong> si el modelo detecta que "proyecto 234" aparece
+        mucho en menciones de Carlos Guevara, lo sugiere como keyword con su relevancia (0-100%).
+        Un clic la agrega al sistema.
+      </div>
+      <span class="module-tag" style="background:#f5f3ff;color:#7c3aed;">TF-IDF · scikit-learn · Bigrama · Un clic</span>
+    </div>
+    <div class="module-card ai">
+      <div class="module-num">MÓD 5 — VISTA</div>
+      <div class="module-icon">🖥️</div>
+      <div class="module-title">Nuevos paneles en Detalle de Entidad</div>
+      <div class="module-desc">
+        El panel de cada entidad incluye ahora:
+        <br>• <strong>Banner ámbar</strong> con sugerencias de keywords (+ agregar en 1 clic)
+        <br>• <strong>Panel "¿Por qué?" (violeta)</strong> expandible en alertas de anomalía
+        <br>• Resumen diario IA con fondo violeta claro y badge "Generado con IA"
+        <br>• Co-menciones NER: píldoras por PER / ORG / LOC
+      </div>
+      <span class="module-tag" style="background:#f5f3ff;color:#7c3aed;">React · TanStack Query · Expandible</span>
+    </div>
+  </div>
+
+  <!-- Módulo 6 -->
+  <h3 style="font-size:15px;font-weight:700;color:var(--primary-d);margin:0 0 14px;border-left:4px solid var(--primary);padding-left:10px;">
+    Módulo 6 — Experiencia de Usuario con IA
+  </h3>
+  <div class="module-grid">
+    <div class="module-card data">
+      <div class="module-num">MÓD 6.1</div>
+      <div class="module-icon">🔍</div>
+      <div class="module-title">Búsqueda Semántica de Menciones</div>
+      <div class="module-desc">
+        Genera un embedding de 384 dimensiones para cada mención usando
+        <em>paraphrase-multilingual-MiniLM-L12-v2</em> (HuggingFace Inference API, gratis).
+        Permite buscar por significado, no solo por palabras exactas.
+        <br><br>
+        <strong>Ejemplo:</strong> buscar <em>"críticas a la gestión legislativa del MIRA"</em>
+        encuentra menciones relevantes aunque no usen esas palabras exactas.
+      </div>
+      <span class="module-tag" style="background:#eff6ff;color:#2563eb;">pgvector · HuggingFace · 384 dims · Coseno</span>
+    </div>
+    <div class="module-card data">
+      <div class="module-num">MÓD 6.2</div>
+      <div class="module-icon">🔗</div>
+      <div class="module-title">Deduplicación Inteligente</div>
+      <div class="module-desc">
+        Compara el embedding de cada mención nueva contra las anteriores de la misma entidad.
+        Si la similitud coseno supera 0.92, la marca como duplicado semántico.
+        <br><br>
+        <strong>Para IDMJI/MIRA:</strong> filtrar el ruido cuando cientos de cuentas comparten
+        el mismo artículo o mensaje copiado, dejando solo las menciones únicas y originales.
+        Toggle en la vista de Menciones para mostrar u ocultar duplicados.
+      </div>
+      <span class="module-tag" style="background:#eff6ff;color:#2563eb;">pgvector · Coseno 0.92 · Toggle UI</span>
+    </div>
+    <div class="module-card data">
+      <div class="module-num">MÓD 6 — REQUERIMIENTO</div>
+      <div class="module-icon">🐘</div>
+      <div class="module-title">PostgreSQL + pgvector</div>
+      <div class="module-desc">
+        Los módulos de búsqueda semántica y deduplicación requieren la extensión <strong>pgvector</strong>
+        para PostgreSQL, que permite almacenar y comparar vectores de alta dimensión directamente
+        en la base de datos.
+        <br><br>
+        El contenedor Docker cambia de <code>postgres:15-alpine</code> a
+        <code>pgvector/pgvector:pg15</code> (imagen oficial, mismo comportamiento).
+      </div>
+      <span class="module-tag" style="background:#eff6ff;color:#2563eb;">pgvector/pgvector:pg15 · Docker · Sin costo</span>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     CASOS DE USO ESPECÍFICOS IDMJI / MIRA
+════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="section-header">
+    <div class="section-icon">🎯</div>
+    <div>
+      <div class="section-title">Casos de Uso Específicos</div>
+      <div class="section-sub">Cómo los módulos IA protegen a la IDMJI, el MIRA y sus senadores</div>
+    </div>
+  </div>
+
+  <div class="highlight-box" style="margin-bottom:24px;">
+    <h3>Escenario 1 — Crisis de reputación ante medios</h3>
+    <p>
+      Un medio de comunicación publica una investigación crítica sobre la IDMJI. En minutos cientos
+      de cuentas comparten el artículo. <strong>SONAR v2 reacciona:</strong>
+      (1) el Z-score supera 2.5 → anomalía detectada automáticamente;
+      (2) el Agente de Contexto descarga titulares y pregunta a Groq por qué ocurrió el pico;
+      (3) la alerta <em>crítica</em> llega por Telegram con el contexto IA incluido;
+      (4) la deduplicación filtra los 800 retweets del mismo artículo, dejando solo 40 menciones originales;
+      (5) el NER identifica qué otros políticos o instituciones co-aparecen en la cobertura.
+    </p>
+  </div>
+
+  <div class="highlight-box dark" style="margin-bottom:24px;">
+    <h3>Escenario 2 — Campaña legislativa del MIRA</h3>
+    <p>
+      La senadora Ana Paola Agudelo radicó un proyecto de ley. SONAR v2:
+      (1) el clasificador de temas agrupa las menciones en "proyecto de ley", "reacciones positivas" y "críticas";
+      (2) el resumen diario IA explica: <em>"67% de menciones sobre Ana Paola Agudelo hoy fueron positivas,
+      centradas en el proyecto 234. El 22% crítico proviene de 3 cuentas con alta probabilidad de ser bots"</em>;
+      (3) la predicción Holt-Winters anticipa que el volumen bajará en 2 días.
+    </p>
+  </div>
+
+  <div class="highlight-box" style="margin-bottom:24px;background:linear-gradient(135deg,#4c1d95,#7c3aed);">
+    <h3>Escenario 3 — Monitoreo de la Hna. María Luisa Piraquive</h3>
+    <p>
+      Antes de una transmisión importante de la Hna. María Luisa, el equipo usa la búsqueda semántica
+      para buscar <em>"contenido negativo sobre liderazgo espiritual de la Ministerial"</em>.
+      SONAR v2 retorna las menciones semánticamente más similares aunque no usen esas palabras exactas,
+      permitiendo preparar respuestas comunicacionales preventivas.
+    </p>
+  </div>
+
+  <table>
+    <tr>
+      <th>Entidad monitoreada</th>
+      <th>Módulo v2 más relevante</th>
+      <th>Beneficio específico</th>
+    </tr>
+    <tr>
+      <td><strong>IDMJI (institución)</strong></td>
+      <td>Módulo 4.1 — Anomalías + Módulo 5.1 — Contexto IA</td>
+      <td>Detección temprana de crisis con explicación automática del origen</td>
+    </tr>
+    <tr>
+      <td><strong>Hna. María Luisa Piraquive</strong></td>
+      <td>Módulo 6.1 — Búsqueda semántica</td>
+      <td>Encontrar contenido crítico sobre su liderazgo aunque use términos indirectos</td>
+    </tr>
+    <tr>
+      <td><strong>Partido MIRA</strong></td>
+      <td>Módulo 1.1 — Topics + Módulo 3.1 — Resumen diario</td>
+      <td>Resumen automático de narrativas sobre el partido para informes de prensa</td>
+    </tr>
+    <tr>
+      <td><strong>Sen. Ana Paola Agudelo</strong></td>
+      <td>Módulo 1.2 — NER + Módulo 5.2 — Keywords</td>
+      <td>Descubrir con quién se asocia mediáticamente y qué temas nuevos emergen</td>
+    </tr>
+    <tr>
+      <td><strong>Sen. Carlos Guevara</strong></td>
+      <td>Módulo 2.1 — Bots ML + Módulo 4.2 — Predicción</td>
+      <td>Identificar campañas automatizadas y anticipar picos antes de eventos clave</td>
+    </tr>
+    <tr>
+      <td><strong>Sen. Manuel Virgüez</strong></td>
+      <td>Módulo 6.2 — Deduplicación + Módulo 3.2 — PDF IA</td>
+      <td>Informes limpios sin ruido de retweets + narrativa ejecutiva automática</td>
+    </tr>
+  </table>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     PANTALLA: NUEVAS VISTAS v2
+════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="section-header">
+    <div class="section-icon">🖥️</div>
+    <div>
+      <div class="section-title">Nuevas Vistas de la Interfaz</div>
+      <div class="section-sub">Cambios visuales en la plataforma con los módulos v2</div>
+    </div>
+  </div>
+
+  <!-- Mockup: Vista búsqueda semántica -->
+  <h3 style="font-size:14px;font-weight:700;color:var(--gray-800);margin-bottom:12px;">Menciones — Modo Búsqueda Semántica (Módulo 6.1)</h3>
+  <div class="screen" style="margin-bottom:28px;">
+    <div class="screen-bar">
+      <div class="screen-dot" style="background:#ef4444;"></div>
+      <div class="screen-dot" style="background:#f59e0b;"></div>
+      <div class="screen-dot" style="background:#10b981;"></div>
+      <div class="screen-url">localhost:3000 / Menciones — Búsqueda Semántica</div>
+    </div>
+    <div class="screen-body">
+      <div class="ui-topbar">
+        <div class="ui-logo">🧠 SONAR v2</div>
+        <div class="ui-nav"><span>Menciones</span></div>
+      </div>
+      <!-- Toggle modo -->
+      <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
+        <div style="display:flex;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;font-size:11px;">
+          <div style="padding:6px 14px;background:#f8fafc;color:#94a3b8;display:flex;align-items:center;gap:5px;">⚙️ Filtros</div>
+          <div style="padding:6px 14px;background:#7c3aed;color:#fff;font-weight:600;display:flex;align-items:center;gap:5px;">🔍 Búsqueda semántica</div>
+        </div>
+      </div>
+      <!-- Search form -->
+      <div style="background:#f5f3ff;border:1px solid #ede9fe;border-radius:8px;padding:14px;margin-bottom:14px;">
+        <div style="font-size:11px;color:#7c3aed;margin-bottom:8px;">Busca por significado, no solo por palabras exactas</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <select style="border:1px solid #ede9fe;border-radius:6px;padding:6px 10px;font-size:11px;color:#475569;background:#fff;"><option>IDMJI / Hna. María Luisa</option></select>
+          <div style="flex:1;background:#fff;border:1px solid #ede9fe;border-radius:6px;padding:8px 12px;font-size:11px;color:#7c3aed;font-style:italic;">"críticas a la Iglesia de Dios Ministerial en redes sociales"</div>
+          <div style="background:#7c3aed;color:#fff;border-radius:6px;padding:7px 14px;font-size:11px;font-weight:600;">🔍 Buscar</div>
+        </div>
+      </div>
+      <!-- Resultados semánticos -->
+      <div style="font-size:11px;color:#94a3b8;margin-bottom:10px;">8 menciones similares encontradas · Ordenadas por similitud</div>
+      <div class="mention-item">
+        <div class="platform-badge">🤖</div>
+        <div style="flex:1;">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:4px;">
+            <span style="font-size:12px;font-weight:600;">@user_cr</span>
+            <span style="font-size:11px;color:#94a3b8;">Reddit · 20 Mar 2026</span>
+            <span class="badge badge-neg">Negativo</span>
+            <span style="background:#ede9fe;color:#7c3aed;border-radius:10px;padding:2px 8px;font-size:10px;font-weight:600;margin-left:auto;">🔍 94% similitud</span>
+          </div>
+          <p class="mention-text">"Los testimonios en línea sobre la Ministerial siguen generando polémica..."</p>
+        </div>
+      </div>
+      <div class="mention-item">
+        <div class="platform-badge">📰</div>
+        <div style="flex:1;">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:4px;">
+            <span style="font-size:12px;font-weight:600;">Semana.com</span>
+            <span style="font-size:11px;color:#94a3b8;">RSS · 18 Mar 2026</span>
+            <span class="badge badge-neu">Neutral</span>
+            <span style="background:#ede9fe;color:#7c3aed;border-radius:10px;padding:2px 8px;font-size:10px;font-weight:600;margin-left:auto;">🔍 88% similitud</span>
+          </div>
+          <p class="mention-text">"Debates sobre organizaciones religiosas y su rol en la política colombiana generan reacciones encontradas..."</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mockup: Detalle entidad con resumen IA -->
+  <h3 style="font-size:14px;font-weight:700;color:var(--gray-800);margin-bottom:12px;">Detalle de Entidad — Resumen IA + Predicción (Módulos 3.1 y 4.2)</h3>
+  <div class="screen">
+    <div class="screen-bar">
+      <div class="screen-dot" style="background:#ef4444;"></div>
+      <div class="screen-dot" style="background:#f59e0b;"></div>
+      <div class="screen-dot" style="background:#10b981;"></div>
+      <div class="screen-url">localhost:3000 / Entidades / IDMJI — Detalle</div>
+    </div>
+    <div class="screen-body">
+      <div class="ui-topbar">
+        <div class="ui-logo">🧠 SONAR v2</div>
+        <div class="ui-nav"><span>⛪ IDMJI</span></div>
+      </div>
+      <!-- Resumen IA -->
+      <div style="background:#f5f3ff;border:1px solid #ede9fe;border-radius:8px;padding:14px;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <span style="background:#7c3aed;color:#fff;border-radius:6px;padding:2px 8px;font-size:10px;font-weight:700;">RESUMEN IA — HOY</span>
+          <span style="font-size:10px;color:#94a3b8;">Generado con Llama 3.1 · 23:50</span>
+        </div>
+        <p style="font-size:12px;color:#4c1d95;line-height:1.65;">
+          "La IDMJI registró 312 menciones hoy, un 18% por encima del promedio semanal.
+          El 71% del tono fue positivo, concentrado en la transmisión de la Hna. María Luisa Piraquive.
+          Se detectó un foco crítico (14%) en Twitter/X con posible coordinación de 3 cuentas sospechosas.
+          Se recomienda monitorear la evolución durante las próximas 48 horas."
+        </p>
+      </div>
+      <!-- Banner keyword suggestions -->
+      <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <span style="font-size:11px;font-weight:600;color:#92400e;">💡 Nuevas keywords sugeridas por IA:</span>
+        <span style="background:#fff;border:1px solid #fde68a;border-radius:20px;padding:3px 10px;font-size:11px;color:#92400e;">+ "libertad de culto" 82%</span>
+        <span style="background:#fff;border:1px solid #fde68a;border-radius:20px;padding:3px 10px;font-size:11px;color:#92400e;">+ "Ministerial Colombia" 74%</span>
+        <span style="background:#fff;border:1px solid #fde68a;border-radius:20px;padding:3px 10px;font-size:11px;color:#92400e;">+ "testimonio IDMJI" 61%</span>
+      </div>
+      <!-- Stat row -->
+      <div class="stat-row">
+        <div class="stat-box"><div class="stat-num">312</div><div class="stat-lbl">Menciones hoy</div></div>
+        <div class="stat-box"><div class="stat-num" style="color:#dc2626;">14%</div><div class="stat-lbl">Negativas</div></div>
+        <div class="stat-box"><div class="stat-num" style="color:#7c3aed;">3</div><div class="stat-lbl">Bots detectados</div></div>
+        <div class="stat-box"><div class="stat-num" style="color:#0ea5e9;">↗ +18%</div><div class="stat-lbl">vs. promedio</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     ARQUITECTURA TÉCNICA v2
+════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="section-header">
+    <div class="section-icon">⚙️</div>
+    <div>
+      <div class="section-title">Arquitectura Técnica v2</div>
+      <div class="section-sub">Nuevas dependencias, APIs gratuitas y flujo de datos IA</div>
+    </div>
+  </div>
+
+  <div class="flow">
+    <div class="flow-step">
+      <div class="flow-step-icon">📥</div>
+      <div class="flow-step-lbl">Menciones v1</div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-step-icon">🧬</div>
+      <div class="flow-step-lbl">Embeddings HF</div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-step-icon">🧠</div>
+      <div class="flow-step-lbl">Pipeline IA</div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-step-icon">📊</div>
+      <div class="flow-step-lbl">Anomalías/Topics</div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-step-icon">🤖</div>
+      <div class="flow-step-lbl">LLM Groq</div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-step-icon">📲</div>
+      <div class="flow-step-lbl">Alertas + Resumen</div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-step-icon">🖥️</div>
+      <div class="flow-step-lbl">Dashboard v2</div>
+    </div>
+  </div>
+
+  <div class="card-grid" style="margin-top:20px;">
+    <div class="card">
+      <h3>🤖 LLM — Groq (Llama 3.1)</h3>
+      <ul class="check-list">
+        <li>Llama-3.1-8B-Instant (recomendado)</li>
+        <li>14,400 tokens/minuto gratuitos</li>
+        <li>Resúmenes diarios + PDFs + contexto de anomalías</li>
+        <li>Registro en console.groq.com (sin tarjeta)</li>
+        <li>Variable: <code>GROQ_API_KEY</code></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>🧬 Embeddings — HuggingFace Inference API</h3>
+      <ul class="check-list">
+        <li>paraphrase-multilingual-MiniLM-L12-v2</li>
+        <li>384 dimensiones · Multilingüe (ES/EN)</li>
+        <li>1,000 peticiones/día gratuitas</li>
+        <li>15 embeddings por ejecución cada 30 min</li>
+        <li>Variable: <code>HUGGINGFACE_TOKEN</code></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>🐘 pgvector — PostgreSQL extendido</h3>
+      <ul class="check-list">
+        <li>Imagen: <code>pgvector/pgvector:pg15</code></li>
+        <li>Operadores coseno directo en SQL</li>
+        <li>Columna <code>embedding vector(384)</code> en mentions</li>
+        <li>Índice IVFFlat para búsqueda aproximada rápida</li>
+        <li>Sin costo adicional — extensión oficial</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>🐍 Nuevas librerías Python</h3>
+      <ul class="check-list">
+        <li><code>groq≥0.9.0</code> — cliente oficial Groq</li>
+        <li><code>scikit-learn≥1.4.0</code> — topics + bots</li>
+        <li><code>statsmodels≥0.14.0</code> — Holt-Winters</li>
+        <li><code>spacy≥3.7.0</code> + <code>es_core_news_sm</code></li>
+        <li><code>pgvector≥0.3.0</code> — tipo Vector en SQLAlchemy</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3 style="font-size:15px;font-weight:700;color:var(--primary-d);margin:28px 0 14px;border-left:4px solid var(--primary);padding-left:10px;">
+    Nuevas variables de entorno requeridas
+  </h3>
+  <table>
+    <tr>
+      <th>Variable</th>
+      <th>Servicio</th>
+      <th>Dónde obtenerla</th>
+      <th>Obligatoria</th>
+    </tr>
+    <tr>
+      <td><code>GROQ_API_KEY</code></td>
+      <td>Groq (Llama 3.1)</td>
+      <td>console.groq.com → API Keys</td>
+      <td style="color:#16a34a;font-weight:600;">Para módulos 3 y 5</td>
+    </tr>
+    <tr>
+      <td><code>HUGGINGFACE_TOKEN</code></td>
+      <td>HuggingFace Inference API</td>
+      <td>huggingface.co → Settings → Tokens</td>
+      <td style="color:#16a34a;font-weight:600;">Para módulo 6.1</td>
+    </tr>
+    <tr>
+      <td><code>SUMMARY_MODEL</code></td>
+      <td>Groq — modelo LLM</td>
+      <td>Valor por defecto: <code>llama-3.1-8b-instant</code></td>
+      <td style="color:#94a3b8;">Opcional (tiene default)</td>
+    </tr>
+    <tr>
+      <td><code>BOT_THRESHOLD</code></td>
+      <td>Clasificador ML de bots</td>
+      <td>Valor por defecto: <code>0.7</code></td>
+      <td style="color:#94a3b8;">Opcional (tiene default)</td>
+    </tr>
+  </table>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     ROADMAP Y PLAN DE IMPLEMENTACIÓN
+════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="section-header">
+    <div class="section-icon">🗓️</div>
+    <div>
+      <div class="section-title">Plan de Implementación v2</div>
+      <div class="section-sub">Orden de prioridad y esfuerzo estimado por módulo</div>
+    </div>
+  </div>
+
+  <table>
+    <tr>
+      <th>Prioridad</th>
+      <th>Módulo</th>
+      <th>Valor para IDMJI/MIRA</th>
+      <th>Complejidad</th>
+      <th>Estado</th>
+    </tr>
+    <tr>
+      <td>🥇 1</td>
+      <td><strong>1.3 — Score de Urgencia</strong></td>
+      <td>Priorizar menciones críticas automáticamente</td>
+      <td>Baja</td>
+      <td><span class="badge badge-done">✓ Completado</span></td>
+    </tr>
+    <tr>
+      <td>🥇 2</td>
+      <td><strong>4.1 — Detección de Anomalías</strong></td>
+      <td>Detectar picos antes de que se viralicen</td>
+      <td>Media</td>
+      <td><span class="badge badge-done">✓ Completado</span></td>
+    </tr>
+    <tr>
+      <td>🥇 3</td>
+      <td><strong>3.1 — Resumen Diario IA</strong></td>
+      <td>Informe automático para el equipo de comunicaciones</td>
+      <td>Baja</td>
+      <td><span class="badge badge-done">✓ Completado</span></td>
+    </tr>
+    <tr>
+      <td>🥈 4</td>
+      <td><strong>1.1 — Topic Modeling</strong></td>
+      <td>Identificar narrativas sobre la iglesia/partido</td>
+      <td>Media</td>
+      <td><span class="badge badge-done">✓ Completado</span></td>
+    </tr>
+    <tr>
+      <td>🥈 5</td>
+      <td><strong>2.1 — Bots con ML</strong></td>
+      <td>Detectar campañas artificiales contra IDMJI/MIRA</td>
+      <td>Media</td>
+      <td><span class="badge badge-done">✓ Completado</span></td>
+    </tr>
+    <tr>
+      <td>🥈 6</td>
+      <td><strong>3.2 — PDF con Narrativa IA</strong></td>
+      <td>Reportes ejecutivos con análisis automático</td>
+      <td>Baja</td>
+      <td><span class="badge badge-done">✓ Completado</span></td>
+    </tr>
+    <tr>
+      <td>🥉 7</td>
+      <td><strong>5.1 — Agente de Contexto</strong></td>
+      <td>Explicar automáticamente el origen de cada crisis</td>
+      <td>Alta</td>
+      <td><span class="badge badge-done">✓ Completado</span></td>
+    </tr>
+    <tr>
+      <td>🥉 8</td>
+      <td><strong>4.2 — Predicción de Tendencias</strong></td>
+      <td>Anticipar picos antes de eventos legislativos</td>
+      <td>Alta</td>
+      <td><span class="badge badge-done">✓ Completado</span></td>
+    </tr>
+    <tr>
+      <td>🥉 9</td>
+      <td><strong>1.2 — NER (entidades)</strong></td>
+      <td>Descubrir co-menciones con políticos y medios</td>
+      <td>Media</td>
+      <td><span class="badge badge-done">✓ Completado</span></td>
+    </tr>
+    <tr>
+      <td>🥉 10</td>
+      <td><strong>5.2 — Keywords automáticas</strong></td>
+      <td>Descubrir nuevos términos emergentes sin esfuerzo</td>
+      <td>Media</td>
+      <td><span class="badge badge-done">✓ Completado</span></td>
+    </tr>
+    <tr>
+      <td>⬇️ 11</td>
+      <td><strong>6.1 — Búsqueda semántica</strong></td>
+      <td>Buscar menciones por significado, no solo palabras</td>
+      <td>Alta</td>
+      <td><span class="badge badge-done">✓ Completado</span></td>
+    </tr>
+    <tr>
+      <td>⬇️ 12</td>
+      <td><strong>6.2 — Deduplicación</strong></td>
+      <td>Eliminar ruido de retweets y copias masivas</td>
+      <td>Media</td>
+      <td><span class="badge badge-done">✓ Completado</span></td>
+    </tr>
+  </table>
+
+  <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:16px 20px;margin-top:8px;">
+    <p style="font-size:13.5px;color:#14532d;font-weight:600;">
+      ✅ Todos los 12 módulos de SONAR v2 están implementados y desplegados en la rama
+      <code>version2</code> del repositorio. El sistema está listo para activarse con la configuración
+      de las variables de entorno <code>GROQ_API_KEY</code> y <code>HUGGINGFACE_TOKEN</code>.
+    </p>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     CIERRE
+════════════════════════════════════════════════ -->
+<div class="page" style="display:flex;flex-direction:column;justify-content:center;min-height:60vh;text-align:center;">
+  <div style="font-size:60px;margin-bottom:20px;">🧠</div>
+  <div style="display:inline-block;background:#f5f3ff;border:1px solid #ede9fe;border-radius:20px;padding:5px 16px;font-size:12px;font-weight:700;color:#7c3aed;letter-spacing:1px;margin-bottom:16px;">SONAR v2 — INTELIGENCIA ARTIFICIAL</div>
+  <h2 style="font-size:36px;font-weight:800;color:var(--primary-d);margin-bottom:12px;">De monitor a cerebro digital</h2>
+  <p style="font-size:15px;color:var(--gray-400);max-width:560px;margin:0 auto 40px;line-height:1.7;">
+    SONAR v2 convierte el flujo de menciones en inteligencia accionable:
+    predice, explica, resume y sugiere — de forma autónoma, en tiempo real y sin costo adicional.
+  </p>
+
+  <div style="background:#f5f3ff;border:1px solid #ede9fe;border-radius:12px;padding:20px 28px;max-width:650px;margin:0 auto 24px;text-align:left;">
+    <h3 style="font-size:15px;font-weight:700;color:#7c3aed;margin-bottom:10px;">✝️ Protegiendo a:</h3>
+    <ul style="list-style:none;padding:0;font-size:13.5px;color:#4c1d95;line-height:2.2;">
+      <li>⛪ <strong>Iglesia de Dios Ministerial de Jesucristo Internacional</strong> — +100 países</li>
+      <li>🙏 <strong>Hna. María Luisa Piraquive de Moreno</strong> — Líder espiritual</li>
+      <li>🏛️ <strong>Partido MIRA</strong> — Movimiento Independiente de Renovación Absoluta</li>
+      <li>🗳️ <strong>Sen. Ana Paola Agudelo</strong> — Senado 2026</li>
+      <li>🗳️ <strong>Sen. Carlos Guevara</strong> — Senado 2026</li>
+      <li>🗳️ <strong>Sen. Manuel Virgüez</strong> — Senado 2026</li>
+    </ul>
+  </div>
+
+  <div class="highlight-box" style="max-width:650px;margin:0 auto 28px;text-align:left;">
+    <h3>12 módulos IA · $0 de costo adicional · Listo para producción</h3>
+    <p>
+      LLM Groq (Llama 3.1) · Embeddings HuggingFace · pgvector · spaCy · scikit-learn · statsmodels ·
+      Predicción Holt-Winters · Búsqueda semántica · Deduplicación inteligente ·
+      Agente de contexto autónomo · Resúmenes IA diarios · Narrativa ejecutiva en PDFs.
+    </p>
+  </div>
+  <p style="font-size:13px;color:var(--gray-400);">Documento de propuesta confidencial · SONAR v2 · Marzo 2026</p>
+</div>
+
+
+</body>
+</html>

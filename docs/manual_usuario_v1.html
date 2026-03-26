@@ -1,0 +1,1617 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SONAR — Manual de Usuario v1</title>
+  <style>
+    /* ── Tipografía & Reset ────────────────────────────── */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      font-size: 14px;
+      line-height: 1.7;
+      color: #1e293b;
+      background: #fff;
+    }
+
+    /* ── Portada ────────────────────────────────────────── */
+    .cover {
+      page-break-after: always;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 60%, #0ea5e9 100%);
+      color: #fff;
+      text-align: center;
+      padding: 60px 40px;
+    }
+    .cover .logo-ring {
+      width: 110px; height: 110px;
+      border: 4px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 32px;
+      background: rgba(255,255,255,0.08);
+    }
+    .cover .logo-ring span { font-size: 54px; }
+    .cover h1 { font-size: 56px; font-weight: 800; letter-spacing: -1px; margin-bottom: 8px; }
+    .cover .subtitle { font-size: 18px; color: rgba(255,255,255,0.75); margin-bottom: 48px; }
+    .cover .meta { font-size: 13px; color: rgba(255,255,255,0.55); line-height: 2; }
+    .cover .version-badge {
+      display: inline-block; background: rgba(14,165,233,0.35);
+      border: 1px solid rgba(14,165,233,0.6);
+      border-radius: 20px; padding: 4px 16px;
+      font-size: 13px; font-weight: 600; letter-spacing: 1px;
+      margin-bottom: 40px;
+    }
+    .cover .divider {
+      width: 60px; height: 3px;
+      background: rgba(255,255,255,0.3); border-radius: 2px;
+      margin: 28px auto;
+    }
+
+    /* ── Tabla de contenidos ────────────────────────────── */
+    .toc-page {
+      page-break-after: always;
+      padding: 60px 80px;
+    }
+    .toc-page h2 { font-size: 28px; font-weight: 700; color: #0f172a; margin-bottom: 32px;
+      padding-bottom: 12px; border-bottom: 3px solid #0ea5e9; }
+    .toc-section { margin-bottom: 8px; }
+    .toc-chapter {
+      display: flex; justify-content: space-between; align-items: baseline;
+      padding: 6px 0; font-weight: 600; font-size: 14px; color: #0f172a;
+      border-bottom: 1px dotted #cbd5e1;
+    }
+    .toc-chapter .num { color: #0ea5e9; margin-right: 8px; font-weight: 700; }
+    .toc-sub {
+      display: flex; justify-content: space-between; align-items: baseline;
+      padding: 3px 0 3px 24px; font-size: 13px; color: #475569;
+      border-bottom: 1px dotted #e2e8f0;
+    }
+
+    /* ── Layout general ─────────────────────────────────── */
+    .chapter {
+      page-break-before: always;
+      padding: 56px 80px 48px;
+    }
+    .chapter:first-of-type { page-break-before: auto; }
+
+    /* Encabezado de capítulo */
+    .ch-header {
+      display: flex; align-items: center; gap: 16px;
+      margin-bottom: 36px; padding-bottom: 16px;
+      border-bottom: 3px solid #0ea5e9;
+    }
+    .ch-num {
+      font-size: 13px; font-weight: 700; color: #fff;
+      background: #0ea5e9; border-radius: 50%;
+      width: 36px; height: 36px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .ch-header h2 { font-size: 26px; font-weight: 700; color: #0f172a; }
+
+    /* Subtítulos */
+    h3 {
+      font-size: 17px; font-weight: 700; color: #0f172a;
+      margin: 32px 0 12px; padding-left: 10px;
+      border-left: 4px solid #0ea5e9;
+    }
+    h4 { font-size: 14px; font-weight: 700; color: #334155; margin: 20px 0 8px; }
+    p { margin-bottom: 12px; color: #334155; }
+
+    /* ── Componentes ────────────────────────────────────── */
+    /* Callout / Nota */
+    .callout {
+      border-radius: 8px; padding: 14px 18px;
+      margin: 20px 0; font-size: 13px; line-height: 1.6;
+      display: flex; gap: 12px; align-items: flex-start;
+    }
+    .callout .icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+    .callout.info { background: #eff6ff; border-left: 4px solid #3b82f6; color: #1e3a8a; }
+    .callout.warning { background: #fffbeb; border-left: 4px solid #f59e0b; color: #78350f; }
+    .callout.danger { background: #fef2f2; border-left: 4px solid #ef4444; color: #7f1d1d; }
+    .callout.success { background: #f0fdf4; border-left: 4px solid #22c55e; color: #14532d; }
+    .callout.tip { background: #f5f3ff; border-left: 4px solid #8b5cf6; color: #4c1d95; }
+
+    /* Pasos numerados */
+    .steps { list-style: none; counter-reset: step; margin: 16px 0; }
+    .steps li {
+      counter-increment: step;
+      padding: 12px 16px 12px 52px;
+      margin-bottom: 8px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      position: relative;
+      font-size: 13.5px;
+      color: #334155;
+    }
+    .steps li::before {
+      content: counter(step);
+      position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+      background: #0ea5e9; color: #fff;
+      font-size: 12px; font-weight: 700;
+      width: 26px; height: 26px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .steps li strong { color: #0f172a; }
+
+    /* Tabla */
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 13px; }
+    thead tr { background: #0f172a; color: #fff; }
+    thead th { padding: 10px 14px; text-align: left; font-weight: 600; }
+    tbody tr:nth-child(even) { background: #f8fafc; }
+    tbody td { padding: 9px 14px; border-bottom: 1px solid #e2e8f0; color: #334155; }
+    tbody td strong { color: #0f172a; }
+
+    /* Código */
+    code {
+      font-family: 'Cascadia Code', 'Courier New', monospace;
+      font-size: 12.5px;
+      background: #1e293b;
+      color: #7dd3fc;
+      padding: 2px 7px;
+      border-radius: 4px;
+    }
+    pre {
+      background: #0f172a;
+      border-radius: 10px;
+      padding: 20px 24px;
+      overflow-x: auto;
+      margin: 16px 0;
+      line-height: 1.6;
+    }
+    pre code {
+      background: transparent; padding: 0;
+      font-size: 12.5px; color: #e2e8f0;
+    }
+    pre .comment { color: #64748b; }
+    pre .key { color: #7dd3fc; }
+    pre .val { color: #86efac; }
+    pre .str { color: #fbbf24; }
+
+    /* Badge inline */
+    .badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 11.5px; font-weight: 600;
+      padding: 2px 9px; border-radius: 99px;
+    }
+    .badge.admin { background: #fef3c7; color: #92400e; }
+    .badge.analyst { background: #e0f2fe; color: #0369a1; }
+    .badge.viewer { background: #f1f5f9; color: #475569; }
+    .badge.blue { background: #dbeafe; color: #1e40af; }
+    .badge.green { background: #dcfce7; color: #166534; }
+    .badge.red { background: #fee2e2; color: #991b1b; }
+    .badge.orange { background: #ffedd5; color: #9a3412; }
+    .badge.purple { background: #f5f3ff; color: #6d28d9; }
+    .badge.gray { background: #f1f5f9; color: #475569; }
+
+    /* Bloque de ruta de navegación UI */
+    .ui-path {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 12.5px; color: #475569;
+      background: #f1f5f9; border: 1px solid #e2e8f0;
+      border-radius: 6px; padding: 4px 10px;
+      margin: 4px 0;
+    }
+    .ui-path .sep { color: #94a3b8; }
+
+    /* Separador de sección */
+    .section-divider {
+      margin: 40px 0 24px;
+      border: none;
+      border-top: 1px dashed #cbd5e1;
+    }
+
+    /* Recuadro de prerequisito */
+    .prereq-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 16px; margin: 20px 0;
+    }
+    .prereq-card {
+      border: 1px solid #e2e8f0; border-radius: 10px;
+      padding: 16px 18px;
+    }
+    .prereq-card .name { font-weight: 700; font-size: 14px; color: #0f172a; margin-bottom: 4px; }
+    .prereq-card .version { font-size: 12px; color: #64748b; }
+    .prereq-card .desc { font-size: 12.5px; color: #475569; margin-top: 6px; }
+
+    /* Grid de flujo */
+    .flow-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 14px; margin: 20px 0;
+    }
+    .flow-card {
+      border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px;
+      text-align: center;
+    }
+    .flow-card .icon { font-size: 28px; margin-bottom: 8px; }
+    .flow-card .title { font-weight: 700; font-size: 13px; color: #0f172a; }
+    .flow-card .desc { font-size: 12px; color: #64748b; margin-top: 4px; }
+
+    /* Roles */
+    .role-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin: 20px 0; }
+    .role-card { border-radius: 10px; padding: 16px; }
+    .role-card.admin-card { background: #fef3c7; border: 1px solid #fde68a; }
+    .role-card.analyst-card { background: #e0f2fe; border: 1px solid #bae6fd; }
+    .role-card.viewer-card { background: #f1f5f9; border: 1px solid #e2e8f0; }
+    .role-card .rtitle { font-weight: 700; font-size: 14px; margin-bottom: 8px; }
+    .role-card ul { list-style: none; font-size: 12.5px; }
+    .role-card ul li::before { content: "✓ "; }
+
+    /* Pie de página */
+    @page {
+      margin: 20mm 22mm;
+    }
+
+    /* Print media */
+    @media print {
+      .cover { min-height: 100vh; }
+    }
+
+    /* Separador visual de keyword weight */
+    .weight-dot {
+      display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+      vertical-align: middle; margin-right: 4px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════
+     PORTADA
+════════════════════════════════════════════════════════ -->
+<div class="cover">
+  <div class="logo-ring"><span>📡</span></div>
+  <div class="version-badge">VERSIÓN 1.0</div>
+  <h1>SONAR</h1>
+  <p class="subtitle">Plataforma de Monitoreo de Redes Sociales</p>
+  <div class="divider"></div>
+  <h2 style="font-size:22px; font-weight:600; margin-bottom:16px;">Manual de Usuario</h2>
+  <p class="meta">
+    Desde la configuración inicial hasta la identificación de alertas<br>
+    Sistema MIRA · Análisis de Redes Sociales<br>
+    Marzo 2026
+  </p>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════
+     TABLA DE CONTENIDOS
+════════════════════════════════════════════════════════ -->
+<div class="toc-page">
+  <h2>Tabla de Contenidos</h2>
+
+  <div class="toc-section">
+    <div class="toc-chapter"><span><span class="num">1</span>Introducción y Arquitectura del Sistema</span><span>3</span></div>
+    <div class="toc-sub"><span>1.1 ¿Qué es SONAR?</span><span>3</span></div>
+    <div class="toc-sub"><span>1.2 Componentes principales</span><span>3</span></div>
+    <div class="toc-sub"><span>1.3 Flujo general de datos</span><span>4</span></div>
+  </div>
+
+  <div class="toc-section">
+    <div class="toc-chapter"><span><span class="num">2</span>Prerrequisitos e Instalación</span><span>5</span></div>
+    <div class="toc-sub"><span>2.1 Software necesario</span><span>5</span></div>
+    <div class="toc-sub"><span>2.2 Obtención del código fuente</span><span>5</span></div>
+    <div class="toc-sub"><span>2.3 Configuración del archivo .env</span><span>6</span></div>
+    <div class="toc-sub"><span>2.4 Levantando los servicios con Docker</span><span>8</span></div>
+    <div class="toc-sub"><span>2.5 Creación del usuario administrador</span><span>9</span></div>
+  </div>
+
+  <div class="toc-section">
+    <div class="toc-chapter"><span><span class="num">3</span>Primer Acceso y Panel de Control</span><span>10</span></div>
+    <div class="toc-sub"><span>3.1 Inicio de sesión</span><span>10</span></div>
+    <div class="toc-sub"><span>3.2 Navegación general</span><span>10</span></div>
+    <div class="toc-sub"><span>3.3 Dashboard — Lectura del panel</span><span>11</span></div>
+  </div>
+
+  <div class="toc-section">
+    <div class="toc-chapter"><span><span class="num">4</span>Gestión de Usuarios y Roles</span><span>12</span></div>
+    <div class="toc-sub"><span>4.1 Roles del sistema</span><span>12</span></div>
+    <div class="toc-sub"><span>4.2 Crear un usuario</span><span>12</span></div>
+    <div class="toc-sub"><span>4.3 Configurar notificaciones por usuario</span><span>13</span></div>
+  </div>
+
+  <div class="toc-section">
+    <div class="toc-chapter"><span><span class="num">5</span>Entidades: Qué Monitorear</span><span>14</span></div>
+    <div class="toc-sub"><span>5.1 ¿Qué es una entidad?</span><span>14</span></div>
+    <div class="toc-sub"><span>5.2 Crear una entidad</span><span>14</span></div>
+    <div class="toc-sub"><span>5.3 Agregar aliases</span><span>15</span></div>
+    <div class="toc-sub"><span>5.4 Configurar palabras clave (keywords)</span><span>16</span></div>
+    <div class="toc-sub"><span>5.5 Detalle de entidad y métricas</span><span>17</span></div>
+  </div>
+
+  <div class="toc-section">
+    <div class="toc-chapter"><span><span class="num">6</span>Configuración de Plataformas de Scraping</span><span>18</span></div>
+    <div class="toc-sub"><span>6.1 Reddit</span><span>18</span></div>
+    <div class="toc-sub"><span>6.2 YouTube</span><span>19</span></div>
+    <div class="toc-sub"><span>6.3 RSS / Noticias web</span><span>20</span></div>
+    <div class="toc-sub"><span>6.4 Twitter / X</span><span>20</span></div>
+    <div class="toc-sub"><span>6.5 Verificar que el scraping está funcionando</span><span>21</span></div>
+  </div>
+
+  <div class="toc-section">
+    <div class="toc-chapter"><span><span class="num">7</span>Menciones: Explorar y Filtrar Publicaciones</span><span>22</span></div>
+    <div class="toc-sub"><span>7.1 Vista de menciones</span><span>22</span></div>
+    <div class="toc-sub"><span>7.2 Filtros disponibles</span><span>22</span></div>
+    <div class="toc-sub"><span>7.3 Indicadores de cada mención</span><span>23</span></div>
+  </div>
+
+  <div class="toc-section">
+    <div class="toc-chapter"><span><span class="num">8</span>Sistema de Alertas</span><span>24</span></div>
+    <div class="toc-sub"><span>8.1 Tipos de reglas de alerta</span><span>24</span></div>
+    <div class="toc-sub"><span>8.2 Crear una regla de alerta</span><span>25</span></div>
+    <div class="toc-sub"><span>8.3 Severidades y umbral</span><span>26</span></div>
+    <div class="toc-sub"><span>8.4 Identificar una alerta activa</span><span>27</span></div>
+    <div class="toc-sub"><span>8.5 Reconocer (acknowledge) una alerta</span><span>28</span></div>
+    <div class="toc-sub"><span>8.6 Notificaciones externas</span><span>28</span></div>
+  </div>
+
+  <div class="toc-section">
+    <div class="toc-chapter"><span><span class="num">9</span>Generación de Reportes PDF</span><span>29</span></div>
+    <div class="toc-sub"><span>9.1 Tipos de reporte disponibles</span><span>29</span></div>
+    <div class="toc-sub"><span>9.2 Crear y descargar un reporte</span><span>29</span></div>
+  </div>
+
+  <div class="toc-section">
+    <div class="toc-chapter"><span><span class="num">10</span>Administración y Mantenimiento</span><span>30</span></div>
+    <div class="toc-sub"><span>10.1 Monitoreo de tareas con Flower</span><span>30</span></div>
+    <div class="toc-sub"><span>10.2 Limpieza automática de datos</span><span>30</span></div>
+    <div class="toc-sub"><span>10.3 Solución de problemas comunes</span><span>31</span></div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════
+     CAPÍTULO 1 — INTRODUCCIÓN
+════════════════════════════════════════════════════════ -->
+<div class="chapter">
+  <div class="ch-header">
+    <div class="ch-num">1</div>
+    <h2>Introducción y Arquitectura del Sistema</h2>
+  </div>
+
+  <h3>1.1 ¿Qué es SONAR?</h3>
+  <p>
+    <strong>SONAR</strong> es una plataforma de monitoreo de redes sociales diseñada para recolectar,
+    analizar y alertar sobre menciones de entidades (personas, organizaciones, productos o marcas) en
+    plataformas digitales como Reddit, YouTube, Twitter/X y fuentes RSS de noticias.
+  </p>
+  <p>
+    El sistema recolecta publicaciones de forma automática, aplica análisis de sentimiento e
+    identificación de discurso de odio, y notifica al equipo cuando se detectan situaciones que
+    requieren atención según reglas configuradas.
+  </p>
+
+  <div class="callout info">
+    <span class="icon">ℹ️</span>
+    <div>Este manual cubre la <strong>versión 1</strong> de SONAR, que incluye el motor de scraping,
+    el pipeline NLP básico (sentimiento, idioma, discurso de odio, urgencia), el sistema de alertas
+    y la generación de reportes PDF.</div>
+  </div>
+
+  <h3>1.2 Componentes principales</h3>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Componente</th><th>Tecnología</th><th>Función</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>Frontend</strong></td><td>React 18 + Vite + Tailwind</td><td>Interfaz web de usuario</td></tr>
+      <tr><td><strong>Backend (API)</strong></td><td>FastAPI (Python)</td><td>API REST — lógica de negocio, autenticación</td></tr>
+      <tr><td><strong>Worker</strong></td><td>Celery</td><td>Tareas en segundo plano: scraping, NLP, alertas</td></tr>
+      <tr><td><strong>Scheduler (Beat)</strong></td><td>Celery Beat</td><td>Disparador de tareas programadas (crons)</td></tr>
+      <tr><td><strong>Base de datos</strong></td><td>PostgreSQL 15</td><td>Almacenamiento persistente de todas las entidades</td></tr>
+      <tr><td><strong>Caché / Cola</strong></td><td>Redis 7</td><td>Cola de tareas y caché de sesiones</td></tr>
+    </tbody>
+  </table>
+
+  <h3>1.3 Flujo general de datos</h3>
+
+  <div class="flow-grid">
+    <div class="flow-card">
+      <div class="icon">⚙️</div>
+      <div class="title">1. Configuración</div>
+      <div class="desc">Se definen entidades y palabras clave que el sistema debe buscar</div>
+    </div>
+    <div class="flow-card">
+      <div class="icon">🔍</div>
+      <div class="title">2. Recolección</div>
+      <div class="desc">El Worker scraping busca menciones en Reddit, YouTube, RSS y Twitter cada 15-30 min</div>
+    </div>
+    <div class="flow-card">
+      <div class="icon">🧠</div>
+      <div class="title">3. Análisis NLP</div>
+      <div class="desc">Cada mención nueva pasa por el pipeline: idioma → sentimiento → odio → urgencia</div>
+    </div>
+    <div class="flow-card">
+      <div class="icon">📊</div>
+      <div class="title">4. Almacenamiento</div>
+      <div class="desc">Las menciones procesadas se guardan en PostgreSQL con todos sus scores</div>
+    </div>
+    <div class="flow-card">
+      <div class="icon">🔔</div>
+      <div class="title">5. Evaluación de reglas</div>
+      <div class="desc">Cada 5 min el motor de alertas evalúa si alguna regla supera su umbral</div>
+    </div>
+    <div class="flow-card">
+      <div class="icon">📱</div>
+      <div class="title">6. Notificación</div>
+      <div class="desc">Si se dispara una alerta, se envía por Telegram, email o WhatsApp</div>
+    </div>
+  </div>
+
+  <div class="callout tip">
+    <span class="icon">💡</span>
+    <div>El panel de <strong>Dashboard</strong> muestra en tiempo real los totales de menciones, distribución
+    de sentimiento, plataformas activas y alertas del día. Es el punto de partida para el monitoreo diario.</div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════
+     CAPÍTULO 2 — INSTALACIÓN
+════════════════════════════════════════════════════════ -->
+<div class="chapter">
+  <div class="ch-header">
+    <div class="ch-num">2</div>
+    <h2>Prerrequisitos e Instalación</h2>
+  </div>
+
+  <h3>2.1 Software necesario</h3>
+
+  <div class="prereq-grid">
+    <div class="prereq-card">
+      <div class="name">🐳 Docker Desktop</div>
+      <div class="version">Versión 24+ recomendada</div>
+      <div class="desc">Incluye Docker Engine y Docker Compose. Disponible para Windows, macOS y Linux.</div>
+    </div>
+    <div class="prereq-card">
+      <div class="name">🔧 Git</div>
+      <div class="version">Versión 2.40+</div>
+      <div class="desc">Para clonar el repositorio del proyecto.</div>
+    </div>
+    <div class="prereq-card">
+      <div class="name">💻 Terminal</div>
+      <div class="version">Bash, Zsh o PowerShell</div>
+      <div class="desc">Para ejecutar los comandos de instalación y administración.</div>
+    </div>
+    <div class="prereq-card">
+      <div class="name">🌐 Navegador web</div>
+      <div class="version">Chrome, Firefox o Edge modernos</div>
+      <div class="desc">Para acceder a la interfaz web en <code>http://localhost:3000</code>.</div>
+    </div>
+  </div>
+
+  <div class="callout info">
+    <span class="icon">ℹ️</span>
+    <div>Docker Desktop debe estar <strong>corriendo</strong> antes de ejecutar cualquier comando de este manual.
+    En Windows, verifica que el ícono de Docker en la barra de tareas esté activo (no muestre error).</div>
+  </div>
+
+  <hr class="section-divider" />
+
+  <h3>2.2 Obtención del código fuente</h3>
+  <p>Clona el repositorio y accede al directorio del proyecto:</p>
+
+  <pre><code><span class="comment"># Clonar el repositorio</span>
+git clone https://github.com/yonatanlop/sonar.git
+cd sonar
+
+<span class="comment"># (Opcional) Para la versión con IA (v2), cambiar a la rama version2</span>
+git checkout version2</code></pre>
+
+  <hr class="section-divider" />
+
+  <h3>2.3 Configuración del archivo <code>.env</code></h3>
+  <p>
+    El archivo <code>.env</code> contiene todas las credenciales y parámetros de configuración.
+    Copia la plantilla y édita los valores necesarios:
+  </p>
+
+  <pre><code>cp .env.example .env</code></pre>
+
+  <p>Las variables más importantes son:</p>
+
+  <h4>Base de datos y seguridad (obligatorias)</h4>
+  <pre><code><span class="comment"># ── Base de Datos ──────────────────────────────────────────</span>
+<span class="key">POSTGRES_DB</span>=<span class="val">sonar_db</span>
+<span class="key">POSTGRES_USER</span>=<span class="val">sonar_user</span>
+<span class="key">POSTGRES_PASSWORD</span>=<span class="val">cambia_esta_clave_segura</span>
+<span class="key">DATABASE_URL</span>=<span class="val">postgresql://sonar_user:cambia_esta_clave_segura@db:5432/sonar_db</span>
+
+<span class="comment"># ── Seguridad JWT ──────────────────────────────────────────</span>
+<span class="comment"># Genera una clave aleatoria de 64 caracteres:</span>
+<span class="comment"># python -c "import secrets; print(secrets.token_hex(32))"</span>
+<span class="key">SECRET_KEY</span>=<span class="val">pon_aqui_64_caracteres_aleatorios</span>
+<span class="key">REDIS_URL</span>=<span class="val">redis://redis:6379/0</span></code></pre>
+
+  <h4>Plataformas de scraping (opcionales — solo configura las que uses)</h4>
+  <pre><code><span class="comment"># ── Reddit ────────────────────────────────────────────────</span>
+<span class="key">REDDIT_CLIENT_ID</span>=<span class="val">tu_client_id_de_reddit</span>
+<span class="key">REDDIT_CLIENT_SECRET</span>=<span class="val">tu_client_secret_de_reddit</span>
+<span class="key">REDDIT_USER_AGENT</span>=<span class="val">SONAR/1.0 (monitor por tu_usuario)</span>
+
+<span class="comment"># ── YouTube ──────────────────────────────────────────────</span>
+<span class="key">YOUTUBE_API_KEY</span>=<span class="val">tu_api_key_de_youtube_data_v3</span>
+
+<span class="comment"># ── HuggingFace (NLP Sentimiento/Odio) ───────────────────</span>
+<span class="key">NLP_MODE</span>=<span class="val">api</span>
+<span class="key">HUGGINGFACE_TOKEN</span>=<span class="val">hf_tu_token_de_huggingface</span></code></pre>
+
+  <h4>Notificaciones (opcionales)</h4>
+  <pre><code><span class="comment"># ── Telegram ─────────────────────────────────────────────</span>
+<span class="key">TELEGRAM_BOT_TOKEN</span>=<span class="val">123456:tu_token_del_bot_telegram</span>
+
+<span class="comment"># ── Email (Gmail) ────────────────────────────────────────</span>
+<span class="key">GMAIL_USER</span>=<span class="val">tu_cuenta@gmail.com</span>
+<span class="key">GMAIL_APP_PASSWORD</span>=<span class="val">xxxx xxxx xxxx xxxx</span></code></pre>
+
+  <div class="callout warning">
+    <span class="icon">⚠️</span>
+    <div>
+      <strong>Importante:</strong> si cambias <code>POSTGRES_PASSWORD</code>, asegúrate de actualizarla
+      también dentro de <code>DATABASE_URL</code>. Ambas deben coincidir exactamente.
+    </div>
+  </div>
+
+  <hr class="section-divider" />
+
+  <h3>2.4 Levantando los servicios con Docker</h3>
+  <p>Con el archivo <code>.env</code> configurado, ejecuta:</p>
+
+  <pre><code><span class="comment"># Primera vez: construir imágenes y levantar todos los servicios</span>
+docker compose up --build -d
+
+<span class="comment"># Ver el estado de los contenedores (todos deben aparecer como "running")</span>
+docker compose ps
+
+<span class="comment"># Seguir los logs en tiempo real (útil para diagnosticar problemas)</span>
+docker compose logs -f backend</code></pre>
+
+  <p>Los 6 servicios que deben estar corriendo:</p>
+
+  <table>
+    <thead><tr><th>Servicio</th><th>Puerto</th><th>Estado esperado</th></tr></thead>
+    <tbody>
+      <tr><td><strong>db</strong></td><td>5432</td><td><span class="badge green">healthy</span></td></tr>
+      <tr><td><strong>redis</strong></td><td>6379</td><td><span class="badge green">healthy</span></td></tr>
+      <tr><td><strong>backend</strong></td><td>8000</td><td><span class="badge green">running</span></td></tr>
+      <tr><td><strong>worker</strong></td><td>—</td><td><span class="badge green">running</span></td></tr>
+      <tr><td><strong>beat</strong></td><td>—</td><td><span class="badge green">running</span></td></tr>
+      <tr><td><strong>frontend</strong></td><td>3000</td><td><span class="badge green">running</span></td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout info">
+    <span class="icon">ℹ️</span>
+    <div>El backend ejecuta automáticamente las migraciones de base de datos (<code>alembic upgrade head</code>)
+    al iniciar. Esto crea todas las tablas necesarias en la primera ejecución.</div>
+  </div>
+
+  <hr class="section-divider" />
+
+  <h3>2.5 Creación del usuario administrador</h3>
+  <p>
+    Antes del primer acceso necesitas crear un usuario <strong>admin</strong>.
+    Ejecuta el script incluido:
+  </p>
+
+  <pre><code><span class="comment"># Crear el primer usuario administrador</span>
+docker compose exec backend python scripts/create_admin.py
+
+<span class="comment"># El script pedirá interactivamente:</span>
+<span class="comment">#   Nombre de usuario: admin</span>
+<span class="comment">#   Email: admin@ejemplo.com</span>
+<span class="comment">#   Contraseña: (mínimo 8 caracteres)</span>
+<span class="comment">#   Nombre completo: Administrador SONAR</span></code></pre>
+
+  <div class="callout success">
+    <span class="icon">✅</span>
+    <div>Una vez creado el usuario administrador, el sistema está listo para acceder en
+    <strong>http://localhost:3000</strong></div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════
+     CAPÍTULO 3 — PRIMER ACCESO
+════════════════════════════════════════════════════════ -->
+<div class="chapter">
+  <div class="ch-header">
+    <div class="ch-num">3</div>
+    <h2>Primer Acceso y Panel de Control</h2>
+  </div>
+
+  <h3>3.1 Inicio de sesión</h3>
+
+  <ol class="steps">
+    <li>Abre tu navegador y ve a <strong>http://localhost:3000</strong></li>
+    <li>Ingresa el <strong>nombre de usuario</strong> y <strong>contraseña</strong> creados en el paso 2.5</li>
+    <li>Haz clic en <strong>Iniciar sesión</strong> — serás redirigido al Dashboard</li>
+  </ol>
+
+  <div class="callout tip">
+    <span class="icon">💡</span>
+    <div>La sesión dura <strong>8 horas</strong>. Si el sistema te pide iniciar sesión nuevamente,
+    es porque el token expiró — es un comportamiento normal de seguridad.</div>
+  </div>
+
+  <hr class="section-divider" />
+
+  <h3>3.2 Navegación general</h3>
+  <p>La interfaz se divide en tres zonas principales:</p>
+
+  <table>
+    <thead><tr><th>Zona</th><th>Descripción</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Barra lateral izquierda</strong></td><td>Menú de navegación principal con acceso a todas las secciones</td></tr>
+      <tr><td><strong>Barra superior (Navbar)</strong></td><td>Nombre del usuario, botón de perfil y notificaciones en tiempo real</td></tr>
+      <tr><td><strong>Área central</strong></td><td>Contenido de la sección activa</td></tr>
+    </tbody>
+  </table>
+
+  <p>Las secciones del menú lateral son:</p>
+  <ul style="list-style:none; padding:0; margin:16px 0;">
+    <li style="padding:6px 0; border-bottom:1px solid #e2e8f0; font-size:13.5px;">📊 <strong>Dashboard</strong> — Resumen general en tiempo real</li>
+    <li style="padding:6px 0; border-bottom:1px solid #e2e8f0; font-size:13.5px;">🏢 <strong>Entidades</strong> — Administrar qué se monitorea</li>
+    <li style="padding:6px 0; border-bottom:1px solid #e2e8f0; font-size:13.5px;">💬 <strong>Menciones</strong> — Explorar publicaciones recolectadas</li>
+    <li style="padding:6px 0; border-bottom:1px solid #e2e8f0; font-size:13.5px;">🔔 <strong>Alertas</strong> — Ver alertas disparadas</li>
+    <li style="padding:6px 0; border-bottom:1px solid #e2e8f0; font-size:13.5px;">⚙️ <strong>Reglas de Alerta</strong> — Configurar cuándo alertar</li>
+    <li style="padding:6px 0; border-bottom:1px solid #e2e8f0; font-size:13.5px;">📄 <strong>Reportes</strong> — Generar informes PDF</li>
+    <li style="padding:6px 0; font-size:13.5px;">👥 <strong>Usuarios</strong> — Gestión de cuentas (solo Admin)</li>
+  </ul>
+
+  <hr class="section-divider" />
+
+  <h3>3.3 Dashboard — Lectura del panel</h3>
+  <p>El Dashboard muestra métricas agregadas de las últimas 24 horas y 7 días:</p>
+
+  <table>
+    <thead><tr><th>Tarjeta</th><th>Qué muestra</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Total menciones</strong></td><td>Número de publicaciones recolectadas en las últimas 24 h</td></tr>
+      <tr><td><strong>Distribución de sentimiento</strong></td><td>Porcentaje de menciones positivas, neutras, negativas y muy negativas</td></tr>
+      <tr><td><strong>Menciones por plataforma</strong></td><td>Desglose de volumen por Reddit, YouTube, RSS y Twitter</td></tr>
+      <tr><td><strong>Alertas activas</strong></td><td>Número de alertas sin reconocer del día</td></tr>
+      <tr><td><strong>Tendencia diaria</strong></td><td>Gráfico de línea de menciones de los últimos 7 días por entidad</td></tr>
+      <tr><td><strong>Discurso de odio</strong></td><td>Conteo de menciones marcadas como hate speech</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout info">
+    <span class="icon">ℹ️</span>
+    <div>Si el Dashboard muestra ceros en todo, es probable que el scraping aún no haya recolectado
+    menciones. Las primeras menciones aparecen <strong>15-30 minutos</strong> después de configurar
+    entidades y palabras clave.</div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════
+     CAPÍTULO 4 — USUARIOS Y ROLES
+════════════════════════════════════════════════════════ -->
+<div class="chapter">
+  <div class="ch-header">
+    <div class="ch-num">4</div>
+    <h2>Gestión de Usuarios y Roles</h2>
+  </div>
+
+  <h3>4.1 Roles del sistema</h3>
+
+  <div class="role-grid">
+    <div class="role-card admin-card">
+      <div class="rtitle"><span class="badge admin">Admin</span></div>
+      <ul>
+        <li>Crear y gestionar usuarios</li>
+        <li>Configurar entidades y keywords</li>
+        <li>Crear reglas de alerta</li>
+        <li>Generar reportes</li>
+        <li>Ver y reconocer alertas</li>
+        <li>Acceso total al sistema</li>
+      </ul>
+    </div>
+    <div class="role-card analyst-card">
+      <div class="rtitle"><span class="badge analyst">Analyst</span></div>
+      <ul>
+        <li>Crear entidades y keywords</li>
+        <li>Crear reglas de alerta</li>
+        <li>Generar reportes</li>
+        <li>Ver y reconocer alertas</li>
+        <li>Explorar menciones</li>
+      </ul>
+    </div>
+    <div class="role-card viewer-card">
+      <div class="rtitle"><span class="badge viewer">Viewer</span></div>
+      <ul>
+        <li>Ver Dashboard</li>
+        <li>Explorar menciones (solo lectura)</li>
+        <li>Ver alertas</li>
+        <li>Ver reportes generados</li>
+      </ul>
+    </div>
+  </div>
+
+  <hr class="section-divider" />
+
+  <h3>4.2 Crear un usuario</h3>
+  <p>
+    Solo los usuarios con rol <span class="badge admin">Admin</span> pueden crear nuevos usuarios.
+    Ruta: <span class="ui-path">Menú lateral <span class="sep">›</span> Usuarios <span class="sep">›</span> Nuevo usuario</span>
+  </p>
+
+  <ol class="steps">
+    <li>En el menú lateral, haz clic en <strong>Usuarios</strong></li>
+    <li>Haz clic en el botón <strong>+ Nuevo usuario</strong> (esquina superior derecha)</li>
+    <li>Completa el formulario:
+      <ul style="margin-top:8px; padding-left:20px; font-size:13px;">
+        <li><strong>Nombre de usuario</strong> — Sin espacios, único en el sistema</li>
+        <li><strong>Email</strong> — Usado para notificaciones por correo</li>
+        <li><strong>Nombre completo</strong> — Nombre visible en la interfaz</li>
+        <li><strong>Contraseña</strong> — Mínimo 8 caracteres</li>
+        <li><strong>Rol</strong> — Admin, Analyst o Viewer según las funciones necesarias</li>
+      </ul>
+    </li>
+    <li>Haz clic en <strong>Crear usuario</strong></li>
+  </ol>
+
+  <div class="callout warning">
+    <span class="icon">⚠️</span>
+    <div>Asigna el rol <span class="badge admin">Admin</span> únicamente a personas de confianza.
+    Los administradores pueden crear y desactivar otros usuarios, incluyendo otros admins.</div>
+  </div>
+
+  <hr class="section-divider" />
+
+  <h3>4.3 Configurar notificaciones por usuario</h3>
+  <p>
+    Cada usuario puede configurar sus canales de notificación desde su perfil.
+    Ruta: <span class="ui-path">Nombre de usuario (esquina superior derecha) <span class="sep">›</span> Perfil</span>
+  </p>
+
+  <table>
+    <thead><tr><th>Canal</th><th>Configuración requerida</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Email</strong></td>
+        <td>Se usa el email de la cuenta. Requiere <code>GMAIL_USER</code> y <code>GMAIL_APP_PASSWORD</code> en <code>.env</code></td>
+      </tr>
+      <tr>
+        <td><strong>Telegram</strong></td>
+        <td>Ingresar el <strong>Chat ID</strong> de Telegram del usuario. Requiere <code>TELEGRAM_BOT_TOKEN</code> en <code>.env</code></td>
+      </tr>
+      <tr>
+        <td><strong>WhatsApp</strong></td>
+        <td>Ingresar número de teléfono y API key de WhatsApp Business</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout tip">
+    <span class="icon">💡</span>
+    <div>Para obtener tu <strong>Telegram Chat ID</strong>, envía un mensaje al bot
+    <code>@userinfobot</code> en Telegram — te responderá con tu ID numérico.</div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════
+     CAPÍTULO 5 — ENTIDADES
+════════════════════════════════════════════════════════ -->
+<div class="chapter">
+  <div class="ch-header">
+    <div class="ch-num">5</div>
+    <h2>Entidades: Qué Monitorear</h2>
+  </div>
+
+  <h3>5.1 ¿Qué es una entidad?</h3>
+  <p>
+    Una <strong>entidad</strong> es el sujeto que quieres monitorear: puede ser una persona
+    (político, ejecutivo, influencer), una organización (empresa, partido, institución) o un
+    producto/marca. Todo el análisis del sistema gira en torno a las entidades.
+  </p>
+  <p>Cada entidad tiene:</p>
+  <ul style="padding-left:24px; margin:12px 0; font-size:13.5px; color:#334155;">
+    <li><strong>Nombre principal</strong> — Ej: "Petro", "Bancolombia", "iPhone"</li>
+    <li><strong>Aliases</strong> — Variaciones del nombre: "Gustavo Petro", "@petrogustavo"</li>
+    <li><strong>Palabras clave (keywords)</strong> — Términos de búsqueda que capturan menciones</li>
+    <li><strong>País</strong> — Para filtrar y contextualizar menciones geográficamente</li>
+    <li><strong>Tipo de entidad</strong> — Politician, Company, Celebrity, etc.</li>
+  </ul>
+  <div class="callout info">
+    <span class="icon">ℹ️</span>
+    <div>
+      <strong>Flujo de configuración en dos pasos:</strong><br/>
+      El formulario de creación captura los datos básicos (nombre, tipo, país, descripción y foto).
+      Los <strong>aliases</strong> y las <strong>keywords</strong> se agregan en la página de detalle de la entidad
+      una vez que esta ha sido creada — ver secciones 5.3 y 5.4.
+    </div>
+  </div>
+
+  <hr class="section-divider" />
+
+  <h3>5.2 Crear una entidad</h3>
+  <p>Ruta: <span class="ui-path">Entidades <span class="sep">›</span> Nueva entidad</span></p>
+
+  <ol class="steps">
+    <li>En el menú lateral, haz clic en <strong>Entidades</strong></li>
+    <li>Haz clic en el botón <strong>+ Nueva entidad</strong></li>
+    <li>Completa el formulario:
+      <ul style="margin-top:8px; padding-left:20px; font-size:13px;">
+        <li><strong>Nombre</strong> — Nombre principal de la entidad (ej: "Bancolombia")</li>
+        <li><strong>Tipo</strong> — Selecciona el tipo: Company, Politician, Celebrity, etc.</li>
+        <li><strong>País</strong> — País de origen o relevancia geográfica</li>
+        <li><strong>Descripción</strong> — Texto descriptivo opcional para contexto del equipo</li>
+        <li><strong>Foto URL</strong> — URL de imagen de perfil (opcional)</li>
+      </ul>
+    </li>
+    <li>Haz clic en <strong>Guardar</strong></li>
+    <li>El formulario se cierra y la entidad aparece en la lista. Haz clic en <strong>Ver detalle</strong> para continuar con la configuración (aliases y keywords)</li>
+  </ol>
+
+  <div class="callout info">
+    <span class="icon">ℹ️</span>
+    <div>Las entidades sin keywords configuradas <strong>no recibirán menciones</strong> ya que el
+    scraper no sabe qué buscar. El siguiente paso es siempre agregar al menos una palabra clave.</div>
+  </div>
+
+  <hr class="section-divider" />
+
+  <h3>5.3 Agregar aliases</h3>
+  <p>
+    Los <strong>aliases</strong> son nombres alternativos de la entidad. El sistema los usa en el
+    motor de alertas y en la búsqueda de contexto, pero no en el scraping directo.
+  </p>
+  <p>Ruta: <span class="ui-path">Entidades <span class="sep">›</span> [clic en entidad] <span class="sep">›</span> Aliases</span></p>
+
+  <ol class="steps">
+    <li>Desde el detalle de la entidad, localiza la sección <strong>Aliases</strong></li>
+    <li>Escribe el nombre alternativo en el campo de texto (ej: "@Bancolombia", "Banco Colombia")</li>
+    <li>Haz clic en <strong>Agregar</strong></li>
+    <li>Repite para cada variación relevante del nombre</li>
+  </ol>
+
+  <div class="callout tip">
+    <span class="icon">💡</span>
+    <div>
+      <strong>Ejemplos de buenos aliases:</strong>
+      <ul style="margin-top:6px; padding-left:16px; font-size:13px;">
+        <li>Para "Gustavo Petro" → <em>Petro, @petrogustavo, Presidente Petro</em></li>
+        <li>Para "Ecopetrol" → <em>@Ecopetrol, ECO, Ecopetrol S.A.</em></li>
+        <li>Para "iPhone 16" → <em>iphone16, iPhone16Pro, Apple iPhone</em></li>
+      </ul>
+    </div>
+  </div>
+
+  <hr class="section-divider" />
+
+  <h3>5.4 Configurar palabras clave (keywords)</h3>
+  <p>
+    Las <strong>keywords</strong> son los términos exactos que el scraper busca en las plataformas.
+    Cada keyword se asocia a un idioma y tiene un <strong>peso</strong> que indica su importancia.
+  </p>
+  <p>Ruta: <span class="ui-path">Entidades <span class="sep">›</span> [clic en entidad] <span class="sep">›</span> Keywords</span></p>
+
+  <h4>Niveles de peso (importance)</h4>
+  <table>
+    <thead><tr><th>Peso</th><th>Indicador</th><th>Uso recomendado</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>1 — Normal</strong></td>
+        <td><span class="weight-dot" style="background:#94a3b8;"></span> Gris</td>
+        <td>Términos generales de seguimiento. Ej: "bancolombia productos"</td>
+      </tr>
+      <tr>
+        <td><strong>2 — Importante</strong></td>
+        <td><span class="weight-dot" style="background:#f59e0b;"></span> Amarillo</td>
+        <td>Términos relevantes con más atención. Ej: "bancolombia fraude"</td>
+      </tr>
+      <tr>
+        <td><strong>3 — Crítico</strong></td>
+        <td><span class="weight-dot" style="background:#ef4444;"></span> Rojo</td>
+        <td>Términos de riesgo alto. El motor de alertas <code>keyword_critical</code> solo dispara con peso 3</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <ol class="steps">
+    <li>Desde el detalle de la entidad, localiza la sección <strong>Keywords</strong></li>
+    <li>Escribe la palabra o frase clave en el campo (ej: "bancolombia estafa")</li>
+    <li>Selecciona el <strong>idioma</strong> de la keyword (ES / EN)</li>
+    <li>Elige el <strong>peso</strong> (1, 2 o 3)</li>
+    <li>Haz clic en <strong>Agregar keyword</strong></li>
+  </ol>
+
+  <div class="callout warning">
+    <span class="icon">⚠️</span>
+    <div>
+      <strong>Buenas prácticas para keywords:</strong>
+      <ul style="margin-top:6px; padding-left:16px; font-size:13px;">
+        <li>Usa términos <strong>específicos</strong> para evitar falsos positivos</li>
+        <li>Incluye variantes con y sin tildes: <em>"petróleo", "petroleo"</em></li>
+        <li>Incluye el nombre de la entidad junto al tema: <em>"Ecopetrol derrame"</em> en vez de solo <em>"derrame"</em></li>
+        <li>Agrega keywords en inglés si la entidad tiene presencia internacional</li>
+      </ul>
+    </div>
+  </div>
+
+  <hr class="section-divider" />
+
+  <h3>5.5 Detalle de entidad y métricas</h3>
+  <p>
+    Al hacer clic en cualquier entidad en la lista, accedes a su página de detalle con:
+  </p>
+  <ul style="padding-left:24px; margin:12px 0; font-size:13.5px; color:#334155;">
+    <li><strong>Gráfico de volumen</strong> — Menciones diarias de los últimos 30 días</li>
+    <li><strong>Distribución de sentimiento</strong> — Donut chart con % de cada categoría</li>
+    <li><strong>Top menciones</strong> — Las publicaciones con mayor reach (interacciones)</li>
+    <li><strong>Plataformas activas</strong> — Distribución por red social</li>
+    <li><strong>Keywords activas</strong> — Lista editable de palabras clave</li>
+    <li><strong>Accesos rápidos</strong> — Botones para ver alertas y generar reporte de esa entidad</li>
+  </ul>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════
+     CAPÍTULO 6 — PLATAFORMAS DE SCRAPING
+════════════════════════════════════════════════════════ -->
+<div class="chapter">
+  <div class="ch-header">
+    <div class="ch-num">6</div>
+    <h2>Configuración de Plataformas de Scraping</h2>
+  </div>
+
+  <p>
+    SONAR recolecta menciones de cuatro fuentes. Cada una requiere credenciales propias configuradas
+    en el archivo <code>.env</code>. Las plataformas no configuradas son <strong>saltadas silenciosamente</strong>
+    sin causar errores.
+  </p>
+
+  <h3>6.1 Reddit</h3>
+  <p><strong>Frecuencia:</strong> cada 15 minutos &nbsp;|&nbsp; <strong>Requiere:</strong> cuenta de Reddit + app registrada</p>
+
+  <h4>Cómo obtener credenciales de Reddit</h4>
+  <ol class="steps">
+    <li>Inicia sesión en <strong>reddit.com</strong> con tu cuenta</li>
+    <li>Ve a <strong>https://www.reddit.com/prefs/apps</strong></li>
+    <li>Haz clic en <strong>Create App</strong> (o "Create another app")</li>
+    <li>Rellena el formulario:
+      <ul style="margin-top:8px; padding-left:20px; font-size:13px;">
+        <li><strong>Name:</strong> SONAR Monitor</li>
+        <li><strong>App type:</strong> script</li>
+        <li><strong>redirect uri:</strong> http://localhost:8080</li>
+      </ul>
+    </li>
+    <li>Haz clic en <strong>Create app</strong></li>
+    <li>Copia el <strong>client_id</strong> (texto bajo el nombre de la app) y el <strong>client_secret</strong></li>
+  </ol>
+
+  <pre><code><span class="key">REDDIT_CLIENT_ID</span>=<span class="val">abc123xyz</span>
+<span class="key">REDDIT_CLIENT_SECRET</span>=<span class="val">SecretKeyABC123</span>
+<span class="key">REDDIT_USER_AGENT</span>=<span class="val">SONAR/1.0 (monitor by tu_usuario_reddit)</span></code></pre>
+
+  <div class="callout tip">
+    <span class="icon">💡</span>
+    <div>El <code>REDDIT_USER_AGENT</code> puede ser cualquier texto descriptivo. Reddit lo usa para
+    identificar tu aplicación. Usa el formato <code>AppName/version (descripcion)</code>.</div>
+  </div>
+
+  <hr class="section-divider" />
+
+  <h3>6.2 YouTube</h3>
+  <p><strong>Frecuencia:</strong> cada 30 minutos &nbsp;|&nbsp; <strong>Requiere:</strong> cuenta de Google + proyecto en Cloud Console</p>
+
+  <h4>Cómo obtener YouTube Data API Key</h4>
+  <ol class="steps">
+    <li>Ve a <strong>console.cloud.google.com</strong> y crea un proyecto nuevo (ej: "SONAR")</li>
+    <li>En la barra de búsqueda, busca <strong>YouTube Data API v3</strong> y habilítala</li>
+    <li>Ve a <strong>Credenciales</strong> → <strong>Crear credenciales</strong> → <strong>Clave de API</strong></li>
+    <li>Copia la clave generada</li>
+    <li>Opcionalmente, restringe la clave a "YouTube Data API v3" para mayor seguridad</li>
+  </ol>
+
+  <pre><code><span class="key">YOUTUBE_API_KEY</span>=<span class="val">AIzaSyAbc123DefGhi456</span></code></pre>
+
+  <div class="callout warning">
+    <span class="icon">⚠️</span>
+    <div>La API de YouTube tiene una cuota gratuita de <strong>10,000 unidades/día</strong>.
+    Cada búsqueda consume ~100 unidades. Con múltiples entidades y keywords, puedes alcanzar el
+    límite rápidamente. Monitorea el uso en Google Cloud Console.</div>
+  </div>
+
+  <hr class="section-divider" />
+
+  <h3>6.3 RSS / Noticias web</h3>
+  <p><strong>Frecuencia:</strong> cada 20 minutos &nbsp;|&nbsp; <strong>Requiere:</strong> nada (funciona sin credenciales)</p>
+
+  <p>
+    El scraper RSS lee automáticamente fuentes de noticias preconfiguradas y filtra artículos
+    que contengan las keywords de cada entidad. No requiere configuración adicional.
+  </p>
+
+  <div class="callout info">
+    <span class="icon">ℹ️</span>
+    <div>Las fuentes RSS incluyen portales de noticias regionales e internacionales en español e inglés.
+    Si necesitas agregar una fuente específica, contacta al administrador del sistema o edita el archivo
+    <code>backend/app/workers/scrapers/rss.py</code>.</div>
+  </div>
+
+  <hr class="section-divider" />
+
+  <h3>6.4 Twitter / X</h3>
+  <p><strong>Frecuencia:</strong> cada 20 minutos &nbsp;|&nbsp; <strong>Requiere:</strong> una cuenta de Twitter (sin API key oficial)</p>
+
+  <p>
+    SONAR usa <strong>twscrape</strong>, una herramienta que permite buscar en Twitter sin API key
+    oficial, usando credenciales de usuario. Necesitas agregar al menos una cuenta de Twitter.
+  </p>
+
+  <ol class="steps">
+    <li>Asegúrate de tener una cuenta de Twitter/X activa (puede ser una cuenta de uso exclusivo para el monitoreo)</li>
+    <li>Ejecuta el script de configuración:
+      <pre style="margin:10px 0 0;"><code>docker compose exec backend python scripts/add_twitter_account.py</code></pre>
+    </li>
+    <li>Ingresa el usuario, contraseña y email de la cuenta cuando se solicite</li>
+    <li>El script guarda las credenciales cifradas en <code>/app/storage/twscrape.db</code></li>
+  </ol>
+
+  <div class="callout warning">
+    <span class="icon">⚠️</span>
+    <div>Usa una cuenta de Twitter dedicada al monitoreo, no una cuenta personal. Twitter puede
+    solicitar verificación por email o teléfono si detecta actividad inusual.</div>
+  </div>
+
+  <hr class="section-divider" />
+
+  <h3>6.5 Verificar que el scraping está funcionando</h3>
+  <p>Después de configurar las credenciales, reinicia los servicios para aplicar los cambios:</p>
+
+  <pre><code><span class="comment"># Reiniciar solo el worker y el beat (donde corre el scraping)</span>
+docker compose restart worker beat
+
+<span class="comment"># Verificar logs del worker para ver si el scraping corre sin errores</span>
+docker compose logs worker --tail=50</code></pre>
+
+  <p>En los logs busca mensajes como:</p>
+  <pre><code><span class="comment"># Indicadores de éxito</span>
+[RedditScraper] Entidad "Bancolombia": 12 menciones nuevas
+[YouTubeScraper] Entidad "Ecopetrol": 3 videos encontrados
+[RSSScraper] 7 artículos procesados</code></pre>
+
+  <div class="callout tip">
+    <span class="icon">💡</span>
+    <div>También puedes monitorear el estado de las tareas en tiempo real usando
+    <strong>Flower</strong> (interfaz web de Celery) en <strong>http://localhost:5555</strong>.
+    Muestra cada tarea ejecutada, su duración y si tuvo errores.</div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════
+     CAPÍTULO 7 — MENCIONES
+════════════════════════════════════════════════════════ -->
+<div class="chapter">
+  <div class="ch-header">
+    <div class="ch-num">7</div>
+    <h2>Menciones: Explorar y Filtrar Publicaciones</h2>
+  </div>
+
+  <h3>7.1 Vista de menciones</h3>
+  <p>
+    La sección <strong>Menciones</strong> muestra todas las publicaciones recolectadas de todas las
+    plataformas, ordenadas de más reciente a más antigua. Cada tarjeta representa una publicación
+    con su análisis NLP procesado.
+  </p>
+  <p>El contador en la parte superior muestra el total de menciones que coinciden con los filtros activos.</p>
+
+  <hr class="section-divider" />
+
+  <h3>7.2 Filtros disponibles</h3>
+
+  <table>
+    <thead><tr><th>Filtro</th><th>Valores</th><th>Uso</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Entidad</strong></td>
+        <td>Todas / nombre de entidad específica</td>
+        <td>Aísla menciones de una sola entidad monitoreada</td>
+      </tr>
+      <tr>
+        <td><strong>Plataforma</strong></td>
+        <td>Twitter, Reddit, YouTube, RSS</td>
+        <td>Filtra por red social o fuente</td>
+      </tr>
+      <tr>
+        <td><strong>Sentimiento</strong></td>
+        <td>Muy negativo / Negativo / Neutral / Positivo</td>
+        <td>Enfocarse en menciones negativas urgentes</td>
+      </tr>
+      <tr>
+        <td><strong>Idioma</strong></td>
+        <td>Español / Inglés</td>
+        <td>Separar análisis por mercado lingüístico</td>
+      </tr>
+      <tr>
+        <td><strong>Urgencia mínima</strong></td>
+        <td>≥30 (Media), ≥60 (Alta), ≥80 (Crítica)</td>
+        <td>Ver solo menciones que requieren atención prioritaria</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout tip">
+    <span class="icon">💡</span>
+    <div>Para una vista de monitoreo diario rápido, usa los filtros:<br>
+    <strong>Urgencia ≥ 60</strong> + <strong>Sentimiento: Negativo o Muy negativo</strong><br>
+    Esto mostrará solo las menciones más críticas que requieren acción inmediata.</div>
+  </div>
+
+  <hr class="section-divider" />
+
+  <h3>7.3 Indicadores de cada mención</h3>
+  <p>Cada tarjeta de mención muestra la siguiente información:</p>
+
+  <table>
+    <thead><tr><th>Indicador</th><th>Descripción</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Ícono de plataforma</strong></td>
+        <td>🐦 Twitter &nbsp; 🤖 Reddit &nbsp; ▶️ YouTube &nbsp; ✈️ Telegram &nbsp; 📰 RSS</td>
+      </tr>
+      <tr>
+        <td><strong>@usuario</strong></td>
+        <td>Nombre del autor de la publicación en la plataforma</td>
+      </tr>
+      <tr>
+        <td><strong>Fecha y hora</strong></td>
+        <td>Cuándo fue publicado el contenido (zona horaria de Colombia)</td>
+      </tr>
+      <tr>
+        <td><strong>Contenido</strong></td>
+        <td>Texto completo de la publicación recolectada</td>
+      </tr>
+      <tr>
+        <td><span class="badge red">🔥 Crítico 85</span></td>
+        <td><strong>Score de urgencia</strong>: solo visible si score ≥ 30. Crítico=≥80, Urgente=≥60, Atención=≥30</td>
+      </tr>
+      <tr>
+        <td><span class="badge red">very negative</span> <span class="badge gray">neutral</span></td>
+        <td><strong>Etiqueta de sentimiento</strong> — resultado del análisis NLP</td>
+      </tr>
+      <tr>
+        <td><span class="badge red">Discurso de odio</span></td>
+        <td>Presente si el modelo NLP detectó contenido de odio (hate_score alto)</td>
+      </tr>
+      <tr>
+        <td><span class="badge purple">BOT</span></td>
+        <td>La cuenta que publicó fue clasificada como bot por el sistema</td>
+      </tr>
+      <tr>
+        <td>👍 1,234 interacciones</td>
+        <td><strong>Reach</strong> — likes + retweets + comentarios (refleja impacto)</td>
+      </tr>
+      <tr>
+        <td>🔗 (ícono enlace)</td>
+        <td>Enlace directo a la publicación original en la plataforma</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h4>Paginación</h4>
+  <p>
+    Los resultados se muestran en páginas de <strong>20 menciones</strong>. Usa los botones
+    <em>"← Anterior"</em> y <em>"Siguiente →"</em> al final de la página para navegar.
+    El contador muestra la página actual y el total disponible.
+  </p>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════
+     CAPÍTULO 8 — SISTEMA DE ALERTAS
+════════════════════════════════════════════════════════ -->
+<div class="chapter">
+  <div class="ch-header">
+    <div class="ch-num">8</div>
+    <h2>Sistema de Alertas</h2>
+  </div>
+
+  <p>
+    El sistema de alertas evalúa reglas configuradas <strong>cada 5 minutos</strong> de forma automática.
+    Cuando una regla supera su umbral, se genera una alerta visible en el panel y (si está configurado)
+    se envía una notificación por Telegram, email o WhatsApp.
+  </p>
+
+  <h3>8.1 Tipos de reglas de alerta</h3>
+
+  <table>
+    <thead><tr><th>Tipo de regla</th><th>Qué detecta</th><th>Umbral típico</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>volume_spike</code></td>
+        <td>Pico en el volumen de menciones comparado con el promedio histórico de 7 días</td>
+        <td>2× el promedio</td>
+      </tr>
+      <tr>
+        <td><code>negative_threshold</code></td>
+        <td>Porcentaje de menciones negativas o muy negativas supera un umbral</td>
+        <td>40% o más</td>
+      </tr>
+      <tr>
+        <td><code>bot_activity</code></td>
+        <td>Número de cuentas clasificadas como bots mencionando la entidad en el período</td>
+        <td>5 o más bots</td>
+      </tr>
+      <tr>
+        <td><code>keyword_critical</code></td>
+        <td>Menciones que contienen palabras clave de <strong>peso 3 (crítico)</strong></td>
+        <td>1 o más menciones</td>
+      </tr>
+      <tr>
+        <td><code>hate_speech</code></td>
+        <td>Número de menciones con discurso de odio detectado</td>
+        <td>3 o más menciones</td>
+      </tr>
+      <tr>
+        <td><code>campaign_detected</code></td>
+        <td>Mensajes muy similares (≥75%) provenientes de 3 o más cuentas distintas (posible campaña coordinada)</td>
+        <td>3 cuentas distintas</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout info">
+    <span class="icon">ℹ️</span>
+    <div>Para que <code>keyword_critical</code> funcione correctamente, debes tener keywords con
+    <strong>peso 3</strong> configuradas en la entidad. Si no hay keywords de peso 3, esta regla
+    nunca disparará.</div>
+  </div>
+
+  <hr class="section-divider" />
+
+  <h3>8.2 Crear una regla de alerta</h3>
+  <p>Ruta: <span class="ui-path">Reglas de Alerta <span class="sep">›</span> Nueva regla</span></p>
+
+  <ol class="steps">
+    <li>En el menú lateral, haz clic en <strong>Reglas de Alerta</strong></li>
+    <li>Haz clic en el botón <strong>+ Nueva regla</strong></li>
+    <li>Completa el formulario:
+      <ul style="margin-top:8px; padding-left:20px; font-size:13px; line-height:2;">
+        <li><strong>Nombre</strong> — Descripción corta de la regla (ej: "Pico negativo Ecopetrol")</li>
+        <li><strong>Entidad</strong> — Selecciona la entidad específica <em>o deja en blanco</em> para una regla global (aplica a todas)</li>
+        <li><strong>Tipo de regla</strong> — Elige uno de los 6 tipos de la tabla anterior</li>
+        <li><strong>Umbral</strong> — Número que dispara la alerta (ver tabla de ejemplos abajo)</li>
+        <li><strong>Ventana de tiempo</strong> — Minutos que el sistema evalúa hacia atrás (ej: 60 = última hora)</li>
+        <li><strong>Severidad</strong> — Cómo se clasifica la alerta si se dispara</li>
+      </ul>
+    </li>
+    <li>Haz clic en <strong>Crear regla</strong></li>
+  </ol>
+
+  <h4>Ejemplos de configuración recomendada</h4>
+
+  <table>
+    <thead><tr><th>Escenario</th><th>Tipo</th><th>Umbral</th><th>Ventana</th><th>Severidad</th></tr></thead>
+    <tbody>
+      <tr><td>Detectar crisis de reputación emergente</td><td><code>negative_threshold</code></td><td>50</td><td>60 min</td><td>High</td></tr>
+      <tr><td>Alerta por cualquier mención crítica</td><td><code>keyword_critical</code></td><td>1</td><td>30 min</td><td>Critical</td></tr>
+      <tr><td>Pico inusual de menciones</td><td><code>volume_spike</code></td><td>3</td><td>60 min</td><td>Medium</td></tr>
+      <tr><td>Campaña de bots coordinada</td><td><code>campaign_detected</code></td><td>5</td><td>120 min</td><td>High</td></tr>
+      <tr><td>Discurso de odio elevado</td><td><code>hate_speech</code></td><td>5</td><td>60 min</td><td>High</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout info">
+    <span class="icon">ℹ️</span>
+    <div>Una regla activada <strong>no puede volver a disparar en los próximos 30 minutos</strong>
+    (cooldown). Esto evita que la misma situación genere docenas de alertas iguales.</div>
+  </div>
+
+  <hr class="section-divider" />
+
+  <h3>8.3 Severidades y su significado</h3>
+
+  <table>
+    <thead><tr><th>Severidad</th><th>Color</th><th>Significado</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><span class="badge gray">Low</span></td>
+        <td>Gris</td>
+        <td>Situación a observar. No requiere acción inmediata.</td>
+      </tr>
+      <tr>
+        <td><span class="badge orange">Medium</span></td>
+        <td>Naranja</td>
+        <td>Situación que merece revisión en las próximas horas.</td>
+      </tr>
+      <tr>
+        <td><span class="badge red">High</span></td>
+        <td>Rojo</td>
+        <td>Situación que requiere atención pronto. Notificar al equipo.</td>
+      </tr>
+      <tr>
+        <td><span class="badge" style="background:#7f1d1d;color:#fff;">Critical</span></td>
+        <td>Rojo oscuro</td>
+        <td>Crisis activa. Requiere respuesta inmediata del equipo.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <hr class="section-divider" />
+
+  <h3>8.4 Identificar una alerta activa</h3>
+  <p>
+    Cuando el motor de alertas dispara una regla, aparece un indicador en la barra de navegación
+    superior. Para ver las alertas activas:
+  </p>
+
+  <p>Ruta: <span class="ui-path">Menú lateral <span class="sep">›</span> Alertas</span></p>
+
+  <p>
+    En la vista de Alertas, cada tarjeta contiene:
+  </p>
+
+  <table>
+    <thead><tr><th>Campo</th><th>Descripción</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Ícono de severidad</strong></td><td>Color y ícono que indica el nivel de criticidad</td></tr>
+      <tr><td><strong>Nombre de la regla</strong></td><td>La regla que se disparó (ej: "Pico negativo Ecopetrol")</td></tr>
+      <tr><td><strong>Mensaje descriptivo</strong></td><td>Explica qué ocurrió: qué métrica superó qué umbral</td></tr>
+      <tr><td><strong>Entidad</strong></td><td>A qué entidad afecta la alerta</td></tr>
+      <tr><td><strong>Hora de disparo</strong></td><td>Cuándo fue detectada la situación</td></tr>
+      <tr><td><strong>Estado</strong></td><td><span class="badge orange">Pendiente</span> (sin revisar) o <span class="badge green">Reconocida</span></td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout danger">
+    <span class="icon">🚨</span>
+    <div>
+      <strong>Protocolo ante una alerta crítica:</strong>
+      <ol style="margin-top:8px; padding-left:20px; font-size:13px; line-height:1.9;">
+        <li>Lee el mensaje de la alerta y confirma la entidad afectada</li>
+        <li>Ve a <strong>Menciones</strong> y filtra por esa entidad + sentimiento negativo</li>
+        <li>Revisa las menciones recientes para entender el contenido de la situación</li>
+        <li>Evalúa si requiere respuesta pública, escalamiento interno o solo monitoreo</li>
+        <li>Reconoce la alerta para indicar al equipo que fue vista y gestionada</li>
+      </ol>
+    </div>
+  </div>
+
+  <hr class="section-divider" />
+
+  <h3>8.5 Reconocer (acknowledge) una alerta</h3>
+  <p>
+    Reconocer una alerta indica que fue revisada y está siendo atendida. Esto la mueve a
+    estado <span class="badge green">Reconocida</span> y registra qué usuario la atendió.
+  </p>
+
+  <ol class="steps">
+    <li>En la vista de <strong>Alertas</strong>, localiza la alerta que deseas reconocer</li>
+    <li>Haz clic en el botón <strong>Reconocer</strong> en la tarjeta de la alerta</li>
+    <li>La alerta cambia a estado <span class="badge green">Reconocida</span> y registra tu nombre y la hora</li>
+  </ol>
+
+  <div class="callout info">
+    <span class="icon">ℹ️</span>
+    <div>Reconocer una alerta <strong>no desactiva la regla</strong>. Si la condición persiste,
+    la regla puede dispararse de nuevo después del período de cooldown (30 minutos).</div>
+  </div>
+
+  <hr class="section-divider" />
+
+  <h3>8.6 Notificaciones externas</h3>
+  <p>
+    Cuando se dispara una alerta, el sistema puede notificar a los usuarios por canales externos.
+    Los canales activos dependen de la configuración del usuario (ver sección 4.3) y las credenciales
+    en el <code>.env</code>.
+  </p>
+
+  <table>
+    <thead><tr><th>Canal</th><th>Mensaje enviado</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Telegram</strong></td>
+        <td>Mensaje de texto con nombre de regla, entidad, severidad y descripción del evento</td>
+      </tr>
+      <tr>
+        <td><strong>Email</strong></td>
+        <td>Correo HTML con los mismos datos más enlace directo al dashboard</td>
+      </tr>
+      <tr>
+        <td><strong>WhatsApp</strong></td>
+        <td>Mensaje de texto con el resumen de la alerta</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════
+     CAPÍTULO 9 — REPORTES
+════════════════════════════════════════════════════════ -->
+<div class="chapter">
+  <div class="ch-header">
+    <div class="ch-num">9</div>
+    <h2>Generación de Reportes PDF</h2>
+  </div>
+
+  <h3>9.1 Tipos de reporte disponibles</h3>
+
+  <table>
+    <thead><tr><th>Tipo</th><th>Contenido</th><th>Cuándo usarlo</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Entidad</strong></td>
+        <td>Análisis completo de una entidad: volumen, sentimiento, menciones top, plataformas, keywords activas</td>
+        <td>Informe semanal de seguimiento de una marca/persona</td>
+      </tr>
+      <tr>
+        <td><strong>País</strong></td>
+        <td>Resumen de menciones por país o región: comparativo entre entidades</td>
+        <td>Análisis de cobertura geográfica</td>
+      </tr>
+      <tr>
+        <td><strong>Bots</strong></td>
+        <td>Actividad de cuentas clasificadas como bots: plataformas, entidades afectadas, tendencia</td>
+        <td>Informe de integridad y detección de campañas artificiales</td>
+      </tr>
+      <tr>
+        <td><strong>Alertas</strong></td>
+        <td>Historial de alertas disparadas en el período: reglas, severidad, reconocimiento</td>
+        <td>Revisión ejecutiva de incidentes del período</td>
+      </tr>
+      <tr>
+        <td><strong>Campaña</strong></td>
+        <td>Análisis de mensajes coordinados y patrones de campaña detectados</td>
+        <td>Investigación de posibles campañas de desinformación</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <hr class="section-divider" />
+
+  <h3>9.2 Crear y descargar un reporte</h3>
+  <p>Ruta: <span class="ui-path">Menú lateral <span class="sep">›</span> Reportes <span class="sep">›</span> Nuevo reporte</span></p>
+
+  <ol class="steps">
+    <li>En el menú lateral, haz clic en <strong>Reportes</strong></li>
+    <li>Haz clic en <strong>+ Nuevo reporte</strong></li>
+    <li>Completa el formulario:
+      <ul style="margin-top:8px; padding-left:20px; font-size:13px; line-height:2;">
+        <li><strong>Nombre del reporte</strong> — Ej: "Análisis Ecopetrol — Marzo 2026"</li>
+        <li><strong>Tipo</strong> — Selecciona uno de los 5 tipos</li>
+        <li><strong>Entidad</strong> — Requerido para tipo "Entidad"; opcional para los demás</li>
+        <li><strong>Fecha desde</strong> — Inicio del período analizado</li>
+        <li><strong>Fecha hasta</strong> — Fin del período analizado</li>
+      </ul>
+    </li>
+    <li>Haz clic en <strong>Generar reporte</strong> — el sistema procesará el PDF en segundo plano</li>
+    <li>Espera unos segundos y recarga la lista — el reporte aparecerá con estado <span class="badge green">Listo</span></li>
+    <li>Haz clic en el botón <strong>Descargar PDF</strong> para obtener el archivo</li>
+  </ol>
+
+  <div class="callout info">
+    <span class="icon">ℹ️</span>
+    <div>Los reportes generados se guardan en el servidor y pueden descargarse múltiples veces.
+    Los archivos se almacenan en el volumen <code>storage_data</code> y persisten entre reinicios
+    de los contenedores.</div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════
+     CAPÍTULO 10 — ADMINISTRACIÓN
+════════════════════════════════════════════════════════ -->
+<div class="chapter">
+  <div class="ch-header">
+    <div class="ch-num">10</div>
+    <h2>Administración y Mantenimiento</h2>
+  </div>
+
+  <h3>10.1 Monitoreo de tareas con Flower</h3>
+  <p>
+    <strong>Flower</strong> es la interfaz web de Celery que permite ver en tiempo real qué tareas
+    se están ejecutando, cuánto tardan y si han fallado.
+  </p>
+  <p>Accede en: <strong>http://localhost:5555</strong></p>
+
+  <table>
+    <thead><tr><th>Sección de Flower</th><th>Qué muestra</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Dashboard</strong></td><td>Tareas activas, completadas y fallidas en tiempo real</td></tr>
+      <tr><td><strong>Tasks</strong></td><td>Historial de todas las tareas ejecutadas con duración y resultado</td></tr>
+      <tr><td><strong>Worker</strong></td><td>Estado del worker de Celery (online/offline, recursos)</td></tr>
+      <tr><td><strong>Broker</strong></td><td>Estado de la cola Redis y mensajes pendientes</td></tr>
+    </tbody>
+  </table>
+
+  <hr class="section-divider" />
+
+  <h3>10.2 Limpieza automática de datos</h3>
+  <p>
+    El sistema ejecuta una tarea de limpieza <strong>diariamente a las 3:00 AM</strong> que elimina
+    menciones con más de <strong>365 días</strong> de antigüedad. Esto mantiene el tamaño de la
+    base de datos bajo control.
+  </p>
+
+  <div class="callout warning">
+    <span class="icon">⚠️</span>
+    <div>Si necesitas conservar menciones históricas más allá de un año, exporta o genera reportes
+    PDF antes de que sean eliminados. La eliminación es irreversible.</div>
+  </div>
+
+  <hr class="section-divider" />
+
+  <h3>10.3 Solución de problemas comunes</h3>
+
+  <h4>No llegan menciones nuevas</h4>
+  <ol class="steps">
+    <li>Verifica que el worker y el beat están corriendo: <code>docker compose ps</code></li>
+    <li>Revisa los logs del worker: <code>docker compose logs worker --tail=100</code></li>
+    <li>Confirma que la entidad tiene al menos una keyword activa</li>
+    <li>Verifica que las credenciales de las plataformas son correctas en <code>.env</code></li>
+  </ol>
+
+  <h4>El análisis NLP no procesa menciones</h4>
+  <ol class="steps">
+    <li>Verifica que <code>HUGGINGFACE_TOKEN</code> está configurado y es válido en <code>.env</code></li>
+    <li>Revisa los logs: <code>docker compose logs worker --tail=50 | grep NLP</code></li>
+    <li>HuggingFace tiene un límite de 1,000 peticiones/día en el tier gratuito — puede estar agotado</li>
+  </ol>
+
+  <h4>Las alertas no llegan por Telegram</h4>
+  <ol class="steps">
+    <li>Verifica que <code>TELEGRAM_BOT_TOKEN</code> en <code>.env</code> es correcto</li>
+    <li>Confirma que el Chat ID del usuario en el perfil es correcto (numérico)</li>
+    <li>Asegúrate de haber enviado un mensaje previo al bot para desbloquearlo</li>
+    <li>Revisa los logs: <code>docker compose logs worker | grep Telegram</code></li>
+  </ol>
+
+  <h4>El contenedor de la base de datos no inicia</h4>
+  <pre><code><span class="comment"># Ver logs detallados del contenedor db</span>
+docker compose logs db
+
+<span class="comment"># Solución más común: reiniciar solo el contenedor db</span>
+docker compose restart db
+
+<span class="comment"># Si el problema persiste, verificar que el puerto 5432 no esté ocupado</span>
+docker compose down && docker compose up -d</code></pre>
+
+  <h4>Comandos de mantenimiento útiles</h4>
+
+  <table>
+    <thead><tr><th>Comando</th><th>Acción</th></tr></thead>
+    <tbody>
+      <tr><td><code>docker compose ps</code></td><td>Ver estado de todos los contenedores</td></tr>
+      <tr><td><code>docker compose restart worker beat</code></td><td>Reiniciar worker y scheduler</td></tr>
+      <tr><td><code>docker compose logs -f backend</code></td><td>Seguir logs del backend en tiempo real</td></tr>
+      <tr><td><code>docker compose down</code></td><td>Apagar todos los servicios</td></tr>
+      <tr><td><code>docker compose up -d</code></td><td>Iniciar todos los servicios en segundo plano</td></tr>
+      <tr><td><code>docker compose exec backend alembic upgrade head</code></td><td>Aplicar migraciones pendientes manualmente</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout danger">
+    <span class="icon">🚨</span>
+    <div>
+      <strong>No ejecutes</strong> <code>docker compose down -v</code> en producción — el flag
+      <code>-v</code> elimina los volúmenes y perderás <strong>todos los datos</strong> de la
+      base de datos y los reportes generados.
+    </div>
+  </div>
+
+  <hr class="section-divider" />
+
+  <p style="margin-top:48px; text-align:center; font-size:12px; color:#94a3b8;">
+    SONAR — Manual de Usuario v1.0 &nbsp;|&nbsp; Sistema MIRA · Análisis de Redes Sociales &nbsp;|&nbsp; Marzo 2026
+  </p>
+</div>
+
+</body>
+</html>
