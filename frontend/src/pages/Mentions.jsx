@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ExternalLink, Bot, Flame, Search, SlidersHorizontal } from 'lucide-react'
+import { ExternalLink, Bot, Flame, Search, SlidersHorizontal, Camera } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import client from '../api/client'
@@ -39,7 +39,7 @@ const PLATFORM_ICON = {
 export default function Mentions() {
   const [filters, setFilters] = useState({
     entity_id: '', platform: '', sentiment: '', language: '', min_urgency: '',
-    exclude_duplicates: false, page: 1,
+    exclude_duplicates: false, visual_only: false, page: 1,
   })
   const [searchMode, setSearchMode]       = useState('filters')   // 'filters' | 'semantic'
   const [semanticQuery, setSemanticQuery] = useState('')
@@ -81,6 +81,14 @@ export default function Mentions() {
             )}
             {m.is_duplicate && (
               <span className="badge bg-gray-100 text-gray-500">Duplicado</span>
+            )}
+            {m.visual_match && (
+              <span className="badge bg-green-100 text-green-700 flex items-center gap-1">
+                <Camera className="w-3 h-3" />
+                {m.visual_match_names
+                  ? JSON.parse(m.visual_match_names).join(', ')
+                  : 'Coincidencia visual'}
+              </span>
             )}
             {similarityPct != null && (
               <span className="badge bg-indigo-100 text-indigo-700 ml-auto">
@@ -189,21 +197,37 @@ export default function Mentions() {
                 <option value="80">🔥 Solo críticas (≥80)</option>
               </select>
 
-              <label className="flex items-center gap-2 cursor-pointer select-none ml-auto">
-                <span className="text-xs text-gray-600">Ocultar duplicados</span>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={filters.exclude_duplicates}
-                  onClick={() => setFilter('exclude_duplicates', !filters.exclude_duplicates)}
-                  className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${
-                    filters.exclude_duplicates ? 'bg-primary-600' : 'bg-gray-200'
-                  }`}>
-                  <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition-transform ${
-                    filters.exclude_duplicates ? 'translate-x-4' : 'translate-x-0'
-                  }`} />
-                </button>
-              </label>
+              <div className="flex items-center gap-4 ml-auto flex-wrap">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <span className="text-xs text-gray-600">Ocultar duplicados</span>
+                  <button
+                    type="button" role="switch"
+                    aria-checked={filters.exclude_duplicates}
+                    onClick={() => setFilter('exclude_duplicates', !filters.exclude_duplicates)}
+                    className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${
+                      filters.exclude_duplicates ? 'bg-primary-600' : 'bg-gray-200'
+                    }`}>
+                    <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition-transform ${
+                      filters.exclude_duplicates ? 'translate-x-4' : 'translate-x-0'
+                    }`} />
+                  </button>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <Camera className="w-3.5 h-3.5 text-green-600" />
+                  <span className="text-xs text-gray-600">Solo visuales</span>
+                  <button
+                    type="button" role="switch"
+                    aria-checked={filters.visual_only}
+                    onClick={() => setFilter('visual_only', !filters.visual_only)}
+                    className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${
+                      filters.visual_only ? 'bg-green-600' : 'bg-gray-200'
+                    }`}>
+                    <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition-transform ${
+                      filters.visual_only ? 'translate-x-4' : 'translate-x-0'
+                    }`} />
+                  </button>
+                </label>
+              </div>
             </div>
           </div>
 

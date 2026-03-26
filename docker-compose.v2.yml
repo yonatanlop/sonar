@@ -1,0 +1,92 @@
+version: "3.9"
+
+# ─────────────────────────────────────────────────────────────────
+#  docker-compose.v2.yml — Ejecución simultánea v1 (puertos 3000/8000)
+#  y v2 (puertos 3001/8001) en la misma máquina.
+#
+#  Uso:
+#    # Levantar v2 (v1 ya debe estar corriendo con docker-compose.yml)
+#    docker compose -f docker-compose.v2.yml --env-file .env.v2 up -d
+#
+#    # Ver logs de v2
+#    docker compose -f docker-compose.v2.yml logs -f
+#
+#    # Detener v2
+#    docker compose -f docker-compose.v2.yml down
+#
+#  Requisitos:
+#    - Copiar .env a .env.v2 y ajustar:
+#        POSTGRES_DB=sonar_v2          (base de datos separada)
+#        SECRET_KEY=<otra-clave>       (diferente a v1)
+#    - La v2 comparte el mismo Postgres y Redis de v1 (contenedores sonar_db / sonar_redis)
+#      pero usa una base de datos diferente para aislar los datos.
+# ─────────────────────────────────────────────────────────────────
+
+services:
+  backend_v2:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sonar_backend_v2
+    env_file: .env.v2
+    volumes:
+      - ./backend:/app
+      - storage_data_v2:/app/storage
+    ports:
+      - "8001:8000"
+    networks:
+      - sonar_net
+      - sonar_v2_net
+    # Nota: depende de sonar_db y sonar_redis (levantados por docker-compose.yml)
+
+  worker_v2:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sonar_worker_v2
+    env_file: .env.v2
+    volumes:
+      - ./backend:/app
+      - storage_data_v2:/app/storage
+    command: celery -A app.workers.celery_app worker --loglevel=info --concurrency=2 --hostname=worker_v2@%h
+    networks:
+      - sonar_net
+      - sonar_v2_net
+
+  beat_v2:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sonar_beat_v2
+    env_file: .env.v2
+    volumes:
+      - ./backend:/app
+    command: celery -A app.workers.celery_app beat --loglevel=info
+    networks:
+      - sonar_net
+      - sonar_v2_net
+
+  frontend_v2:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: sonar_frontend_v2
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "3001:3000"
+    environment:
+      - VITE_API_URL=http://localhost:8001
+    networks:
+      - sonar_v2_net
+
+volumes:
+  storage_data_v2:
+
+networks:
+  sonar_net:
+    external: true          # red creada por docker-compose.yml (sonar_sonar_net o sonar_default)
+    name: sonar_default
+  sonar_v2_net:
+    driver: bridge

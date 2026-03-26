@@ -635,3 +635,59 @@ def trigger_topic_analysis(
             detail=f"No se pudo detectar temas: {result.get('reason', 'unknown')}",
         )
     return result
+
+
+# ── Reconocimiento Visual — fotos de referencia (Módulo 7) ────
+
+class FaceReferenceAdd(BaseModel):
+    person_name: str
+    photo_url: str
+
+
+@router.get("/{entity_id}/face-references")
+def list_face_references(
+    entity_id: uuid.UUID,
+    _=Depends(get_current_user),
+):
+    """Lista las personas con fotos de referencia configuradas para la entidad."""
+    from app.workers.nlp.visual import list_face_references as _list
+    return {"entity_id": str(entity_id), "references": _list(str(entity_id))}
+
+
+@router.post("/{entity_id}/face-references", status_code=status.HTTP_201_CREATED)
+def add_face_reference(
+    entity_id: uuid.UUID,
+    data: FaceReferenceAdd,
+    _=Depends(require_analyst),
+):
+    """
+    Agrega una foto de referencia facial para una persona de la entidad.
+    La imagen debe ser una URL pública accesible desde el servidor.
+    El sistema verifica que haya al menos un rostro detectable en la foto.
+    """
+    from app.core.config import settings as cfg
+    if not cfg.FACE_RECOGNITION_ENABLED:
+        raise HTTPException(
+            status_code=422,
+            detail="FACE_RECOGNITION_ENABLED=false en .env. Actívalo para usar esta función.",
+        )
+    from app.workers.nlp.visual import add_face_reference as _add
+    ok = _add(str(entity_id), data.person_name.strip(), data.photo_url)
+    if not ok:
+        raise HTTPException(
+            status_code=422,
+            detail="No se pudo guardar la foto. Verifica que la URL sea accesible y que haya un rostro visible.",
+        )
+    return {"entity_id": str(entity_id), "person_name": data.person_name, "status": "added"}
+
+
+@router.delete("/{entity_id}/face-references/{person_name}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_face_reference(
+    entity_id: uuid.UUID,
+    person_name: str,
+    _=Depends(require_analyst),
+):
+    """Elimina todas las fotos de referencia de una persona para la entidad."""
+    from app.workers.nlp.visual import delete_face_reference as _delete
+    if not _delete(str(entity_id), person_name):
+        raise HTTPException(status_code=404, detail="Persona no encontrada en la base de referencias")

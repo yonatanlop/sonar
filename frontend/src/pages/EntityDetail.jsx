@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import ReactECharts from 'echarts-for-react'
 import {
   ArrowLeft, Building2, Tag, AtSign, Plus, Trash2,
-  ToggleLeft, ToggleRight, AlertTriangle, TrendingUp, Sparkles, RefreshCw, Hash,
+  ToggleLeft, ToggleRight, AlertTriangle, TrendingUp, Sparkles, RefreshCw, Hash, Camera,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -13,14 +13,15 @@ import client from '../api/client'
 import { useAuthStore } from '../store/authStore'
 
 // ── API helpers ────────────────────────────────────────────────
-const fetchEntity    = (id) => client.get(`/entities/${id}`).then(r => r.data)
-const fetchRules     = (id) => client.get('/alerts/rules', { params: { entity_id: id } }).then(r => r.data)
-const fetchAnomalies = (id) => client.get(`/entities/${id}/anomalies`, { params: { days: 7 } }).then(r => r.data)
-const fetchSummaries = (id) => client.get(`/entities/${id}/summaries`, { params: { limit: 1 } }).then(r => r.data)
-const fetchTopics    = (id) => client.get(`/entities/${id}/topics`,    { params: { days: 7 } }).then(r => r.data)
+const fetchEntity          = (id) => client.get(`/entities/${id}`).then(r => r.data)
+const fetchRules           = (id) => client.get('/alerts/rules', { params: { entity_id: id } }).then(r => r.data)
+const fetchAnomalies       = (id) => client.get(`/entities/${id}/anomalies`, { params: { days: 7 } }).then(r => r.data)
+const fetchSummaries       = (id) => client.get(`/entities/${id}/summaries`, { params: { limit: 1 } }).then(r => r.data)
+const fetchTopics          = (id) => client.get(`/entities/${id}/topics`,    { params: { days: 7 } }).then(r => r.data)
 const fetchForecast        = (id) => client.get(`/entities/${id}/forecast`,  { params: { history_days: 14 } }).then(r => r.data)
-const fetchRelatedEntities   = (id) => client.get(`/entities/${id}/related-entities`,   { params: { days: 30, limit: 20 } }).then(r => r.data)
-const fetchKwSuggestions     = (id) => client.get(`/entities/${id}/keyword-suggestions`, { params: { days: 30 } }).then(r => r.data)
+const fetchRelatedEntities = (id) => client.get(`/entities/${id}/related-entities`,   { params: { days: 30, limit: 20 } }).then(r => r.data)
+const fetchKwSuggestions   = (id) => client.get(`/entities/${id}/keyword-suggestions`, { params: { days: 30 } }).then(r => r.data)
+const fetchFaceRefs        = (id) => client.get(`/entities/${id}/face-references`).then(r => r.data)
 
 // ── Constantes ────────────────────────────────────────────────
 const WEIGHT_LABEL = { 1: 'Normal', 2: 'Importante', 3: 'Crítico' }
@@ -48,11 +49,12 @@ export default function EntityDetail() {
   const qc        = useQueryClient()
   const isAnalyst = useAuthStore(s => s.isAnalyst())
 
-  const [tab, setTab] = useState('overview')  // overview | keywords | aliases | rules
+  const [tab, setTab] = useState('overview')  // overview | keywords | aliases | rules | faces
 
   // ── Formularios ──
   const [kwForm,    setKwForm]    = useState({ keyword: '', language: 'es', weight: 1 })
   const [aliasForm, setAliasForm] = useState('')
+  const [faceForm,  setFaceForm]  = useState({ person_name: '', photo_url: '' })
   const [ruleForm,  setRuleForm]  = useState({
     name: '', rule_type: 'volume_spike', threshold: 3,
     window_minutes: 60, severity: 'medium',
@@ -170,6 +172,29 @@ export default function EntityDetail() {
     onSuccess: () => {
       toast.success('Alias eliminado')
       qc.invalidateQueries({ queryKey: ['entity', id] })
+    },
+  })
+
+  // ── Queries y mutations: fotos de referencia (módulo 7) ──
+  const { data: faceRefsData, refetch: refetchFaceRefs } = useQuery({
+    queryKey: ['face-refs', id],
+    queryFn: () => fetchFaceRefs(id),
+    enabled: tab === 'faces',
+  })
+  const addFaceRef = useMutation({
+    mutationFn: () => client.post(`/entities/${id}/face-references`, faceForm),
+    onSuccess: () => {
+      toast.success(`Foto de "${faceForm.person_name}" agregada`)
+      refetchFaceRefs()
+      setFaceForm({ person_name: '', photo_url: '' })
+    },
+    onError: (err) => toast.error(err?.response?.data?.detail ?? 'Error al agregar foto'),
+  })
+  const delFaceRef = useMutation({
+    mutationFn: (personName) => client.delete(`/entities/${id}/face-references/${encodeURIComponent(personName)}`),
+    onSuccess: () => {
+      toast.success('Fotos eliminadas')
+      refetchFaceRefs()
     },
   })
 
@@ -310,6 +335,7 @@ export default function EntityDetail() {
     { key: 'keywords',  label: `Keywords (${entity.keywords?.length ?? 0})` },
     { key: 'aliases',   label: `Aliases (${entity.aliases?.length ?? 0})` },
     { key: 'rules',     label: 'Reglas de alerta' },
+    { key: 'faces',     label: '📸 Reconocimiento visual' },
   ]
 
   return (
@@ -883,6 +909,85 @@ export default function EntityDetail() {
                   </div>
                 ))}
               </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Reconocimiento Visual — fotos de referencia ── */}
+      {tab === 'faces' && (
+        <div className="space-y-4">
+          <div className="card border-green-200 border bg-green-50 text-sm text-green-800 p-4">
+            <p className="font-semibold flex items-center gap-2 mb-1">
+              <Camera className="w-4 h-4" /> ¿Cómo funciona?
+            </p>
+            <p>Agrega fotos de las personas a monitorizar. SONAR analizará las imágenes de las
+            menciones de Twitter/X, YouTube y noticias para detectar visualmente su presencia.</p>
+            <p className="mt-1 text-xs text-green-700">
+              Requiere <code className="bg-green-100 px-1 rounded">FACE_RECOGNITION_ENABLED=true</code> en .env
+              y reconstruir el backend (<code className="bg-green-100 px-1 rounded">docker compose build backend</code>).
+            </p>
+          </div>
+
+          {isAnalyst && (
+            <div className="card border-gray-200 border">
+              <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                <Plus className="w-4 h-4" /> Agregar foto de referencia
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="label">Nombre de la persona *</label>
+                  <input className="input" placeholder="Ej: Ana Paola Agudelo"
+                    value={faceForm.person_name}
+                    onChange={e => setFaceForm(f => ({ ...f, person_name: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="label">URL de la foto *</label>
+                  <input className="input" placeholder="https://ejemplo.com/foto.jpg"
+                    value={faceForm.photo_url}
+                    onChange={e => setFaceForm(f => ({ ...f, photo_url: e.target.value }))} />
+                </div>
+              </div>
+              <div className="flex items-center gap-2 mt-3">
+                <button
+                  onClick={() => addFaceRef.mutate()}
+                  disabled={addFaceRef.isPending || !faceForm.person_name || !faceForm.photo_url}
+                  className="btn-primary text-sm">
+                  {addFaceRef.isPending ? 'Verificando rostro...' : 'Agregar foto'}
+                </button>
+                <span className="text-xs text-gray-400">
+                  Agrega 3–5 fotos por persona con distintos ángulos para mayor precisión
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Lista de referencias configuradas */}
+          <div className="space-y-2">
+            {!faceRefsData?.references?.length ? (
+              <div className="text-center text-gray-400 py-10 text-sm">
+                No hay fotos de referencia configuradas para esta entidad
+              </div>
+            ) : (
+              faceRefsData.references.map(ref => (
+                <div key={ref.person_name} className="card flex items-center justify-between py-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center">
+                      <Camera className="w-4 h-4 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-sm text-gray-800">{ref.person_name}</p>
+                      <p className="text-xs text-gray-400">{ref.photo_count} foto(s) de referencia</p>
+                    </div>
+                  </div>
+                  {isAnalyst && (
+                    <button onClick={() => delFaceRef.mutate(ref.person_name)}
+                      className="text-gray-300 hover:text-red-500 transition-colors">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              ))
             )}
           </div>
         </div>

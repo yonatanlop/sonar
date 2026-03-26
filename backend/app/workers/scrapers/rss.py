@@ -6,6 +6,7 @@ Monitorea fuentes RSS de noticias organizadas por país/idioma.
 Filtra artículos que contengan keywords de las entidades monitoreadas.
 """
 import hashlib
+import json
 import logging
 import time
 from datetime import datetime, timezone
@@ -176,6 +177,34 @@ class RSSScraper(BaseScraper):
                 has_profile_photo=False,
             )
 
+            # Extraer imagen destacada del artículo para reconocimiento visual (módulo 7)
+            media_urls = None
+            try:
+                img_url = None
+                # feedparser puede exponer la imagen en media_content o enclosures
+                media_content = entry.get("media_content", [])
+                if media_content:
+                    img_url = media_content[0].get("url")
+                if not img_url:
+                    enclosures = entry.get("enclosures", [])
+                    for enc in enclosures:
+                        if enc.get("type", "").startswith("image/"):
+                            img_url = enc.get("href") or enc.get("url")
+                            break
+                if not img_url:
+                    # og:image a veces aparece como tags
+                    for tag in entry.get("tags", []):
+                        term = tag.get("term", "")
+                        if term.startswith("http") and any(
+                            term.lower().endswith(ext) for ext in (".jpg", ".jpeg", ".png")
+                        ):
+                            img_url = term
+                            break
+                if img_url:
+                    media_urls = json.dumps([img_url])
+            except Exception:
+                pass
+
             mention = save_mention(
                 db=self.db,
                 platform_id=self.platform.id,
@@ -190,6 +219,7 @@ class RSSScraper(BaseScraper):
                 country_code=entity.country_code,
                 reach=0,
                 matched_keywords=[best_kw],
+                media_urls=media_urls,
             )
             if mention:
                 saved += 1

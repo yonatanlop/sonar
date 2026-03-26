@@ -58,6 +58,10 @@ class Mention(Base):
     processed: Mapped[bool] = mapped_column(Boolean, default=False)
     # v2 módulo 6.2: deduplicación inteligente por coseno de embeddings
     is_duplicate: Mapped[bool] = mapped_column(Boolean, default=False)
+    # módulo 7: reconocimiento visual
+    media_urls: Mapped[str | None] = mapped_column(Text, nullable=True)           # JSON array de URLs
+    visual_match: Mapped[bool | None] = mapped_column(Boolean, nullable=True)     # NULL=sin analizar
+    visual_match_names: Mapped[str | None] = mapped_column(Text, nullable=True)   # JSON array de nombres
     # v2 módulo 6.1: embedding semántico 384 dims (pgvector)
     embedding: Mapped[None] = mapped_column(
         __import__("pgvector.sqlalchemy", fromlist=["Vector"]).Vector(384),

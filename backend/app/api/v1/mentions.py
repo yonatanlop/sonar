@@ -52,9 +52,12 @@ def _mention_dict(m: Mention, db: Session) -> dict:
         "hate_score":      float(m.hate_score) if m.hate_score else None,
         "is_hate_speech":  m.is_hate_speech,
         "reach":           m.reach,
-        "urgency_score":   float(m.urgency_score) if m.urgency_score is not None else 0.0,
-        "is_bot":          is_bot,
-        "is_duplicate":    m.is_duplicate,
+        "urgency_score":      float(m.urgency_score) if m.urgency_score is not None else 0.0,
+        "is_bot":             is_bot,
+        "is_duplicate":       m.is_duplicate,
+        "media_urls":         m.media_urls,
+        "visual_match":       m.visual_match,
+        "visual_match_names": m.visual_match_names,
     }
 
 
@@ -67,6 +70,7 @@ def list_mentions(
     hate_only:         bool             = Query(False),
     min_urgency:       Optional[float]  = Query(None, ge=0, le=100, description="Filtrar menciones con urgency_score >= valor (0-100)"),
     exclude_duplicates: bool            = Query(False, description="Excluir menciones marcadas como duplicados semánticos"),
+    visual_only:        bool            = Query(False, description="Solo menciones con coincidencia visual detectada"),
     date_from:         Optional[str]   = Query(None),
     date_to:           Optional[str]   = Query(None),
     page:              int             = Query(1, ge=1),
@@ -94,6 +98,9 @@ def list_mentions(
 
     if exclude_duplicates:
         query = query.filter(Mention.is_duplicate == False)
+
+    if visual_only:
+        query = query.filter(Mention.visual_match == True)
 
     if min_urgency is not None:
         query = query.filter(Mention.urgency_score >= min_urgency)

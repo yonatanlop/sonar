@@ -13,6 +13,7 @@ Rate limits aproximados:
     3 cuentas → ~150 búsquedas / 15 minutos (twscrape rota automáticamente)
 """
 import asyncio
+import json
 import logging
 import time
 
@@ -134,6 +135,26 @@ class TwitterScraper(BaseScraper):
                         + (getattr(tweet, "quoteCount",   0) or 0)
                     )
 
+                    # Extraer URLs de imágenes adjuntas al tweet (módulo 7)
+                    media_urls = None
+                    try:
+                        media = getattr(tweet, "media", None) or []
+                        img_urls = [
+                            m.url for m in media
+                            if hasattr(m, "url") and m.url
+                            and any(m.url.lower().endswith(ext) for ext in (".jpg", ".jpeg", ".png", ".webp"))
+                        ]
+                        if not img_urls:
+                            # Algunos objetos usan previewUrl
+                            img_urls = [
+                                m.previewUrl for m in media
+                                if hasattr(m, "previewUrl") and m.previewUrl
+                            ]
+                        if img_urls:
+                            media_urls = json.dumps(img_urls[:4])  # máx 4 imágenes
+                    except Exception:
+                        pass
+
                     mention = save_mention(
                         db=self.db,
                         platform_id=self.platform.id,
@@ -147,6 +168,7 @@ class TwitterScraper(BaseScraper):
                         language=getattr(tweet, "lang", None),
                         reach=reach,
                         matched_keywords=[keyword_obj],
+                        media_urls=media_urls,
                     )
                     if mention:
                         saved += 1

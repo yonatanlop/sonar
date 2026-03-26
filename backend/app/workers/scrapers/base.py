@@ -103,6 +103,7 @@ def save_mention(
     country_code: Optional[str] = None,
     reach: int = 0,
     matched_keywords: Optional[list] = None,
+    media_urls: Optional[str] = None,   # JSON array de URLs de imágenes (módulo 7)
 ) -> Optional[Mention]:
     """
     Guarda una mención nueva. Retorna None si ya existe (duplicado).
@@ -132,6 +133,7 @@ def save_mention(
         country_code=country_code,
         reach=reach,
         processed=False,
+        media_urls=media_urls,
     )
     db.add(mention)
 

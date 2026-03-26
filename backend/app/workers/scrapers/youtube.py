@@ -15,6 +15,7 @@ Estrategia conservadora por defecto:
 Credenciales necesarias (.env):
   YOUTUBE_API_KEY — obtenida en console.cloud.google.com (gratuita)
 """
+import json
 import logging
 import time
 from datetime import datetime, timezone
@@ -111,6 +112,12 @@ class YouTubeScraper(BaseScraper):
             content = f"{title}\n\n{description}".strip()
             published_at = self._parse_dt(snippet.get("publishedAt"))
 
+            # Thumbnail como media_url para reconocimiento visual (módulo 7)
+            thumbnails = snippet.get("thumbnails", {})
+            thumb_url = (thumbnails.get("high") or thumbnails.get("medium") or
+                         thumbnails.get("default") or {}).get("url")
+            media_urls = json.dumps([thumb_url]) if thumb_url else None
+
             mention = save_mention(
                 db=self.db,
                 platform_id=self.platform.id,
@@ -122,8 +129,9 @@ class YouTubeScraper(BaseScraper):
                 url=f"https://www.youtube.com/watch?v={video_id}",
                 published_at=published_at,
                 language="es",
-                reach=0,  # se actualiza con video stats si se necesita más precisión
+                reach=0,
                 matched_keywords=[keyword_obj],
+                media_urls=media_urls,
             )
             if mention:
                 saved += 1

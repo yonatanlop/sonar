@@ -57,6 +57,12 @@ celery_app.conf.beat_schedule = {
         "task": "app.workers.tasks.nlp.generate_embeddings",
         "schedule": crontab(minute="*/30"),  # cada 30 min
     },
+    # ── Módulo 7: Reconocimiento Visual ───────────────────────────
+    # Solo activo si FACE_RECOGNITION_ENABLED=true en .env
+    "analyze-visual-mentions": {
+        "task": "app.workers.tasks.nlp.analyze_visual_mentions",
+        "schedule": crontab(minute="*/30"),  # cada 30 min
+    },
     "evaluate-alert-rules": {
         "task": "app.workers.tasks.alerts.evaluate_alert_rules",
         "schedule": crontab(minute="*/5"),   # cada 5 min

@@ -16,7 +16,8 @@ class Settings(BaseSettings):
     # Seguridad
     SECRET_KEY: str
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 480
+    # Tiempo de sesión en minutos. Configurable en .env → SESSION_TIMEOUT_MINUTES=60
+    SESSION_TIMEOUT_MINUTES: int = 480
 
     # Notificaciones
     TELEGRAM_BOT_TOKEN: str = ""
@@ -45,6 +46,11 @@ class Settings(BaseSettings):
 
     # Bot Classifier ML (v2)
     BOT_THRESHOLD: float = 0.7  # probabilidad mínima para clasificar como "bot"
+
+    # Módulo 7 — Reconocimiento Visual
+    FACE_RECOGNITION_ENABLED: bool = False  # activar en .env cuando haya fotos de referencia
+    FACE_DISTANCE_THRESHOLD: float = 0.55   # distancia máxima para match (0=exacto, 1=muy diferente)
+    FACES_DIR: str = "/app/storage/faces"   # ruta base de fotos de referencia
 
     # Entorno
     ENVIRONMENT: str = "development"

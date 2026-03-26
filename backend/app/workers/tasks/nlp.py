@@ -1,9 +1,10 @@
 """
 Tareas Celery para procesamiento NLP de menciones.
 Programadas en celery_app.py (Beat):
-  - process_pending_mentions → cada 5 min
-  - extract_ner              → cada hora
-  - generate_embeddings      → cada 30 min
+  - process_pending_mentions  → cada 5 min
+  - extract_ner               → cada hora
+  - generate_embeddings       → cada 30 min
+  - analyze_visual_mentions   → cada 30 min (solo si FACE_RECOGNITION_ENABLED=true)
 """
 import logging
 
@@ -95,6 +96,38 @@ def generate_embeddings(self):
         return result
     except Exception as exc:
         logger.error(f"[Embeddings Task] Fallo: {exc}", exc_info=True)
+        raise self.retry(exc=exc)
+    finally:
+        db.close()
+
+
+@celery_app.task(
+    name="app.workers.tasks.nlp.analyze_visual_mentions",
+    bind=True,
+    max_retries=1,
+    default_retry_delay=120,
+    soft_time_limit=300,
+    time_limit=360,
+)
+def analyze_visual_mentions(self):
+    """
+    Módulo 7 — Reconocimiento Visual.
+    Procesa menciones con imágenes adjuntas y detecta rostros de personas monitorizadas.
+    Solo corre si FACE_RECOGNITION_ENABLED=true en .env.
+    Corre cada 30 min vía Celery Beat.
+    """
+    from app.core.config import settings
+    if not settings.FACE_RECOGNITION_ENABLED:
+        return {"status": "disabled"}
+
+    db = SessionLocal()
+    try:
+        from app.workers.nlp.visual import run_visual_analysis
+        result = run_visual_analysis(db)
+        logger.info(f"[Visual Task] {result}")
+        return result
+    except Exception as exc:
+        logger.error(f"[Visual Task] Fallo: {exc}", exc_info=True)
         raise self.retry(exc=exc)
     finally:
         db.close()

@@ -12,6 +12,10 @@ RUN apt-get update && apt-get install -y \
     libgdk-pixbuf-xlib-2.0-0 \
     libffi-dev \
     libcairo2 \
+    cmake \
+    libopenblas-dev \
+    liblapack-dev \
+    libx11-dev \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
@@ -22,7 +26,7 @@ RUN python -m spacy download es_core_news_sm
 COPY . .
 
 # Crear carpetas de almacenamiento
-RUN mkdir -p storage/reports storage/uploads
+RUN mkdir -p storage/reports storage/uploads storage/faces
 
 # Entrypoint
 RUN chmod +x entrypoint.sh
