@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SONAR — Manual de Usuario v1</title>
+  <title>SONAR — Manual de Usuario v1 · IDMJI / Partido MIRA</title>
   <style>
     /* ── Tipografía & Reset ────────────────────────────── */
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -274,6 +274,7 @@
   <div class="divider"></div>
   <h2 style="font-size:22px; font-weight:600; margin-bottom:16px;">Manual de Usuario</h2>
   <p class="meta">
+    Uso exclusivo · IDMJI / Partido MIRA<br>
     Desde la configuración inicial hasta la identificación de alertas<br>
     Sistema MIRA · Análisis de Redes Sociales<br>
     Marzo 2026
@@ -305,7 +306,7 @@
 
   <div class="toc-section">
     <div class="toc-chapter"><span><span class="num">3</span>Primer Acceso y Panel de Control</span><span>10</span></div>
-    <div class="toc-sub"><span>3.1 Inicio de sesión</span><span>10</span></div>
+    <div class="toc-sub"><span>3.1 Inicio de sesión y gestión de sesión</span><span>10</span></div>
     <div class="toc-sub"><span>3.2 Navegación general</span><span>10</span></div>
     <div class="toc-sub"><span>3.3 Dashboard — Lectura del panel</span><span>11</span></div>
   </div>
@@ -324,6 +325,7 @@
     <div class="toc-sub"><span>5.3 Agregar aliases</span><span>15</span></div>
     <div class="toc-sub"><span>5.4 Configurar palabras clave (keywords)</span><span>16</span></div>
     <div class="toc-sub"><span>5.5 Detalle de entidad y métricas</span><span>17</span></div>
+    <div class="toc-sub"><span>5.6 Reconocimiento visual de rostros</span><span>18</span></div>
   </div>
 
   <div class="toc-section">
@@ -339,7 +341,8 @@
     <div class="toc-chapter"><span><span class="num">7</span>Menciones: Explorar y Filtrar Publicaciones</span><span>22</span></div>
     <div class="toc-sub"><span>7.1 Vista de menciones</span><span>22</span></div>
     <div class="toc-sub"><span>7.2 Filtros disponibles</span><span>22</span></div>
-    <div class="toc-sub"><span>7.3 Indicadores de cada mención</span><span>23</span></div>
+    <div class="toc-sub"><span>7.3 Búsqueda semántica</span><span>23</span></div>
+    <div class="toc-sub"><span>7.4 Indicadores de cada mención</span><span>23</span></div>
   </div>
 
   <div class="toc-section">
@@ -554,6 +557,26 @@ git checkout version2</code></pre>
 <span class="key">GMAIL_USER</span>=<span class="val">tu_cuenta@gmail.com</span>
 <span class="key">GMAIL_APP_PASSWORD</span>=<span class="val">xxxx xxxx xxxx xxxx</span></code></pre>
 
+  <h4>Seguridad de sesión (opcionales — tienen valores por defecto)</h4>
+  <pre><code><span class="comment"># ── Sesión JWT ────────────────────────────────────────────
+# Tiempo de vida de la sesión en minutos (default: 480 = 8 horas)
+# Ajusta según la política de seguridad del equipo</span>
+<span class="key">SESSION_TIMEOUT_MINUTES</span>=<span class="val">480</span></code></pre>
+
+  <h4>Reconocimiento visual de rostros (opcional — desactivado por defecto)</h4>
+  <pre><code><span class="comment"># ── Módulo 7 — Reconocimiento Visual ─────────────────────
+# Activa la detección de rostros en imágenes de menciones.
+# Requiere reconstruir la imagen Docker (dlib/cmake, ~15 min primera vez).</span>
+<span class="key">FACE_RECOGNITION_ENABLED</span>=<span class="val">false</span>      <span class="comment"># cambiar a true para activar</span>
+<span class="key">FACE_DISTANCE_THRESHOLD</span>=<span class="val">0.55</span>       <span class="comment"># 0.4 = más estricto · 0.6 = más permisivo</span></code></pre>
+
+  <div class="callout info">
+    <span class="icon">ℹ️</span>
+    <div>Al cambiar <code>FACE_RECOGNITION_ENABLED=true</code> debes reconstruir el backend
+    (<code>docker compose build backend</code>) porque se compila la librería dlib que procesa imágenes.
+    Este proceso tarda aproximadamente 10-15 minutos la primera vez.</div>
+  </div>
+
   <div class="callout warning">
     <span class="icon">⚠️</span>
     <div>
@@ -630,7 +653,7 @@ docker compose exec backend python scripts/create_admin.py
     <h2>Primer Acceso y Panel de Control</h2>
   </div>
 
-  <h3>3.1 Inicio de sesión</h3>
+  <h3>3.1 Inicio de sesión y gestión de sesión</h3>
 
   <ol class="steps">
     <li>Abre tu navegador y ve a <strong>http://localhost:3000</strong></li>
@@ -640,9 +663,32 @@ docker compose exec backend python scripts/create_admin.py
 
   <div class="callout tip">
     <span class="icon">💡</span>
-    <div>La sesión dura <strong>8 horas</strong>. Si el sistema te pide iniciar sesión nuevamente,
-    es porque el token expiró — es un comportamiento normal de seguridad.</div>
+    <div>La sesión dura <strong>8 horas por defecto</strong> (configurable con <code>SESSION_TIMEOUT_MINUTES</code>
+    en el archivo <code>.env</code>). Cuando el tiempo expira, el sistema cierra la sesión automáticamente
+    y redirige al login — es un comportamiento normal de seguridad.</div>
   </div>
+
+  <h4>Cerrar sesión correctamente</h4>
+  <p>
+    Usa siempre el botón <strong>Cerrar sesión</strong> del menú (esquina superior derecha → nombre de usuario).
+    El sistema invalida el token en el servidor, garantizando que nadie más pueda usarlo aunque lo hubiera copiado.
+  </p>
+
+  <table>
+    <thead><tr><th>Comportamiento</th><th>Causa</th><th>Acción recomendada</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>El sistema pide login automáticamente</td>
+        <td>La sesión expiró por inactividad o tiempo límite</td>
+        <td>Iniciar sesión nuevamente — los datos no se pierden</td>
+      </tr>
+      <tr>
+        <td>Después de cerrar sesión, el login "se queda pensando"</td>
+        <td>Token anterior aún en caché del navegador (versiones antiguas)</td>
+        <td>Limpiar caché del navegador o esperar unos segundos y reintentar</td>
+      </tr>
+    </tbody>
+  </table>
 
   <hr class="section-divider" />
 
@@ -814,16 +860,17 @@ docker compose exec backend python scripts/create_admin.py
   <h3>5.1 ¿Qué es una entidad?</h3>
   <p>
     Una <strong>entidad</strong> es el sujeto que quieres monitorear: puede ser una persona
-    (político, ejecutivo, influencer), una organización (empresa, partido, institución) o un
-    producto/marca. Todo el análisis del sistema gira en torno a las entidades.
+    (líder religioso, senador, candidato), una organización (iglesia, partido político) o un
+    tema de interés institucional. Todo el análisis del sistema gira en torno a las entidades.
   </p>
   <p>Cada entidad tiene:</p>
   <ul style="padding-left:24px; margin:12px 0; font-size:13.5px; color:#334155;">
-    <li><strong>Nombre principal</strong> — Ej: "Petro", "Bancolombia", "iPhone"</li>
-    <li><strong>Aliases</strong> — Variaciones del nombre: "Gustavo Petro", "@petrogustavo"</li>
+    <li><strong>Nombre principal</strong> — Ej: "Hermana María Luisa Pirquive", "Partido MIRA", "Senadores MIRA"</li>
+    <li><strong>Aliases</strong> — Variaciones del nombre: "Hna. María Luisa", "@marialpirquive", "María Luisa Pirquive de Moreno"</li>
     <li><strong>Palabras clave (keywords)</strong> — Términos de búsqueda que capturan menciones</li>
-    <li><strong>País</strong> — Para filtrar y contextualizar menciones geográficamente</li>
-    <li><strong>Tipo de entidad</strong> — Politician, Company, Celebrity, etc.</li>
+    <li><strong>País</strong> — Para filtrar y contextualizar menciones geográficamente (Colombia para las entidades IDMJI)</li>
+    <li><strong>Tipo de entidad</strong> — Politician, Organization, Religious Leader, etc.</li>
+    <li><strong>Foto URL</strong> — Imagen de perfil de la entidad, visible en la lista de entidades</li>
   </ul>
   <div class="callout info">
     <span class="icon">ℹ️</span>
@@ -845,7 +892,7 @@ docker compose exec backend python scripts/create_admin.py
     <li>Haz clic en el botón <strong>+ Nueva entidad</strong></li>
     <li>Completa el formulario:
       <ul style="margin-top:8px; padding-left:20px; font-size:13px;">
-        <li><strong>Nombre</strong> — Nombre principal de la entidad (ej: "Bancolombia")</li>
+        <li><strong>Nombre</strong> — Nombre principal de la entidad (ej: "Hermana María Luisa Pirquive", "Partido MIRA")</li>
         <li><strong>Tipo</strong> — Selecciona el tipo: Company, Politician, Celebrity, etc.</li>
         <li><strong>País</strong> — País de origen o relevancia geográfica</li>
         <li><strong>Descripción</strong> — Texto descriptivo opcional para contexto del equipo</li>
@@ -873,7 +920,7 @@ docker compose exec backend python scripts/create_admin.py
 
   <ol class="steps">
     <li>Desde el detalle de la entidad, localiza la sección <strong>Aliases</strong></li>
-    <li>Escribe el nombre alternativo en el campo de texto (ej: "@Bancolombia", "Banco Colombia")</li>
+    <li>Escribe el nombre alternativo en el campo de texto (ej: "@PartidoMIRA", "Movimiento MIRA")</li>
     <li>Haz clic en <strong>Agregar</strong></li>
     <li>Repite para cada variación relevante del nombre</li>
   </ol>
@@ -881,11 +928,11 @@ docker compose exec backend python scripts/create_admin.py
   <div class="callout tip">
     <span class="icon">💡</span>
     <div>
-      <strong>Ejemplos de buenos aliases:</strong>
+      <strong>Ejemplos de buenos aliases para entidades IDMJI / MIRA:</strong>
       <ul style="margin-top:6px; padding-left:16px; font-size:13px;">
-        <li>Para "Gustavo Petro" → <em>Petro, @petrogustavo, Presidente Petro</em></li>
-        <li>Para "Ecopetrol" → <em>@Ecopetrol, ECO, Ecopetrol S.A.</em></li>
-        <li>Para "iPhone 16" → <em>iphone16, iPhone16Pro, Apple iPhone</em></li>
+        <li>Para "Hermana María Luisa Pirquive de Moreno" → <em>Hna. María Luisa, @marialpirquive, María Luisa Pirquive, Madre María Luisa</em></li>
+        <li>Para "Partido MIRA" → <em>@PartidoMIRA, MIRA Colombia, Movimiento MIRA</em></li>
+        <li>Para un Senador MIRA → <em>@handle_del_senador, Senador [Apellido], [Nombre] MIRA</em></li>
       </ul>
     </div>
   </div>
@@ -906,12 +953,12 @@ docker compose exec backend python scripts/create_admin.py
       <tr>
         <td><strong>1 — Normal</strong></td>
         <td><span class="weight-dot" style="background:#94a3b8;"></span> Gris</td>
-        <td>Términos generales de seguimiento. Ej: "bancolombia productos"</td>
+        <td>Términos generales de seguimiento. Ej: "MIRA partido", "Hna. María Luisa"</td>
       </tr>
       <tr>
         <td><strong>2 — Importante</strong></td>
         <td><span class="weight-dot" style="background:#f59e0b;"></span> Amarillo</td>
-        <td>Términos relevantes con más atención. Ej: "bancolombia fraude"</td>
+        <td>Términos relevantes con más atención. Ej: "MIRA senado", "María Luisa Pirquive declaración"</td>
       </tr>
       <tr>
         <td><strong>3 — Crítico</strong></td>
@@ -923,7 +970,7 @@ docker compose exec backend python scripts/create_admin.py
 
   <ol class="steps">
     <li>Desde el detalle de la entidad, localiza la sección <strong>Keywords</strong></li>
-    <li>Escribe la palabra o frase clave en el campo (ej: "bancolombia estafa")</li>
+    <li>Escribe la palabra o frase clave en el campo (ej: "MIRA amenaza", "Hermana María Luisa atacada")</li>
     <li>Selecciona el <strong>idioma</strong> de la keyword (ES / EN)</li>
     <li>Elige el <strong>peso</strong> (1, 2 o 3)</li>
     <li>Haz clic en <strong>Agregar keyword</strong></li>
@@ -932,12 +979,13 @@ docker compose exec backend python scripts/create_admin.py
   <div class="callout warning">
     <span class="icon">⚠️</span>
     <div>
-      <strong>Buenas prácticas para keywords:</strong>
+      <strong>Buenas prácticas para keywords IDMJI / MIRA:</strong>
       <ul style="margin-top:6px; padding-left:16px; font-size:13px;">
-        <li>Usa términos <strong>específicos</strong> para evitar falsos positivos</li>
-        <li>Incluye variantes con y sin tildes: <em>"petróleo", "petroleo"</em></li>
-        <li>Incluye el nombre de la entidad junto al tema: <em>"Ecopetrol derrame"</em> en vez de solo <em>"derrame"</em></li>
-        <li>Agrega keywords en inglés si la entidad tiene presencia internacional</li>
+        <li>Usa términos <strong>específicos</strong> para evitar falsos positivos (ej: <em>"MIRA partido"</em> en vez de solo <em>"MIRA"</em>)</li>
+        <li>Incluye variantes con y sin tildes: <em>"Maria Luisa Pirquive"</em> y <em>"María Luisa Pirquive"</em></li>
+        <li>Combina el nombre con el tema: <em>"Hermana María Luisa amenaza"</em> en vez de solo <em>"amenaza"</em></li>
+        <li>Agrega keywords en inglés si hay cobertura internacional: <em>"MIRA party Colombia"</em></li>
+        <li>Para situaciones de riesgo usa peso 3 (Crítico): <em>"María Luisa Pirquive ataque"</em>, <em>"MIRA intimidación"</em></li>
       </ul>
     </div>
   </div>
@@ -946,16 +994,93 @@ docker compose exec backend python scripts/create_admin.py
 
   <h3>5.5 Detalle de entidad y métricas</h3>
   <p>
-    Al hacer clic en cualquier entidad en la lista, accedes a su página de detalle con:
+    Al hacer clic en cualquier entidad en la lista, accedes a su página de detalle.
+    Las pestañas disponibles son:
   </p>
-  <ul style="padding-left:24px; margin:12px 0; font-size:13.5px; color:#334155;">
-    <li><strong>Gráfico de volumen</strong> — Menciones diarias de los últimos 30 días</li>
-    <li><strong>Distribución de sentimiento</strong> — Donut chart con % de cada categoría</li>
-    <li><strong>Top menciones</strong> — Las publicaciones con mayor reach (interacciones)</li>
-    <li><strong>Plataformas activas</strong> — Distribución por red social</li>
-    <li><strong>Keywords activas</strong> — Lista editable de palabras clave</li>
-    <li><strong>Accesos rápidos</strong> — Botones para ver alertas y generar reporte de esa entidad</li>
-  </ul>
+
+  <table>
+    <thead><tr><th>Pestaña</th><th>Contenido</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Resumen</strong></td><td>Gráfico de volumen, distribución de sentimiento, top menciones, temas emergentes y pronóstico</td></tr>
+      <tr><td><strong>Keywords</strong></td><td>Lista editable de palabras clave con peso e idioma</td></tr>
+      <tr><td><strong>Aliases</strong></td><td>Nombres alternativos de la entidad</td></tr>
+      <tr><td><strong>Reglas de alerta</strong></td><td>Reglas asociadas a esta entidad específica</td></tr>
+      <tr><td><strong>📸 Reconocimiento visual</strong></td><td>Fotos de referencia para identificar personas en imágenes de menciones (ver sección 5.6)</td></tr>
+    </tbody>
+  </table>
+
+  <hr class="section-divider" />
+
+  <h3>5.6 Reconocimiento visual de rostros</h3>
+  <p>
+    SONAR puede <strong>identificar automáticamente a personas en imágenes</strong> publicadas en redes sociales.
+    Cuando se detecta una foto o miniatura de video que contiene el rostro de alguien registrado como referencia,
+    la mención se marca con una insignia verde de coincidencia visual.
+  </p>
+  <p>
+    Esto permite, por ejemplo, detectar videos de YouTube o publicaciones de Twitter que muestran a la
+    <strong>Hermana María Luisa Pirquive</strong> o a los <strong>Senadores del Partido MIRA</strong>
+    incluso si el texto no los menciona explícitamente.
+  </p>
+
+  <div class="callout warning">
+    <span class="icon">⚠️</span>
+    <div>
+      Esta funcionalidad requiere activación explícita. En el archivo <code>.env</code> configura
+      <code>FACE_RECOGNITION_ENABLED=true</code> y reconstruye el backend con
+      <code>docker compose build backend</code>. Sin este paso, la pestaña es visible pero no procesa imágenes.
+    </div>
+  </div>
+
+  <h4>Cómo agregar fotos de referencia desde la interfaz</h4>
+  <ol class="steps">
+    <li>Ve a <strong>Entidades</strong> y haz clic en la entidad correspondiente (ej: "Hermana María Luisa Pirquive")</li>
+    <li>Haz clic en la pestaña <strong>📸 Reconocimiento visual</strong></li>
+    <li>En el formulario <em>"Agregar foto de referencia"</em>:
+      <ul style="margin-top:8px; padding-left:20px; font-size:13px;">
+        <li><strong>Nombre de la persona</strong> — Nombre exacto como se mostrará en la insignia (ej: "Hna. María Luisa Pirquive")</li>
+        <li><strong>URL de la foto</strong> — URL pública de una imagen donde el rostro sea visible y nítido</li>
+      </ul>
+    </li>
+    <li>Haz clic en <strong>Agregar foto</strong> — el sistema verifica que haya un rostro detectable</li>
+    <li>Repite con <strong>3 a 5 fotos distintas</strong> por persona para mayor precisión</li>
+  </ol>
+
+  <div class="callout tip">
+    <span class="icon">💡</span>
+    <div>
+      <strong>Consejos para mejores resultados:</strong>
+      <ul style="margin-top:6px; padding-left:16px; font-size:13px;">
+        <li>Usa fotos con el rostro bien visible, de frente o tres cuartos</li>
+        <li>Variedad de ángulos e iluminación mejora la detección</li>
+        <li>Resolución mínima recomendada: 200×200 píxeles</li>
+        <li>Evita fotos grupales donde el rostro sea pequeño</li>
+      </ul>
+    </div>
+  </div>
+
+  <h4>Ver coincidencias en menciones</h4>
+  <p>
+    Una vez configuradas las fotos y activado el módulo, cada mención con imagen analizada mostrará
+    (si hay coincidencia) una insignia verde con el nombre de la persona reconocida:
+  </p>
+  <p>
+    <span class="badge green">📷 Hna. María Luisa Pirquive</span>
+  </p>
+  <p>
+    En la sección <strong>Menciones</strong>, usa el filtro <em>"Solo visuales"</em> (toggle verde)
+    para ver únicamente las publicaciones donde se detectó una coincidencia.
+  </p>
+
+  <h4>Gestión de fotos de referencia</h4>
+  <table>
+    <thead><tr><th>Acción</th><th>Cómo</th></tr></thead>
+    <tbody>
+      <tr><td>Ver fotos configuradas</td><td>Pestaña "📸 Reconocimiento visual" — lista las personas con cantidad de fotos</td></tr>
+      <tr><td>Eliminar fotos de una persona</td><td>Botón 🗑️ junto al nombre en la lista</td></tr>
+      <tr><td>Agregar más fotos</td><td>Mismo formulario, mismo nombre de persona — se acumulan</td></tr>
+    </tbody>
+  </table>
 </div>
 
 
@@ -1050,22 +1175,45 @@ docker compose exec backend python scripts/create_admin.py
 
   <p>
     SONAR usa <strong>twscrape</strong>, una herramienta que permite buscar en Twitter sin API key
-    oficial, usando credenciales de usuario. Necesitas agregar al menos una cuenta de Twitter.
+    oficial. Existen dos métodos para agregar la cuenta: <strong>credenciales directas</strong>
+    (más simple) o <strong>cookies del navegador</strong> (recomendado si el primer método falla por bloqueo de Cloudflare).
   </p>
 
+  <h4>Método 1 — Credenciales directas (por defecto)</h4>
   <ol class="steps">
-    <li>Asegúrate de tener una cuenta de Twitter/X activa (puede ser una cuenta de uso exclusivo para el monitoreo)</li>
+    <li>Asegúrate de tener una cuenta de Twitter/X activa dedicada al monitoreo</li>
     <li>Ejecuta el script de configuración:
       <pre style="margin:10px 0 0;"><code>docker compose exec backend python scripts/add_twitter_account.py</code></pre>
     </li>
-    <li>Ingresa el usuario, contraseña y email de la cuenta cuando se solicite</li>
-    <li>El script guarda las credenciales cifradas en <code>/app/storage/twscrape.db</code></li>
+    <li>Ingresa el <strong>usuario</strong>, <strong>contraseña</strong>, <strong>email</strong> y <strong>contraseña del email</strong> cuando se solicite</li>
+    <li>El script guarda las credenciales en <code>/app/storage/twscrape.db</code></li>
+  </ol>
+
+  <h4>Método 2 — Cookies del navegador (recomendado si Cloudflare bloquea el Método 1)</h4>
+  <p>
+    Twitter bloquea los intentos de login desde IPs de servidores o Docker. Si el Método 1
+    devuelve un error 403 (Cloudflare), usa este método:
+  </p>
+  <ol class="steps">
+    <li>Instala la extensión <strong>Cookie-Editor</strong> en Chrome o Firefox</li>
+    <li>Inicia sesión en <strong>twitter.com</strong> desde tu navegador normal</li>
+    <li>Abre Cookie-Editor, haz clic en <strong>Export → Export as JSON</strong></li>
+    <li>Guarda el archivo como <code>twitter_cookies.json</code></li>
+    <li>Copia el archivo al contenedor:
+      <pre style="margin:10px 0 0;"><code>docker compose cp twitter_cookies.json backend:/app/storage/twitter_cookies.json</code></pre>
+    </li>
+    <li>Ejecuta el script pasando el archivo de cookies:
+      <pre style="margin:10px 0 0;"><code>docker compose exec backend python scripts/add_twitter_account.py --cookies /app/storage/twitter_cookies.json</code></pre>
+    </li>
   </ol>
 
   <div class="callout warning">
     <span class="icon">⚠️</span>
-    <div>Usa una cuenta de Twitter dedicada al monitoreo, no una cuenta personal. Twitter puede
-    solicitar verificación por email o teléfono si detecta actividad inusual.</div>
+    <div>
+      Usa una cuenta de Twitter <strong>dedicada al monitoreo</strong>, no una cuenta personal.
+      Las cookies tienen vigencia de semanas; si el scraping falla, repite el proceso de exportar cookies.
+      Elimina el archivo <code>twitter_cookies.json</code> del servidor después de registrar la cuenta.
+    </div>
   </div>
 
   <hr class="section-divider" />
@@ -1081,9 +1229,10 @@ docker compose logs worker --tail=50</code></pre>
 
   <p>En los logs busca mensajes como:</p>
   <pre><code><span class="comment"># Indicadores de éxito</span>
-[RedditScraper] Entidad "Bancolombia": 12 menciones nuevas
-[YouTubeScraper] Entidad "Ecopetrol": 3 videos encontrados
-[RSSScraper] 7 artículos procesados</code></pre>
+[RedditScraper] Entidad "Partido MIRA": 8 menciones nuevas
+[YouTubeScraper] Entidad "Hermana María Luisa Pirquive": 2 videos encontrados
+[RSSScraper] 5 artículos procesados
+[TwitterScraper] Entidad "Senadores MIRA": 14 tweets recolectados</code></pre>
 
   <div class="callout tip">
     <span class="icon">💡</span>
@@ -1121,7 +1270,7 @@ docker compose logs worker --tail=50</code></pre>
       <tr>
         <td><strong>Entidad</strong></td>
         <td>Todas / nombre de entidad específica</td>
-        <td>Aísla menciones de una sola entidad monitoreada</td>
+        <td>Aísla menciones de una sola entidad monitoreada (ej: "Partido MIRA")</td>
       </tr>
       <tr>
         <td><strong>Plataforma</strong></td>
@@ -1143,19 +1292,54 @@ docker compose logs worker --tail=50</code></pre>
         <td>≥30 (Media), ≥60 (Alta), ≥80 (Crítica)</td>
         <td>Ver solo menciones que requieren atención prioritaria</td>
       </tr>
+      <tr>
+        <td><strong>Ocultar duplicados</strong></td>
+        <td>Toggle (activar/desactivar)</td>
+        <td>Filtra mensajes idénticos o muy similares publicados por múltiples cuentas (posibles campañas)</td>
+      </tr>
+      <tr>
+        <td><strong>Solo visuales</strong></td>
+        <td>Toggle verde (activar/desactivar)</td>
+        <td>Muestra únicamente menciones donde se detectó un rostro conocido en imágenes o miniaturas (requiere módulo 7 activo)</td>
+      </tr>
     </tbody>
   </table>
 
   <div class="callout tip">
     <span class="icon">💡</span>
-    <div>Para una vista de monitoreo diario rápido, usa los filtros:<br>
+    <div>Para una vista de monitoreo diario rápido del contexto IDMJI, usa los filtros:<br>
     <strong>Urgencia ≥ 60</strong> + <strong>Sentimiento: Negativo o Muy negativo</strong><br>
     Esto mostrará solo las menciones más críticas que requieren acción inmediata.</div>
   </div>
 
   <hr class="section-divider" />
 
-  <h3>7.3 Indicadores de cada mención</h3>
+  <h3>7.3 Búsqueda semántica</h3>
+  <p>
+    Además de los filtros, SONAR incluye un modo de <strong>búsqueda por significado</strong>.
+    En lugar de buscar palabras exactas, el sistema encuentra menciones cuyo contenido sea
+    <em>conceptualmente similar</em> a tu consulta.
+  </p>
+  <p>Activa este modo con el botón <strong>Búsqueda semántica</strong> en la esquina superior derecha de la sección Menciones.</p>
+
+  <table>
+    <thead><tr><th>Ejemplo de consulta</th><th>Qué encuentra</th></tr></thead>
+    <tbody>
+      <tr><td><em>"amenazas contra líderes religiosos"</em></td><td>Menciones sobre persecución, hostigamiento o ataques a figuras religiosas</td></tr>
+      <tr><td><em>"críticas al partido MIRA"</em></td><td>Publicaciones con opiniones negativas sobre el partido aunque no usen esas palabras exactas</td></tr>
+      <tr><td><em>"desinformación o fake news"</em></td><td>Noticias falsas o contenido engañoso relacionado con las entidades monitoreadas</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout info">
+    <span class="icon">ℹ️</span>
+    <div>La búsqueda semántica requiere que <code>HUGGINGFACE_TOKEN</code> esté configurado en
+    <code>.env</code>. Los embeddings se generan automáticamente cada 30 minutos para las menciones nuevas.</div>
+  </div>
+
+  <hr class="section-divider" />
+
+  <h3>7.4 Indicadores de cada mención</h3>
   <p>Cada tarjeta de mención muestra la siguiente información:</p>
 
   <table>
@@ -1192,6 +1376,14 @@ docker compose logs worker --tail=50</code></pre>
       <tr>
         <td><span class="badge purple">BOT</span></td>
         <td>La cuenta que publicó fue clasificada como bot por el sistema</td>
+      </tr>
+      <tr>
+        <td><span class="badge gray">Duplicado</span></td>
+        <td>Mensaje idéntico o muy similar detectado en múltiples cuentas (posible campaña coordinada)</td>
+      </tr>
+      <tr>
+        <td><span class="badge green">📷 Hna. María Luisa Pirquive</span></td>
+        <td><strong>Coincidencia visual</strong> — Se reconoció un rostro conocido en la imagen o miniatura de la publicación (módulo 7)</td>
       </tr>
       <tr>
         <td>👍 1,234 interacciones</td>
@@ -1283,7 +1475,7 @@ docker compose logs worker --tail=50</code></pre>
     <li>Haz clic en el botón <strong>+ Nueva regla</strong></li>
     <li>Completa el formulario:
       <ul style="margin-top:8px; padding-left:20px; font-size:13px; line-height:2;">
-        <li><strong>Nombre</strong> — Descripción corta de la regla (ej: "Pico negativo Ecopetrol")</li>
+        <li><strong>Nombre</strong> — Descripción corta de la regla (ej: "Pico negativo Partido MIRA", "Ataque a Hna. María Luisa")</li>
         <li><strong>Entidad</strong> — Selecciona la entidad específica <em>o deja en blanco</em> para una regla global (aplica a todas)</li>
         <li><strong>Tipo de regla</strong> — Elige uno de los 6 tipos de la tabla anterior</li>
         <li><strong>Umbral</strong> — Número que dispara la alerta (ver tabla de ejemplos abajo)</li>
@@ -1299,11 +1491,11 @@ docker compose logs worker --tail=50</code></pre>
   <table>
     <thead><tr><th>Escenario</th><th>Tipo</th><th>Umbral</th><th>Ventana</th><th>Severidad</th></tr></thead>
     <tbody>
-      <tr><td>Detectar crisis de reputación emergente</td><td><code>negative_threshold</code></td><td>50</td><td>60 min</td><td>High</td></tr>
-      <tr><td>Alerta por cualquier mención crítica</td><td><code>keyword_critical</code></td><td>1</td><td>30 min</td><td>Critical</td></tr>
-      <tr><td>Pico inusual de menciones</td><td><code>volume_spike</code></td><td>3</td><td>60 min</td><td>Medium</td></tr>
-      <tr><td>Campaña de bots coordinada</td><td><code>campaign_detected</code></td><td>5</td><td>120 min</td><td>High</td></tr>
-      <tr><td>Discurso de odio elevado</td><td><code>hate_speech</code></td><td>5</td><td>60 min</td><td>High</td></tr>
+      <tr><td>Crisis de reputación contra Hna. María Luisa o MIRA</td><td><code>negative_threshold</code></td><td>50</td><td>60 min</td><td>High</td></tr>
+      <tr><td>Mención de keyword crítica (amenaza, ataque, escándalo)</td><td><code>keyword_critical</code></td><td>1</td><td>30 min</td><td>Critical</td></tr>
+      <tr><td>Pico inusual de menciones al Partido MIRA</td><td><code>volume_spike</code></td><td>3</td><td>60 min</td><td>Medium</td></tr>
+      <tr><td>Campaña coordinada de bots contra IDMJI</td><td><code>campaign_detected</code></td><td>5</td><td>120 min</td><td>High</td></tr>
+      <tr><td>Discurso de odio contra líderes o miembros IDMJI</td><td><code>hate_speech</code></td><td>3</td><td>60 min</td><td>High</td></tr>
     </tbody>
   </table>
 
@@ -1361,7 +1553,7 @@ docker compose logs worker --tail=50</code></pre>
     <thead><tr><th>Campo</th><th>Descripción</th></tr></thead>
     <tbody>
       <tr><td><strong>Ícono de severidad</strong></td><td>Color y ícono que indica el nivel de criticidad</td></tr>
-      <tr><td><strong>Nombre de la regla</strong></td><td>La regla que se disparó (ej: "Pico negativo Ecopetrol")</td></tr>
+      <tr><td><strong>Nombre de la regla</strong></td><td>La regla que se disparó (ej: "Campaña coordinada Partido MIRA")</td></tr>
       <tr><td><strong>Mensaje descriptivo</strong></td><td>Explica qué ocurrió: qué métrica superó qué umbral</td></tr>
       <tr><td><strong>Entidad</strong></td><td>A qué entidad afecta la alerta</td></tr>
       <tr><td><strong>Hora de disparo</strong></td><td>Cuándo fue detectada la situación</td></tr>
@@ -1484,7 +1676,7 @@ docker compose logs worker --tail=50</code></pre>
     <li>Haz clic en <strong>+ Nuevo reporte</strong></li>
     <li>Completa el formulario:
       <ul style="margin-top:8px; padding-left:20px; font-size:13px; line-height:2;">
-        <li><strong>Nombre del reporte</strong> — Ej: "Análisis Ecopetrol — Marzo 2026"</li>
+        <li><strong>Nombre del reporte</strong> — Ej: "Análisis Partido MIRA — Marzo 2026", "Informe Hna. María Luisa — Semana 13"</li>
         <li><strong>Tipo</strong> — Selecciona uno de los 5 tipos</li>
         <li><strong>Entidad</strong> — Requerido para tipo "Entidad"; opcional para los demás</li>
         <li><strong>Fecha desde</strong> — Inicio del período analizado</li>
@@ -1573,6 +1765,17 @@ docker compose logs worker --tail=50</code></pre>
     <li>Revisa los logs: <code>docker compose logs worker | grep Telegram</code></li>
   </ol>
 
+  <h4>El reconocimiento visual no detecta rostros</h4>
+  <ol class="steps">
+    <li>Verifica que <code>FACE_RECOGNITION_ENABLED=true</code> está en <code>.env</code></li>
+    <li>Confirma que el backend fue reconstruido después de activarlo: <code>docker compose build backend</code></li>
+    <li>Revisa que existen fotos de referencia configuradas en la entidad (pestaña "📸 Reconocimiento visual")</li>
+    <li>El análisis visual corre cada 30 minutos — espera un ciclo o lanza manualmente:
+      <pre style="margin:10px 0 0;"><code>docker compose exec backend python -c "from app.database import SessionLocal; from app.workers.nlp.visual import run_visual_analysis; db=SessionLocal(); run_visual_analysis(db); db.close()"</code></pre>
+    </li>
+    <li>Revisa los logs: <code>docker compose logs worker --tail=50 | grep visual</code></li>
+  </ol>
+
   <h4>El contenedor de la base de datos no inicia</h4>
   <pre><code><span class="comment"># Ver logs detallados del contenedor db</span>
 docker compose logs db
@@ -1609,7 +1812,7 @@ docker compose down && docker compose up -d</code></pre>
   <hr class="section-divider" />
 
   <p style="margin-top:48px; text-align:center; font-size:12px; color:#94a3b8;">
-    SONAR — Manual de Usuario v1.0 &nbsp;|&nbsp; Sistema MIRA · Análisis de Redes Sociales &nbsp;|&nbsp; Marzo 2026
+    SONAR — Manual de Usuario v1.1 &nbsp;|&nbsp; Uso exclusivo IDMJI / Partido MIRA &nbsp;|&nbsp; Sistema MIRA · Análisis de Redes Sociales &nbsp;|&nbsp; Marzo 2026
   </p>
 </div>
 
