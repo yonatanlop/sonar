@@ -35,6 +35,12 @@ class Settings(BaseSettings):
     # Ruta a la DB SQLite donde twscrape guarda las cuentas y sus cookies.
     # El volumen storage_data lo persiste entre reinicios del contenedor.
     TWITTER_ACCOUNTS_DB: str = "/app/storage/twscrape.db"
+    # Ventana de búsqueda hacia atrás en días. Se añade since:YYYY-MM-DD a la query.
+    # Default 7 días — cubre huecos si el sistema estuvo caído o la keyword es nueva.
+    # Aumentar a 14-30 para monitoreo retrospectivo (más lento, más tweets por ciclo).
+    TWITTER_LOOKBACK_DAYS: int = 7
+    # Máximo de tweets por keyword por ciclo. Aumentar si lookback es largo.
+    TWITTER_MAX_RESULTS: int = 100
 
     # NLP
     NLP_MODE: str = "api"   # 'api' | 'local'

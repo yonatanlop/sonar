@@ -557,6 +557,23 @@ git checkout version2</code></pre>
 <span class="key">GMAIL_USER</span>=<span class="val">tu_cuenta@gmail.com</span>
 <span class="key">GMAIL_APP_PASSWORD</span>=<span class="val">xxxx xxxx xxxx xxxx</span></code></pre>
 
+  <h4>Twitter — ventana de búsqueda (opcional)</h4>
+  <pre><code><span class="comment"># ── Twitter / X ───────────────────────────────────────────
+# Cuántos días hacia atrás busca cada ciclo (default: 7 días).
+# Aumentar a 14 o 30 si el sistema estuvo caído o para búsqueda retrospectiva.
+# Con más días → más tweets por ciclo → ciclo más lento.</span>
+<span class="key">TWITTER_LOOKBACK_DAYS</span>=<span class="val">7</span>
+<span class="key">TWITTER_MAX_RESULTS</span>=<span class="val">100</span>    <span class="comment"># tweets máximos por keyword por ciclo</span></code></pre>
+
+  <div class="callout tip">
+    <span class="icon">💡</span>
+    <div>
+      Para el monitoreo de IDMJI se recomienda <code>TWITTER_LOOKBACK_DAYS=7</code> como valor
+      estándar. Si activas una keyword nueva y quieres recuperar menciones recientes, puedes
+      subirlo temporalmente a <code>14</code> y volver a 7 después del primer ciclo.
+    </div>
+  </div>
+
   <h4>Seguridad de sesión (opcionales — tienen valores por defecto)</h4>
   <pre><code><span class="comment"># ── Sesión JWT ────────────────────────────────────────────
 # Tiempo de vida de la sesión en minutos (default: 480 = 8 horas)

@@ -16,6 +16,7 @@ import asyncio
 import json
 import logging
 import time
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
@@ -27,8 +28,13 @@ from app.workers.scrapers.base import (
 
 logger = logging.getLogger(__name__)
 
-MAX_TWEETS_PER_SEARCH  = 40   # tweets por keyword/término
 DELAY_BETWEEN_SEARCHES = 4    # segundos entre búsquedas (respetar rate limit)
+
+
+def _since_date() -> str:
+    """Devuelve la fecha de inicio para el filtro since: según TWITTER_LOOKBACK_DAYS."""
+    since = datetime.now(timezone.utc) - timedelta(days=settings.TWITTER_LOOKBACK_DAYS)
+    return since.strftime("%Y-%m-%d")
 
 
 class TwitterScraper(BaseScraper):
@@ -90,12 +96,17 @@ class TwitterScraper(BaseScraper):
             logger.error(f"[Twitter] Error al verificar cuentas del pool: {e}")
             return 0
 
-        # Query: frase exacta, español o inglés, sin retweets
-        query = f'"{term}" (lang:es OR lang:en) -is:retweet'
+        # Query: frase exacta, español o inglés, sin retweets, con ventana temporal
+        since = _since_date()
+        query = f'"{term}" (lang:es OR lang:en) -is:retweet since:{since}'
         saved = 0
 
+        logger.debug(
+            f"[Twitter] Buscando: {query}  (limit={settings.TWITTER_MAX_RESULTS})"
+        )
+
         try:
-            async for tweet in api.search(query, limit=MAX_TWEETS_PER_SEARCH):
+            async for tweet in api.search(query, limit=settings.TWITTER_MAX_RESULTS):
                 try:
                     user = tweet.user
 
