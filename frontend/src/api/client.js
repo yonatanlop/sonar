@@ -23,7 +23,10 @@ client.interceptors.response.use(
     if (status === 401) {
       localStorage.removeItem('sonar_token')
       localStorage.removeItem('sonar_user')
-      window.location.href = '/login'
+      // Solo redirigir si NO estamos ya en /login, para evitar bucle infinito
+      if (!window.location.pathname.startsWith('/login')) {
+        window.location.replace('/login')
+      }
       return Promise.reject(error)
     }
 
@@ -31,7 +34,8 @@ client.interceptors.response.use(
       toast.error('No tienes permisos para realizar esta acción')
     } else if (status >= 500) {
       toast.error('Error interno del servidor')
-    } else if (detail) {
+    } else if (detail && status !== 422) {
+      // 422 tiene manejo propio en cada formulario
       toast.error(detail)
     }
 

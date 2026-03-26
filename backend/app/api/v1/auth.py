@@ -5,7 +5,9 @@ from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.core.security import create_access_token, verify_password
+from app.api.deps import get_current_user, oauth2_scheme
+from app.core.config import settings
+from app.core.security import blacklist_token, create_access_token, verify_password
 from app.database import get_db
 from app.models.user import AuditLog, User
 
@@ -48,6 +50,7 @@ def login(request: Request,
     return {
         "access_token": token,
         "token_type": "bearer",
+        "expires_in": settings.SESSION_TIMEOUT_MINUTES * 60,
         "user": {
             "id": str(user.id),
             "username": user.username,
@@ -56,3 +59,23 @@ def login(request: Request,
             "role": user.role,
         },
     }
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+def logout(
+    request: Request,
+    token: str = Depends(oauth2_scheme),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Invalida el token actual añadiéndolo a la blacklist de Redis.
+    El token queda inútil aunque no haya expirado.
+    """
+    blacklist_token(token)
+    db.add(AuditLog(
+        user_id=current_user.id,
+        action="logout",
+        ip_address=request.client.host if request.client else None,
+    ))
+    db.commit()

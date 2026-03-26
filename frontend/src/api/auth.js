@@ -11,6 +11,8 @@ export const authApi = {
     return data
   },
 
+  logout: () => client.post('/auth/logout'),
+
   getMe: () => client.get('/users/me').then(r => r.data),
 
   updateMe: (data) => client.put('/users/me', data).then(r => r.data),
