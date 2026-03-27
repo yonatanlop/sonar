@@ -11,6 +11,7 @@ import AlertRules   from './pages/AlertRules'
 import Reports      from './pages/Reports'
 import Users        from './pages/Users'
 import Profile      from './pages/Profile'
+import Chat         from './pages/Chat'
 
 export default function App() {
   return (
@@ -28,6 +29,7 @@ export default function App() {
             <Route path="/mentions"          element={<Mentions />} />
             <Route path="/alerts"            element={<Alerts />} />
             <Route path="/reports"           element={<Reports />} />
+            <Route path="/chat"              element={<Chat />} />
             <Route path="/profile"           element={<Profile />} />
 
             {/* Solo analyst/admin */}

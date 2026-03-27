@@ -53,6 +53,11 @@ class Settings(BaseSettings):
     # Bot Classifier ML (v2)
     BOT_THRESHOLD: float = 0.7  # probabilidad mínima para clasificar como "bot"
 
+    # Módulo 13 — Chat Asistente RAG
+    # false → Fase simple: cada pregunta es independiente (default)
+    # true  → Fase avanzada: historial multi-turno incluido en el contexto
+    CHAT_ADVANCED_MODE: bool = False
+
     # Módulo 7 — Reconocimiento Visual
     FACE_RECOGNITION_ENABLED: bool = False  # activar en .env cuando haya fotos de referencia
     FACE_DISTANCE_THRESHOLD: float = 0.55   # distancia máxima para match (0=exacto, 1=muy diferente)
