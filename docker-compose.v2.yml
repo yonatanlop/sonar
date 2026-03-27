@@ -77,7 +77,10 @@ services:
     ports:
       - "3001:3000"
     environment:
-      - VITE_API_URL=http://localhost:8001
+      # Nombre del contenedor backend_v2 dentro de la red Docker (no localhost)
+      - VITE_API_URL=http://backend_v2:8000
+    depends_on:
+      - backend_v2
     networks:
       - sonar_v2_net
 
