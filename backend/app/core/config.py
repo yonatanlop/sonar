@@ -41,6 +41,10 @@ class Settings(BaseSettings):
     TWITTER_LOOKBACK_DAYS: int = 7
     # Máximo de tweets por keyword por ciclo. Aumentar si lookback es largo.
     TWITTER_MAX_RESULTS: int = 100
+    # Twitter API v2 Bearer Token (opcional, tier 2 cuando twscrape falla)
+    # Obtener gratis en: developer.twitter.com → Projects & Apps → Keys and Tokens
+    # Plan gratuito: 500K tweets/mes, búsqueda últimos 7 días.
+    TWITTER_BEARER_TOKEN: str = ""
 
     # NLP
     NLP_MODE: str = "api"   # 'api' | 'local'

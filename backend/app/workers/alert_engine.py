@@ -210,10 +210,10 @@ def _check_keyword_critical(db: Session, rule: AlertRule) -> Optional[str]:
                 Keyword.id.in_(critical_kw_ids)
             ).limit(5).all()
         ]
+        kw_list = ", ".join(f'"{k}"' for k in kw_names)
         return (
             f"{count} menciones con keywords críticas detectadas en "
-            f"los últimos {rule.window_minutes} min: "
-            f"{', '.join(f'\"{k}\"' for k in kw_names)}."
+            f"los últimos {rule.window_minutes} min: {kw_list}."
         )
     return None
 

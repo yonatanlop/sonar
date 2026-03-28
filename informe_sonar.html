@@ -1,0 +1,1520 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SONAR — Informe de Inteligencia en Redes Sociales</title>
+<style>
+  /* ── Reset y base ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    font-size: 13px;
+    color: #1a1a2e;
+    background: #fff;
+    line-height: 1.6;
+  }
+
+  /* ── Paleta ── */
+  :root {
+    --azul:      #1a1a2e;
+    --azul-med:  #16213e;
+    --acento:    #0f3460;
+    --dorado:    #e94560;
+    --gris-claro:#f4f6fb;
+    --gris-borde:#dde3f0;
+    --verde:     #0d7c3b;
+    --rojo:      #c0392b;
+    --naranja:   #d35400;
+    --texto-seco:#4a4a68;
+  }
+
+  /* ── Portada ── */
+  .portada {
+    background: linear-gradient(135deg, #1a1a2e 0%, #0f3460 60%, #16213e 100%);
+    color: #fff;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 60px 40px;
+    page-break-after: always;
+    position: relative;
+    overflow: hidden;
+  }
+  .portada::before {
+    content: '';
+    position: absolute;
+    width: 500px; height: 500px;
+    border-radius: 50%;
+    background: rgba(233,69,96,0.08);
+    top: -150px; right: -150px;
+  }
+  .portada::after {
+    content: '';
+    position: absolute;
+    width: 300px; height: 300px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.04);
+    bottom: -80px; left: -80px;
+  }
+  .portada .logo-icon {
+    font-size: 64px;
+    margin-bottom: 20px;
+    filter: drop-shadow(0 4px 12px rgba(0,0,0,0.4));
+  }
+  .portada h1 {
+    font-size: 52px;
+    font-weight: 900;
+    letter-spacing: 8px;
+    margin-bottom: 8px;
+    text-shadow: 0 2px 12px rgba(0,0,0,0.3);
+  }
+  .portada .subtitulo-principal {
+    font-size: 16px;
+    color: rgba(255,255,255,0.75);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 50px;
+  }
+  .portada .linea-dorada {
+    width: 80px;
+    height: 3px;
+    background: var(--dorado);
+    margin: 0 auto 40px;
+    border-radius: 2px;
+  }
+  .portada h2 {
+    font-size: 22px;
+    font-weight: 400;
+    max-width: 680px;
+    line-height: 1.5;
+    color: rgba(255,255,255,0.90);
+    margin-bottom: 60px;
+  }
+  .portada .meta-grid {
+    display: grid;
+    grid-template-columns: repeat(3,1fr);
+    gap: 20px;
+    max-width: 600px;
+    width: 100%;
+    margin-top: 20px;
+  }
+  .portada .meta-item {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 10px;
+    padding: 16px 12px;
+  }
+  .portada .meta-item .label {
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: rgba(255,255,255,0.5);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .portada .meta-item .valor {
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+  }
+  .portada .confidencial {
+    position: absolute;
+    top: 28px; right: 36px;
+    background: var(--dorado);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    padding: 5px 14px;
+    border-radius: 20px;
+    text-transform: uppercase;
+  }
+
+  /* ── Layout de página ── */
+  .pagina {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 50px 60px;
+    page-break-after: always;
+  }
+  .pagina:last-child { page-break-after: auto; }
+
+  /* ── Encabezado de sección ── */
+  .seccion-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 28px;
+    padding-bottom: 14px;
+    border-bottom: 2px solid var(--gris-borde);
+  }
+  .seccion-numero {
+    background: var(--acento);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .seccion-titulo {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--azul);
+  }
+  .seccion-subtitulo {
+    font-size: 12px;
+    color: var(--texto-seco);
+    margin-top: 2px;
+  }
+
+  /* ── Índice ── */
+  .indice-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px dotted var(--gris-borde);
+    gap: 12px;
+  }
+  .indice-num {
+    background: var(--gris-claro);
+    color: var(--acento);
+    font-weight: 700;
+    font-size: 11px;
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .indice-texto { font-size: 13px; color: var(--azul); flex: 1; }
+  .indice-pag { font-size: 11px; color: var(--texto-seco); }
+
+  /* ── Destacado / callout ── */
+  .callout {
+    border-left: 4px solid var(--acento);
+    background: var(--gris-claro);
+    padding: 16px 20px;
+    border-radius: 0 8px 8px 0;
+    margin: 20px 0;
+    font-size: 13px;
+    color: var(--texto-seco);
+  }
+  .callout strong { color: var(--azul); }
+  .callout.alerta { border-left-color: var(--dorado); background: #fff8f8; }
+  .callout.verde  { border-left-color: var(--verde);  background: #f0faf4; }
+  .callout.naranja{ border-left-color: var(--naranja); background: #fff7f0; }
+
+  /* ── Tablas ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    margin: 18px 0;
+  }
+  thead tr { background: var(--acento); color: #fff; }
+  thead th {
+    padding: 10px 12px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+  }
+  tbody tr:nth-child(even) { background: var(--gris-claro); }
+  tbody tr:hover { background: #eef1fb; }
+  tbody td { padding: 9px 12px; border-bottom: 1px solid var(--gris-borde); vertical-align: top; }
+  .check  { color: var(--verde);  font-weight: 700; }
+  .cross  { color: var(--rojo);   font-weight: 700; }
+  .warn   { color: var(--naranja);font-weight: 700; }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+  .badge-verde   { background: #d4f5e4; color: #0d7c3b; }
+  .badge-rojo    { background: #fde8e8; color: #c0392b; }
+  .badge-naranja { background: #fde8d4; color: #d35400; }
+  .badge-azul    { background: #dde8fb; color: #0f3460; }
+  .badge-gris    { background: #eaeaea; color: #555; }
+
+  /* ── Tarjetas de herramientas ── */
+  .herramientas-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    margin: 20px 0;
+  }
+  .herramienta-card {
+    border: 1px solid var(--gris-borde);
+    border-radius: 10px;
+    padding: 18px;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  }
+  .herramienta-card .h-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 10px;
+  }
+  .herramienta-card .h-nombre {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--azul);
+  }
+  .herramienta-card .h-precio {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--acento);
+    background: var(--gris-claro);
+    padding: 3px 8px;
+    border-radius: 6px;
+  }
+  .herramienta-card .h-origen {
+    font-size: 11px;
+    color: var(--texto-seco);
+    margin-bottom: 10px;
+  }
+  .herramienta-card .h-lista {
+    list-style: none;
+    font-size: 12px;
+    color: var(--texto-seco);
+  }
+  .herramienta-card .h-lista li {
+    padding: 3px 0;
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  .herramienta-card .h-lista li::before {
+    content: '•';
+    color: var(--acento);
+    font-weight: 700;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .herramienta-card.destacada {
+    border: 2px solid var(--acento);
+    background: linear-gradient(135deg, #f8faff 0%, #eef2fb 100%);
+  }
+  .herramienta-card.destacada .h-nombre::after {
+    content: ' ★ RECOMENDADA';
+    font-size: 9px;
+    color: var(--dorado);
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
+
+  /* ── Estadísticas highlight ── */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin: 24px 0;
+  }
+  .stat-box {
+    background: var(--gris-claro);
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+    border: 1px solid var(--gris-borde);
+  }
+  .stat-box .stat-num {
+    font-size: 26px;
+    font-weight: 900;
+    color: var(--acento);
+    line-height: 1;
+  }
+  .stat-box .stat-label {
+    font-size: 11px;
+    color: var(--texto-seco);
+    margin-top: 6px;
+    line-height: 1.3;
+  }
+
+  /* ── Timeline / flujo ── */
+  .flujo {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    margin: 20px 0;
+    flex-wrap: wrap;
+  }
+  .flujo-paso {
+    flex: 1;
+    min-width: 100px;
+    background: var(--gris-claro);
+    border: 1px solid var(--gris-borde);
+    padding: 14px 12px;
+    text-align: center;
+    position: relative;
+    font-size: 12px;
+  }
+  .flujo-paso:first-child { border-radius: 8px 0 0 8px; }
+  .flujo-paso:last-child  { border-radius: 0 8px 8px 0; }
+  .flujo-paso .fp-num {
+    font-size: 18px;
+    font-weight: 900;
+    color: var(--acento);
+    display: block;
+    margin-bottom: 4px;
+  }
+  .flujo-paso .fp-label { color: var(--texto-seco); font-size: 11px; }
+  .flujo-arrow {
+    display: flex;
+    align-items: center;
+    padding: 0 4px;
+    font-size: 18px;
+    color: var(--acento);
+  }
+
+  /* ── Comparativa de niveles ── */
+  .nivel-row {
+    display: flex;
+    gap: 14px;
+    margin: 14px 0;
+  }
+  .nivel-etiqueta {
+    width: 100px;
+    flex-shrink: 0;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    border-radius: 6px;
+    text-align: center;
+  }
+  .nivel-etiqueta.gobierno { background: #1a1a2e; color: #fff; }
+  .nivel-etiqueta.enterprise { background: var(--acento); color: #fff; }
+  .nivel-etiqueta.comercial { background: #2980b9; color: #fff; }
+  .nivel-etiqueta.sonar { background: var(--dorado); color: #fff; }
+  .nivel-contenido {
+    flex: 1;
+    border: 1px solid var(--gris-borde);
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 12px;
+    color: var(--texto-seco);
+  }
+  .nivel-contenido strong { color: var(--azul); display: block; margin-bottom: 3px; }
+
+  /* ── Cita destacada ── */
+  blockquote {
+    border-left: 4px solid var(--dorado);
+    padding: 16px 20px;
+    background: #fff8f8;
+    border-radius: 0 8px 8px 0;
+    margin: 20px 0;
+    font-style: italic;
+    font-size: 14px;
+    color: var(--azul);
+    line-height: 1.7;
+  }
+  blockquote footer {
+    font-size: 11px;
+    color: var(--texto-seco);
+    font-style: normal;
+    margin-top: 8px;
+  }
+
+  /* ── Subtítulos internos ── */
+  h3 {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--acento);
+    margin: 22px 0 10px;
+    padding-left: 10px;
+    border-left: 3px solid var(--acento);
+  }
+  h4 {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--azul);
+    margin: 16px 0 8px;
+  }
+  p { margin-bottom: 10px; color: var(--texto-seco); }
+  ul { padding-left: 20px; margin-bottom: 10px; }
+  ul li { margin-bottom: 5px; color: var(--texto-seco); font-size: 13px; }
+
+  /* ── Pie de página ── */
+  .pie-pagina {
+    margin-top: 40px;
+    padding-top: 14px;
+    border-top: 1px solid var(--gris-borde);
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: #999;
+  }
+
+  /* ── Conclusión final ── */
+  .conclusion-box {
+    background: linear-gradient(135deg, #1a1a2e 0%, #0f3460 100%);
+    color: #fff;
+    border-radius: 12px;
+    padding: 32px;
+    margin: 24px 0;
+  }
+  .conclusion-box h3 {
+    color: #fff;
+    border-left-color: var(--dorado);
+    font-size: 18px;
+    margin-top: 0;
+  }
+  .conclusion-box p { color: rgba(255,255,255,0.85); }
+  .conclusion-box ul li { color: rgba(255,255,255,0.85); }
+
+  /* ── Print ── */
+  @media print {
+    body { font-size: 12px; }
+    .portada { min-height: 100vh; }
+    .pagina { padding: 40px 50px; }
+    a { text-decoration: none; color: inherit; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════
+     PORTADA
+═══════════════════════════════════════════════════ -->
+<div class="portada">
+  <span class="confidencial">Confidencial</span>
+  <div class="logo-icon">📡</div>
+  <h1>SONAR</h1>
+  <p class="subtitulo-principal">Sistema de Monitoreo Inteligente de Redes Sociales</p>
+  <div class="linea-dorada"></div>
+  <h2>Inteligencia de Redes Sociales, Análisis de Narrativas y Alertas en Tiempo Real para la Protección de Instituciones</h2>
+  <div class="meta-grid">
+    <div class="meta-item">
+      <div class="label">Fecha</div>
+      <div class="valor">Marzo 2026</div>
+    </div>
+    <div class="meta-item">
+      <div class="label">Versión</div>
+      <div class="valor">1.0 — Presentación Cliente</div>
+    </div>
+    <div class="meta-item">
+      <div class="label">Clasificación</div>
+      <div class="valor">Confidencial</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     ÍNDICE
+═══════════════════════════════════════════════════ -->
+<div class="pagina">
+  <div class="seccion-header">
+    <div class="seccion-numero">✦</div>
+    <div>
+      <div class="seccion-titulo">Contenido del Informe</div>
+      <div class="seccion-subtitulo">Tabla de materias</div>
+    </div>
+  </div>
+
+  <div class="indice-item">
+    <div class="indice-num">1</div>
+    <div class="indice-texto">¿Qué es SONAR? — Resumen ejecutivo y capacidades</div>
+  </div>
+  <div class="indice-item">
+    <div class="indice-num">2</div>
+    <div class="indice-texto">El problema: Por qué monitorear redes sociales es crítico</div>
+  </div>
+  <div class="indice-item">
+    <div class="indice-num">3</div>
+    <div class="indice-texto">Cómo funciona SONAR — Arquitectura y flujo de datos</div>
+  </div>
+  <div class="indice-item">
+    <div class="indice-num">4</div>
+    <div class="indice-texto">Velocidad de detección — Latencia y alertas</div>
+  </div>
+  <div class="indice-item">
+    <div class="indice-num">5</div>
+    <div class="indice-texto">Contexto global — Lo que usan los grandes actores políticos</div>
+  </div>
+  <div class="indice-item">
+    <div class="indice-num">6</div>
+    <div class="indice-texto">El caso Colombia — Inteligencia social documentada</div>
+  </div>
+  <div class="indice-item">
+    <div class="indice-num">7</div>
+    <div class="indice-texto">Herramientas del mercado — Comparativo completo</div>
+  </div>
+  <div class="indice-item">
+    <div class="indice-num">8</div>
+    <div class="indice-texto">Acceso a datos de Twitter, Facebook e Instagram — La realidad</div>
+  </div>
+  <div class="indice-item">
+    <div class="indice-num">9</div>
+    <div class="indice-texto">Propuesta de solución — SONAR + proveedor de datos</div>
+  </div>
+  <div class="indice-item">
+    <div class="indice-num">10</div>
+    <div class="indice-texto">Conclusión y recomendación</div>
+  </div>
+
+  <div class="pie-pagina">
+    <span>SONAR — Sistema de Monitoreo Inteligente</span>
+    <span>Marzo 2026 — Confidencial</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SECCIÓN 1 — QUÉ ES SONAR
+═══════════════════════════════════════════════════ -->
+<div class="pagina">
+  <div class="seccion-header">
+    <div class="seccion-numero">1</div>
+    <div>
+      <div class="seccion-titulo">¿Qué es SONAR?</div>
+      <div class="seccion-subtitulo">Resumen ejecutivo</div>
+    </div>
+  </div>
+
+  <p>SONAR es una plataforma de inteligencia de redes sociales diseñada para detectar, analizar y alertar sobre menciones, narrativas y ataques dirigidos contra instituciones específicas en tiempo casi real. A diferencia de las herramientas genéricas del mercado, SONAR está construido para adaptarse a las necesidades particulares de cada organización monitoreada.</p>
+
+  <div class="stats-row">
+    <div class="stat-box">
+      <div class="stat-num">4</div>
+      <div class="stat-label">Plataformas monitoreadas simultáneamente</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-num">12</div>
+      <div class="stat-label">Módulos de inteligencia activos</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-num">~12 min</div>
+      <div class="stat-label">Latencia promedio de detección</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-num">24/7</div>
+      <div class="stat-label">Monitoreo continuo automatizado</div>
+    </div>
+  </div>
+
+  <h3>Capacidades principales</h3>
+  <div class="herramientas-grid">
+    <div class="herramienta-card">
+      <div class="h-header">
+        <div class="h-nombre">🔍 Rastreo de menciones</div>
+      </div>
+      <ul class="h-lista">
+        <li>Keywords y aliases por entidad monitoreada</li>
+        <li>Búsqueda en Twitter/X, YouTube, Reddit y RSS</li>
+        <li>Filtro por idioma (español e inglés)</li>
+        <li>Deduplicación automática de menciones</li>
+      </ul>
+    </div>
+    <div class="herramienta-card">
+      <div class="h-header">
+        <div class="h-nombre">🧠 Análisis NLP con IA</div>
+      </div>
+      <ul class="h-lista">
+        <li>Análisis de sentimiento (positivo / negativo / neutral)</li>
+        <li>Detección de lenguaje de odio</li>
+        <li>Extracción de entidades nombradas (NER)</li>
+        <li>Clasificación de relevancia automática</li>
+      </ul>
+    </div>
+    <div class="herramienta-card">
+      <div class="h-header">
+        <div class="h-nombre">🚨 Sistema de alertas</div>
+      </div>
+      <ul class="h-lista">
+        <li>Alertas por Telegram, WhatsApp y correo</li>
+        <li>Umbrales configurables por tipo de ataque</li>
+        <li>Detección de picos anómalos de menciones</li>
+        <li>Motor de reglas personalizables</li>
+      </ul>
+    </div>
+    <div class="herramienta-card">
+      <div class="h-header">
+        <div class="h-nombre">📊 Dashboard e informes</div>
+      </div>
+      <ul class="h-lista">
+        <li>Panel en tiempo real con métricas clave</li>
+        <li>Evolución temporal de menciones</li>
+        <li>Mapa de calor por sentimiento</li>
+        <li>Exportación de reportes en PDF</li>
+      </ul>
+    </div>
+    <div class="herramienta-card">
+      <div class="h-header">
+        <div class="h-nombre">🤖 Detección de bots</div>
+      </div>
+      <ul class="h-lista">
+        <li>Clasificador ML de cuentas automatizadas</li>
+        <li>Perfil de comportamiento de cuentas</li>
+        <li>Detección de campañas coordinadas</li>
+        <li>Historial de actividad de autores</li>
+      </ul>
+    </div>
+    <div class="herramienta-card">
+      <div class="h-header">
+        <div class="h-nombre">💬 Asistente IA (RAG)</div>
+      </div>
+      <ul class="h-lista">
+        <li>Chat inteligente sobre las menciones recolectadas</li>
+        <li>Responde preguntas en lenguaje natural</li>
+        <li>Basado en Llama 3.1 vía Groq</li>
+        <li>Contexto semántico de todos los datos</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="pie-pagina">
+    <span>SONAR — Sistema de Monitoreo Inteligente</span>
+    <span>Sección 1 — ¿Qué es SONAR?</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SECCIÓN 2 — EL PROBLEMA
+═══════════════════════════════════════════════════ -->
+<div class="pagina">
+  <div class="seccion-header">
+    <div class="seccion-numero">2</div>
+    <div>
+      <div class="seccion-titulo">El Problema</div>
+      <div class="seccion-subtitulo">Por qué el monitoreo de redes sociales es crítico para las instituciones</div>
+    </div>
+  </div>
+
+  <p>Las instituciones religiosas, políticas, empresariales y civiles en Colombia y el mundo son objeto de campañas sistemáticas de desprestigio en redes sociales. Estas campañas operan de forma coordinada, utilizando cuentas reales y automatizadas para amplificar narrativas negativas, desinformación y ataques directos.</p>
+
+  <div class="callout alerta">
+    <strong>El problema sin monitoreo:</strong> Una campaña de ataques puede viralizarse en menos de 2 horas antes de que el equipo de comunicaciones de la institución tome conocimiento. Para ese momento, el daño reputacional puede ser irreversible.
+  </div>
+
+  <h3>¿Cómo operan los ataques en redes sociales?</h3>
+
+  <div class="flujo">
+    <div class="flujo-paso">
+      <span class="fp-num">①</span>
+      <span class="fp-label">Publicación del ataque inicial (post, comentario, video)</span>
+    </div>
+    <div class="flujo-arrow">→</div>
+    <div class="flujo-paso">
+      <span class="fp-num">②</span>
+      <span class="fp-label">Amplificación por cuentas coordinadas o bots</span>
+    </div>
+    <div class="flujo-arrow">→</div>
+    <div class="flujo-paso">
+      <span class="fp-num">③</span>
+      <span class="fp-label">Indexación en Google y tendencias en X</span>
+    </div>
+    <div class="flujo-arrow">→</div>
+    <div class="flujo-paso">
+      <span class="fp-num">④</span>
+      <span class="fp-label">Recogido por medios de comunicación tradicionales</span>
+    </div>
+    <div class="flujo-arrow">→</div>
+    <div class="flujo-paso">
+      <span class="fp-num">⑤</span>
+      <span class="fp-label">Daño reputacional consolidado e irreversible</span>
+    </div>
+  </div>
+
+  <h3>¿Qué necesita una institución para protegerse?</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Necesidad</th>
+        <th>Sin SONAR</th>
+        <th>Con SONAR</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Detección temprana de ataques</td>
+        <td><span class="cross">✗</span> Manual, tardía (horas o días)</td>
+        <td><span class="check">✓</span> Automática en ~12 minutos</td>
+      </tr>
+      <tr>
+        <td>Monitoreo 24/7</td>
+        <td><span class="cross">✗</span> Solo en horario laboral</td>
+        <td><span class="check">✓</span> Ininterrumpido, incluyendo fines de semana</td>
+      </tr>
+      <tr>
+        <td>Identificación de bots y campañas</td>
+        <td><span class="cross">✗</span> Imposible sin herramientas</td>
+        <td><span class="check">✓</span> Clasificador ML integrado</td>
+      </tr>
+      <tr>
+        <td>Historial de menciones</td>
+        <td><span class="cross">✗</span> Se pierde con el tiempo</td>
+        <td><span class="check">✓</span> Base de datos permanente con búsqueda semántica</td>
+      </tr>
+      <tr>
+        <td>Alertas inmediatas al equipo</td>
+        <td><span class="cross">✗</span> Depende de quién vea el post</td>
+        <td><span class="check">✓</span> Telegram, WhatsApp y correo automáticos</td>
+      </tr>
+      <tr>
+        <td>Análisis de sentimiento</td>
+        <td><span class="cross">✗</span> Subjetivo y manual</td>
+        <td><span class="check">✓</span> IA multilingüe automática</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="pie-pagina">
+    <span>SONAR — Sistema de Monitoreo Inteligente</span>
+    <span>Sección 2 — El Problema</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SECCIÓN 3 — CÓMO FUNCIONA
+═══════════════════════════════════════════════════ -->
+<div class="pagina">
+  <div class="seccion-header">
+    <div class="seccion-numero">3</div>
+    <div>
+      <div class="seccion-titulo">Cómo Funciona SONAR</div>
+      <div class="seccion-subtitulo">Arquitectura y flujo de datos</div>
+    </div>
+  </div>
+
+  <h3>Flujo de datos de extremo a extremo</h3>
+
+  <div style="background:var(--gris-claro);border-radius:10px;padding:24px;margin:16px 0;">
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;text-align:center;">
+      <div style="background:#fff;border:1px solid var(--gris-borde);border-radius:8px;padding:14px 8px;">
+        <div style="font-size:22px;margin-bottom:6px;">🌐</div>
+        <div style="font-size:11px;font-weight:700;color:var(--azul);margin-bottom:4px;">FUENTES</div>
+        <div style="font-size:10px;color:var(--texto-seco);">Twitter/X<br>YouTube<br>RSS<br>Reddit<br>Facebook*<br>Instagram*</div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--acento);">→</div>
+      <div style="background:#fff;border:1px solid var(--gris-borde);border-radius:8px;padding:14px 8px;">
+        <div style="font-size:22px;margin-bottom:6px;">⚙️</div>
+        <div style="font-size:11px;font-weight:700;color:var(--azul);margin-bottom:4px;">SCRAPERS</div>
+        <div style="font-size:10px;color:var(--texto-seco);">Recolección<br>automática<br>cada 15-30 min<br>via Celery Beat</div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--acento);">→</div>
+      <div style="background:#fff;border:1px solid var(--gris-borde);border-radius:8px;padding:14px 8px;">
+        <div style="font-size:22px;margin-bottom:6px;">🧠</div>
+        <div style="font-size:11px;font-weight:700;color:var(--azul);margin-bottom:4px;">NLP / IA</div>
+        <div style="font-size:10px;color:var(--texto-seco);">Sentimiento<br>Odio<br>Entidades<br>Relevancia<br>Bots</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr;margin-top:8px;">
+      <div style="display:flex;justify-content:center;">
+        <div style="font-size:20px;color:var(--acento);margin:0 8px;">↓</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center;">
+      <div style="background:#fff;border:1px solid var(--gris-borde);border-radius:8px;padding:14px 8px;">
+        <div style="font-size:22px;margin-bottom:6px;">🗄️</div>
+        <div style="font-size:11px;font-weight:700;color:var(--azul);margin-bottom:4px;">BASE DE DATOS</div>
+        <div style="font-size:10px;color:var(--texto-seco);">PostgreSQL + pgvector<br>Historial completo<br>Búsqueda semántica</div>
+      </div>
+      <div style="background:#fff;border:2px solid var(--dorado);border-radius:8px;padding:14px 8px;">
+        <div style="font-size:22px;margin-bottom:6px;">🚨</div>
+        <div style="font-size:11px;font-weight:700;color:var(--dorado);margin-bottom:4px;">ALERTAS</div>
+        <div style="font-size:10px;color:var(--texto-seco);">Telegram<br>WhatsApp<br>Correo<br>Dashboard</div>
+      </div>
+      <div style="background:#fff;border:1px solid var(--gris-borde);border-radius:8px;padding:14px 8px;">
+        <div style="font-size:22px;margin-bottom:6px;">📊</div>
+        <div style="font-size:11px;font-weight:700;color:var(--azul);margin-bottom:4px;">DASHBOARD</div>
+        <div style="font-size:10px;color:var(--texto-seco);">Métricas en vivo<br>Reportes PDF<br>Chat IA</div>
+      </div>
+    </div>
+  </div>
+
+  <p style="font-size:11px;color:var(--texto-seco);margin-top:4px;">* Facebook e Instagram requieren integración con proveedor de datos licenciado (ver Sección 8).</p>
+
+  <h3>Tecnología base</h3>
+  <table>
+    <thead>
+      <tr><th>Componente</th><th>Tecnología</th><th>Propósito</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Backend API</td><td>Python / FastAPI</td><td>Servidor de aplicación y endpoints REST</td></tr>
+      <tr><td>Frontend</td><td>React / Tailwind CSS</td><td>Dashboard interactivo en tiempo real</td></tr>
+      <tr><td>Base de datos</td><td>PostgreSQL + pgvector</td><td>Almacenamiento y búsqueda semántica</td></tr>
+      <tr><td>Cola de tareas</td><td>Celery + Redis</td><td>Scraping y NLP automatizados en background</td></tr>
+      <tr><td>NLP / Sentimiento</td><td>HuggingFace Transformers</td><td>Análisis de texto en español</td></tr>
+      <tr><td>Modelo de lenguaje</td><td>Llama 3.1 via Groq</td><td>Resúmenes y asistente conversacional</td></tr>
+      <tr><td>Infraestructura</td><td>Docker Compose</td><td>Despliegue reproducible en cualquier servidor</td></tr>
+    </tbody>
+  </table>
+
+  <div class="pie-pagina">
+    <span>SONAR — Sistema de Monitoreo Inteligente</span>
+    <span>Sección 3 — Cómo Funciona</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SECCIÓN 4 — VELOCIDAD Y ALERTAS
+═══════════════════════════════════════════════════ -->
+<div class="pagina">
+  <div class="seccion-header">
+    <div class="seccion-numero">4</div>
+    <div>
+      <div class="seccion-titulo">Velocidad de Detección</div>
+      <div class="seccion-subtitulo">Latencia desde la publicación hasta la alerta</div>
+    </div>
+  </div>
+
+  <p>SONAR opera mediante un modelo de consulta periódica (polling) que verifica cada plataforma en intervalos regulares. Una vez detectada una mención, el procesamiento NLP y la generación de alertas ocurren en menos de 5 minutos adicionales.</p>
+
+  <h3>Latencia por plataforma (configuración actual)</h3>
+  <table>
+    <thead>
+      <tr><th>Plataforma</th><th>Ciclo de scraping</th><th>NLP + Alerta</th><th>Latencia máxima</th><th>Latencia promedio</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Twitter / X</strong></td>
+        <td>Cada 20 min</td>
+        <td>+5 min</td>
+        <td><span class="badge badge-naranja">~25 min</span></td>
+        <td><span class="badge badge-verde">~12 min</span></td>
+      </tr>
+      <tr>
+        <td><strong>YouTube</strong></td>
+        <td>Cada 30 min</td>
+        <td>+5 min</td>
+        <td><span class="badge badge-naranja">~35 min</span></td>
+        <td><span class="badge badge-verde">~17 min</span></td>
+      </tr>
+      <tr>
+        <td><strong>RSS / Noticias</strong></td>
+        <td>Cada 20 min</td>
+        <td>+5 min</td>
+        <td><span class="badge badge-naranja">~25 min</span></td>
+        <td><span class="badge badge-verde">~12 min</span></td>
+      </tr>
+      <tr>
+        <td><strong>Reddit</strong></td>
+        <td>Cada 15 min</td>
+        <td>+5 min</td>
+        <td><span class="badge badge-verde">~20 min</span></td>
+        <td><span class="badge badge-verde">~10 min</span></td>
+      </tr>
+      <tr>
+        <td><strong>Facebook / Instagram*</strong></td>
+        <td>Con proveedor: cada 5 min</td>
+        <td>+2 min</td>
+        <td><span class="badge badge-verde">~7 min</span></td>
+        <td><span class="badge badge-verde">~4 min</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p style="font-size:11px;color:var(--texto-seco);">* Con integración de proveedor de datos licenciado via webhooks en tiempo real.</p>
+
+  <h3>Con integración de proveedor de datos (webhooks)</h3>
+  <div class="callout verde">
+    <strong>Mejora con webhooks:</strong> Al integrar SONAR con un proveedor como Tooldata o Mention.com mediante webhooks, el proveedor notifica a SONAR en el momento exacto de detectar la publicación. La latencia se reduce de 10-25 minutos a <strong>1-3 minutos en promedio</strong>, independientemente de la plataforma.
+  </div>
+
+  <h3>Canales de alerta disponibles</h3>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:16px 0;">
+    <div style="background:var(--gris-claro);border-radius:8px;padding:14px;text-align:center;border:1px solid var(--gris-borde);">
+      <div style="font-size:24px;margin-bottom:6px;">✈️</div>
+      <div style="font-size:12px;font-weight:700;color:var(--azul);">Telegram</div>
+      <div style="font-size:11px;color:var(--texto-seco);margin-top:4px;">Bot instantáneo. Texto enriquecido con métricas.</div>
+    </div>
+    <div style="background:var(--gris-claro);border-radius:8px;padding:14px;text-align:center;border:1px solid var(--gris-borde);">
+      <div style="font-size:24px;margin-bottom:6px;">📱</div>
+      <div style="font-size:12px;font-weight:700;color:var(--azul);">WhatsApp</div>
+      <div style="font-size:11px;color:var(--texto-seco);margin-top:4px;">Via Twilio. Alertas críticas al celular.</div>
+    </div>
+    <div style="background:var(--gris-claro);border-radius:8px;padding:14px;text-align:center;border:1px solid var(--gris-borde);">
+      <div style="font-size:24px;margin-bottom:6px;">📧</div>
+      <div style="font-size:12px;font-weight:700;color:var(--azul);">Correo</div>
+      <div style="font-size:11px;color:var(--texto-seco);margin-top:4px;">Gmail / SMTP. Resúmenes con contexto completo.</div>
+    </div>
+    <div style="background:var(--gris-claro);border-radius:8px;padding:14px;text-align:center;border:1px solid var(--gris-borde);">
+      <div style="font-size:24px;margin-bottom:6px;">🖥️</div>
+      <div style="font-size:12px;font-weight:700;color:var(--azul);">Dashboard</div>
+      <div style="font-size:11px;color:var(--texto-seco);margin-top:4px;">Panel web en tiempo real con historial.</div>
+    </div>
+  </div>
+
+  <div class="pie-pagina">
+    <span>SONAR — Sistema de Monitoreo Inteligente</span>
+    <span>Sección 4 — Velocidad de Detección</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SECCIÓN 5 — CONTEXTO GLOBAL
+═══════════════════════════════════════════════════ -->
+<div class="pagina">
+  <div class="seccion-header">
+    <div class="seccion-numero">5</div>
+    <div>
+      <div class="seccion-titulo">Contexto Global</div>
+      <div class="seccion-subtitulo">Lo que usan los grandes actores políticos y gobiernos en el mundo</div>
+    </div>
+  </div>
+
+  <p>Los partidos políticos, gobiernos y campañas electorales más poderosos del mundo invierten millones de dólares en sistemas de monitoreo de redes sociales. SONAR ofrece las mismas capacidades funcionales a una fracción de ese costo.</p>
+
+  <h3>Niveles de herramientas disponibles</h3>
+
+  <div class="nivel-row">
+    <div class="nivel-etiqueta gobierno">Nivel Gobierno</div>
+    <div class="nivel-contenido">
+      <strong>Dataminr, Zignal Labs, Babel Street, Palantir</strong>
+      Acceso al 100% del firehose de X en tiempo real. Contratos con FBI, Secret Service, ICE, ejércitos. Costo: millones de dólares/año. No disponibles para uso comercial general.
+    </div>
+  </div>
+
+  <div class="nivel-row">
+    <div class="nivel-etiqueta enterprise">Nivel Enterprise</div>
+    <div class="nivel-contenido">
+      <strong>Brandwatch, Meltwater, Talkwalker</strong>
+      Acceso licenciado a datos de X, Facebook e Instagram. Streaming en tiempo real. Usados por Fortune 500, campañas presidenciales y partidos políticos. Costo: $40,000–$150,000/año.
+    </div>
+  </div>
+
+  <div class="nivel-row">
+    <div class="nivel-etiqueta comercial">Nivel Comercial</div>
+    <div class="nivel-contenido">
+      <strong>Brand24, Mention.com, Tooldata</strong>
+      Acceso a datos via API licenciadas. Alertas en tiempo real. Ideal para medianas organizaciones y gobiernos locales. Costo: $500–$1,500/mes.
+    </div>
+  </div>
+
+  <div class="nivel-row">
+    <div class="nivel-etiqueta sonar">SONAR</div>
+    <div class="nivel-contenido">
+      <strong>SONAR + Proveedor de datos (ej. Tooldata)</strong>
+      Plataforma propia con IA, alertas multicanal, dashboard, análisis de bots y asistente conversacional. Integrado con proveedor de datos licenciado para cobertura de las 3 plataformas. Costo: desde $1,000/mes total.
+    </div>
+  </div>
+
+  <h3>Campañas políticas y herramientas documentadas</h3>
+  <table>
+    <thead>
+      <tr><th>Actor</th><th>Herramienta / Sistema</th><th>Capacidad usada</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Obama 2012 (EE.UU.)</strong></td>
+        <td>Project Narwhal + Blue State Digital</td>
+        <td>Perfiles de 13M votantes vinculados a comportamiento en redes</td>
+      </tr>
+      <tr>
+        <td><strong>Trump 2016 (EE.UU.)</strong></td>
+        <td>Cambridge Analytica</td>
+        <td>Perfiles psicográficos de 87M usuarios de Facebook para micro-targeting</td>
+      </tr>
+      <tr>
+        <td><strong>Trump 2020 (EE.UU.)</strong></td>
+        <td>Phunware App</td>
+        <td>Geolocalización de seguidores, predicción de movimientos, movilización de redes</td>
+      </tr>
+      <tr>
+        <td><strong>FBI / EE.UU.</strong></td>
+        <td>Dataminr</td>
+        <td>Firehose completo de X. Detección de amenazas antes de que ocurran</td>
+      </tr>
+      <tr>
+        <td><strong>Policía DC (EE.UU.)</strong></td>
+        <td>Sprinklr</td>
+        <td>Monitoreo de hashtags de protesta durante la inauguración presidencial 2017</td>
+      </tr>
+      <tr>
+        <td><strong>Gobierno UK</strong></td>
+        <td>Brandwatch + Meltwater</td>
+        <td>Monitoreo de narrativas y combate a desinformación sobre el gobierno</td>
+      </tr>
+      <tr>
+        <td><strong>Gobierno de Noruega (2025)</strong></td>
+        <td>Cyabra</td>
+        <td>Detectó red coordinada de cuentas falsas que atacaba al PM antes de elecciones</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout">
+    <strong>Dato clave:</strong> Zignal Labs, una de las herramientas más usadas por el Pentágono y agencias de inteligencia de EE.UU., <strong>fue fundada en 2011 específicamente como herramienta para war rooms políticos</strong> bajo el nombre "Politear". Su origen es exactamente el mismo uso caso que SONAR atiende hoy.
+  </div>
+
+  <div class="pie-pagina">
+    <span>SONAR — Sistema de Monitoreo Inteligente</span>
+    <span>Sección 5 — Contexto Global</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SECCIÓN 6 — CASO COLOMBIA
+═══════════════════════════════════════════════════ -->
+<div class="pagina">
+  <div class="seccion-header">
+    <div class="seccion-numero">6</div>
+    <div>
+      <div class="seccion-titulo">El Caso Colombia</div>
+      <div class="seccion-subtitulo">Inteligencia social documentada en el país</div>
+    </div>
+  </div>
+
+  <div class="callout alerta">
+    <strong>Hecho documentado:</strong> En julio de 2021, la DIPOL (Dirección de Inteligencia Policial) firmó un contrato de <strong>$920,000 USD</strong> con la empresa española Mollitiam Industries para un sistema de monitoreo de Facebook, Telegram, Twitter e Instagram. Fuente: Dejusticia, Infolibre, Mundo Obrero.
+  </div>
+
+  <h3>Capacidades contratadas por DIPOL en 2021</h3>
+  <ul>
+    <li>Monitoreo en tiempo real de Facebook, Telegram, Twitter e Instagram</li>
+    <li>Perfilamiento de cuentas influyentes</li>
+    <li>Geolocalización de usuarios</li>
+    <li>Vinculación de identidad: username → cédula → dirección → IP</li>
+    <li>Análisis de seguidores, hashtags, retweets, comentarios y menciones</li>
+    <li>Integración con la base de datos de perfilamiento de la DIPOL</li>
+  </ul>
+
+  <h3>Otras empresas que han ofrecido herramientas al Estado colombiano</h3>
+  <table>
+    <thead>
+      <tr><th>Empresa</th><th>Origen</th><th>Tipo de herramienta</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Mollitiam Industries</td><td>España</td><td>Ciberinteligencia OSINT y redes sociales</td></tr>
+      <tr><td>Voyager Labs</td><td>Israel</td><td>Inteligencia artificial para OSINT</td></tr>
+      <tr><td>Cognyte</td><td>Israel</td><td>Analítica de inteligencia</td></tr>
+      <tr><td>S2T Unlocking Cyberspace</td><td>Israel</td><td>Inteligencia en comunicaciones</td></tr>
+      <tr><td>Dreamlab Technologies</td><td>Suiza</td><td>Ciberseguridad e inteligencia digital</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Contexto para 2026</h3>
+  <p>Con las elecciones presidenciales de 2026 en el horizonte, la demanda de sistemas de monitoreo de redes sociales en Colombia crece significativamente. Investigadores y organizaciones civiles documentan un aumento en campañas de desinformación coordinadas dirigidas tanto a candidatos como a instituciones religiosas, empresariales y civiles.</p>
+
+  <blockquote>
+    "La inteligencia estatal en internet y redes sociales en Colombia opera en una zona gris legal. El monitoreo de instituciones privadas y civiles requiere herramientas propias e independientes del Estado."
+    <footer>— Dejusticia, Informe sobre Inteligencia Estatal en Internet, 2021</footer>
+  </blockquote>
+
+  <div class="callout verde">
+    <strong>La oportunidad para SONAR:</strong> Las instituciones colombianas que son objeto de ataques coordinados necesitan su propia capacidad de inteligencia, independiente del Estado y a un costo accesible. SONAR llena exactamente ese vacío.
+  </div>
+
+  <div class="pie-pagina">
+    <span>SONAR — Sistema de Monitoreo Inteligente</span>
+    <span>Sección 6 — El Caso Colombia</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SECCIÓN 7 — COMPARATIVO DE HERRAMIENTAS
+═══════════════════════════════════════════════════ -->
+<div class="pagina">
+  <div class="seccion-header">
+    <div class="seccion-numero">7</div>
+    <div>
+      <div class="seccion-titulo">Herramientas del Mercado</div>
+      <div class="seccion-subtitulo">Comparativo completo de plataformas de social listening</div>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Herramienta</th>
+        <th>Precio/mes</th>
+        <th>Twitter/X</th>
+        <th>FB + IG</th>
+        <th>API + Webhooks</th>
+        <th>Tiempo real</th>
+        <th>Español</th>
+        <th>Colombia</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Social Searcher</strong></td>
+        <td>Gratis / $49</td>
+        <td><span class="warn">⚠ Limitado</span></td>
+        <td><span class="check">✓</span></td>
+        <td><span class="warn">API sin webhooks</span></td>
+        <td><span class="cross">✗</span></td>
+        <td><span class="warn">⚠ Básico</span></td>
+        <td><span class="cross">✗</span></td>
+      </tr>
+      <tr>
+        <td><strong>Awario</strong></td>
+        <td>$29 (anual)</td>
+        <td><span class="warn">⚠ Limitado</span></td>
+        <td><span class="warn">⚠ Solo público</span></td>
+        <td><span class="warn">⚠ Sin webhooks</span></td>
+        <td><span class="warn">⚠ Polling</span></td>
+        <td><span class="cross">✗ Débil</span></td>
+        <td><span class="cross">✗</span></td>
+      </tr>
+      <tr>
+        <td><strong>Brand24</strong></td>
+        <td>$199–$399</td>
+        <td><span class="check">✓</span></td>
+        <td><span class="check">✓</span></td>
+        <td><span class="warn">⚠ API +$99/mes</span></td>
+        <td><span class="check">✓ Plan Pro+</span></td>
+        <td><span class="check">✓ 36 idiomas</span></td>
+        <td><span class="cross">✗</span></td>
+      </tr>
+      <tr>
+        <td><strong>Mention.com</strong></td>
+        <td>$599</td>
+        <td><span class="check">✓</span></td>
+        <td><span class="check">✓</span></td>
+        <td><span class="check">✓ API + Webhooks</span></td>
+        <td><span class="check">✓ Casi RT</span></td>
+        <td><span class="check">✓ 249 idiomas</span></td>
+        <td><span class="cross">✗</span></td>
+      </tr>
+      <tr style="background:#f0faf4;">
+        <td><strong>Tooldata ★</strong></td>
+        <td>$500–$1,500</td>
+        <td><span class="check">✓</span></td>
+        <td><span class="check">✓</span></td>
+        <td><span class="check">✓ API + Webhooks</span></td>
+        <td><span class="check">✓ Tiempo real</span></td>
+        <td><span class="check">✓ Nativo + slang CO</span></td>
+        <td><span class="check">✓ Oficina en CO</span></td>
+      </tr>
+      <tr>
+        <td><strong>Atribus</strong></td>
+        <td>~€500</td>
+        <td><span class="check">✓</span></td>
+        <td><span class="check">✓</span></td>
+        <td><span class="warn">⚠ No documentado</span></td>
+        <td><span class="check">✓</span></td>
+        <td><span class="check">✓ Nativo</span></td>
+        <td><span class="warn">⚠ Operaciones CO</span></td>
+      </tr>
+      <tr>
+        <td><strong>Talkwalker</strong></td>
+        <td>~$750 (anual)</td>
+        <td><span class="check">✓ Profundo</span></td>
+        <td><span class="check">✓</span></td>
+        <td><span class="check">✓ Streaming API</span></td>
+        <td><span class="check">✓ Streaming real</span></td>
+        <td><span class="check">✓ 200+ idiomas</span></td>
+        <td><span class="cross">✗</span></td>
+      </tr>
+      <tr>
+        <td><strong>Meltwater</strong></td>
+        <td>~$500 (anual)</td>
+        <td><span class="check">✓</span></td>
+        <td><span class="check">✓</span></td>
+        <td><span class="check">✓ Enterprise</span></td>
+        <td><span class="check">✓ Casi RT</span></td>
+        <td><span class="check">✓</span></td>
+        <td><span class="warn">⚠ Oficina Brasil</span></td>
+      </tr>
+      <tr>
+        <td><strong>Brandwatch</strong></td>
+        <td>$800–$1,000</td>
+        <td><span class="check">✓ Archivo histórico</span></td>
+        <td><span class="check">✓</span></td>
+        <td><span class="check">✓ Streaming + Webhooks</span></td>
+        <td><span class="check">✓ Streaming real</span></td>
+        <td><span class="check">✓ Multi-idioma</span></td>
+        <td><span class="cross">✗</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout verde">
+    <strong>★ Tooldata</strong> es la única herramienta con presencia física en Colombia, NLP nativo en español colombiano (incluyendo jerga regional), monitoreo de medios colombianos (El Tiempo, Semana, RCN, Caracol) y alertas por WhatsApp/SMS disponibles 24/7 incluyendo fines de semana. Adicionalmente cuenta con capacidad de predicción de crisis <strong>4 horas antes</strong> mediante IA predictiva, y cuesta un <strong>60% menos</strong> que Brandwatch o Meltwater para cobertura equivalente en LATAM.
+  </div>
+
+  <div class="pie-pagina">
+    <span>SONAR — Sistema de Monitoreo Inteligente</span>
+    <span>Sección 7 — Comparativo de Herramientas</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SECCIÓN 8 — ACCESO A DATOS
+═══════════════════════════════════════════════════ -->
+<div class="pagina">
+  <div class="seccion-header">
+    <div class="seccion-numero">8</div>
+    <div>
+      <div class="seccion-titulo">Acceso a Datos: La Realidad del Mercado</div>
+      <div class="seccion-subtitulo">Twitter, Facebook e Instagram — por qué no existe una solución gratuita confiable</div>
+    </div>
+  </div>
+
+  <p>Desde 2023, las principales plataformas sociales han cerrado deliberadamente el acceso gratuito a sus datos. Esta es una decisión de negocio permanente, no un estado temporal.</p>
+
+  <h3>Estado actual de cada plataforma</h3>
+  <table>
+    <thead>
+      <tr><th>Plataforma</th><th>API gratuita</th><th>Búsqueda de keywords</th><th>Alternativa oficial</th><th>Costo mínimo</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Twitter / X</strong></td>
+        <td><span class="cross">✗ Eliminada 2023</span></td>
+        <td><span class="cross">✗ Requiere pago</span></td>
+        <td>API Basic</td>
+        <td>$200/mes</td>
+      </tr>
+      <tr>
+        <td><strong>Facebook</strong></td>
+        <td><span class="warn">⚠ Solo páginas propias</span></td>
+        <td><span class="cross">✗ No disponible</span></td>
+        <td>Graph API + proveedor</td>
+        <td>Via proveedor</td>
+      </tr>
+      <tr>
+        <td><strong>Instagram</strong></td>
+        <td><span class="warn">⚠ Solo hashtags</span></td>
+        <td><span class="cross">✗ No texto libre</span></td>
+        <td>Graph API + proveedor</td>
+        <td>Via proveedor</td>
+      </tr>
+      <tr>
+        <td><strong>YouTube</strong></td>
+        <td><span class="check">✓ Data API v3</span></td>
+        <td><span class="check">✓ Disponible</span></td>
+        <td>Data API v3</td>
+        <td>Gratis</td>
+      </tr>
+      <tr>
+        <td><strong>Reddit</strong></td>
+        <td><span class="warn">⚠ Limitada</span></td>
+        <td><span class="check">✓ Disponible</span></td>
+        <td>PRAW / API oficial</td>
+        <td>Gratis</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout alerta">
+    <strong>Advertencia profesional:</strong> Cualquier solución que ofrezca acceso "gratuito" a datos de Twitter, Facebook e Instagram en 2026 lo hace a través de métodos que violan los Términos de Servicio de las plataformas. Estas soluciones pueden ser desactivadas sin previo aviso, representan un riesgo legal para el cliente y no son presentables en un contrato profesional.
+  </div>
+
+  <h3>¿Por qué los proveedores de datos licenciados son la solución correcta?</h3>
+  <ul>
+    <li><strong>Legalidad:</strong> Tienen acuerdos formales con las plataformas para acceder y redistribuir datos públicos</li>
+    <li><strong>Continuidad:</strong> Si una plataforma cambia su API, el proveedor asume el costo de adaptación</li>
+    <li><strong>Confiabilidad:</strong> SLA documentados, soporte técnico, uptime garantizado</li>
+    <li><strong>Presentable al cliente:</strong> Se puede mostrar en un contrato como un costo de infraestructura transparente</li>
+  </ul>
+
+  <blockquote>
+    "El acceso a datos de Twitter, Facebook e Instagram tiene un costo de infraestructura porque las plataformas cobran por acceso oficial desde 2023. Cualquier solución que diga ser gratuita en estas tres redes viola los términos de servicio y puede ser desactivada sin previo aviso."
+  </blockquote>
+
+  <div class="pie-pagina">
+    <span>SONAR — Sistema de Monitoreo Inteligente</span>
+    <span>Sección 8 — Acceso a Datos</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SECCIÓN 9 — PROPUESTA
+═══════════════════════════════════════════════════ -->
+<div class="pagina">
+  <div class="seccion-header">
+    <div class="seccion-numero">9</div>
+    <div>
+      <div class="seccion-titulo">Propuesta de Solución</div>
+      <div class="seccion-subtitulo">SONAR + proveedor de datos: la combinación óptima</div>
+    </div>
+  </div>
+
+  <p>La propuesta es una arquitectura de dos capas: <strong>SONAR</strong> como plataforma de inteligencia, análisis y alertas, integrado con un <strong>proveedor de datos licenciado</strong> que garantiza el acceso confiable a Twitter, Facebook e Instagram.</p>
+
+  <h3>Opción 1 — Para Colombia (Recomendada)</h3>
+  <div class="herramienta-card destacada" style="margin:12px 0;">
+    <div class="h-header">
+      <div>
+        <div class="h-nombre">SONAR + Tooldata</div>
+        <div class="h-origen">Tooldata: empresa con oficina en Colombia, Chile y Perú</div>
+      </div>
+      <div class="h-precio">~$1,000–$1,500/mes total</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px;">
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--acento);margin-bottom:6px;">VENTAJAS</div>
+        <ul class="h-lista">
+          <li>Único proveedor con oficina en Colombia</li>
+          <li>NLP nativo en español colombiano y jerga regional</li>
+          <li>Monitorea El Tiempo, Semana, RCN, Caracol</li>
+          <li>Alertas WhatsApp/SMS 24/7 incluyendo fines de semana</li>
+          <li>Predicción de crisis 4 horas antes con IA</li>
+          <li>60% más barato que Brandwatch/Meltwater para LATAM</li>
+          <li>Soporte en zona horaria Colombia (UTC-5)</li>
+          <li>Webhooks incluidos desde plan Gold</li>
+        </ul>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--rojo);margin-bottom:6px;">CONSIDERACIONES</div>
+        <ul class="h-lista">
+          <li>Empresa más pequeña que Brandwatch o Meltwater</li>
+          <li>Menor reconocimiento de marca a nivel global</li>
+          <li>Plan Gold ($1,500/mes) requerido para webhooks</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <h3>Opción 2 — Para reconocimiento internacional</h3>
+  <div class="herramienta-card" style="margin:12px 0;border:1px solid var(--gris-borde);">
+    <div class="h-header">
+      <div>
+        <div class="h-nombre">SONAR + Brandwatch</div>
+        <div class="h-origen">Brandwatch: empresa global con SLA publicado, usada por Fortune 500</div>
+      </div>
+      <div class="h-precio">~$1,800–$2,000/mes total</div>
+    </div>
+    <ul class="h-lista" style="margin-top:8px;">
+      <li>SLA documentado y público en brandwatch.com/legal</li>
+      <li>Streaming en tiempo real de todas las plataformas</li>
+      <li>Archivo histórico profundo de Twitter/X</li>
+      <li>Máxima credibilidad para presentar ante clientes corporativos o gubernamentales</li>
+      <li>Mayor costo; no tiene especificidad colombiana</li>
+    </ul>
+  </div>
+
+  <h3>Opción 3 — Presupuesto limitado</h3>
+  <div class="herramienta-card" style="margin:12px 0;">
+    <div class="h-header">
+      <div>
+        <div class="h-nombre">SONAR + Mention.com</div>
+        <div class="h-origen">Mention.com: empresa francesa, webhooks documentados, 249 idiomas</div>
+      </div>
+      <div class="h-precio">~$1,200/mes total</div>
+    </div>
+    <ul class="h-lista" style="margin-top:8px;">
+      <li>API y webhooks completamente documentados</li>
+      <li>249 idiomas incluyendo español completo</li>
+      <li>Cobertura de Twitter, Facebook e Instagram</li>
+      <li>Sin presencia en Colombia ni NLP colombiano específico</li>
+    </ul>
+  </div>
+
+  <h3>Resumen de inversión recomendada</h3>
+  <table>
+    <thead>
+      <tr><th>Opción</th><th>Plataformas</th><th>Latencia</th><th>Costo/mes</th><th>Ideal para</th></tr>
+    </thead>
+    <tbody>
+      <tr style="background:#f0faf4;">
+        <td><strong>SONAR + Tooldata ★</strong></td>
+        <td>Twitter, FB, IG, YouTube, RSS</td>
+        <td>~3–7 min</td>
+        <td><strong>$1,000–$1,500</strong></td>
+        <td>Clientes colombianos y LATAM</td>
+      </tr>
+      <tr>
+        <td><strong>SONAR + Mention</strong></td>
+        <td>Twitter, FB, IG, YouTube, RSS</td>
+        <td>~3–5 min</td>
+        <td><strong>~$1,200</strong></td>
+        <td>Presupuesto controlado</td>
+      </tr>
+      <tr>
+        <td><strong>SONAR + Brandwatch</strong></td>
+        <td>Twitter, FB, IG, YouTube, RSS</td>
+        <td>~1–2 min</td>
+        <td><strong>$1,800–$2,000</strong></td>
+        <td>Clientes enterprise / gobierno</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="pie-pagina">
+    <span>SONAR — Sistema de Monitoreo Inteligente</span>
+    <span>Sección 9 — Propuesta de Solución</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SECCIÓN 10 — CONCLUSIÓN
+═══════════════════════════════════════════════════ -->
+<div class="pagina">
+  <div class="seccion-header">
+    <div class="seccion-numero">10</div>
+    <div>
+      <div class="seccion-titulo">Conclusión y Recomendación</div>
+      <div class="seccion-subtitulo">Resumen ejecutivo para la toma de decisiones</div>
+    </div>
+  </div>
+
+  <div class="conclusion-box">
+    <h3>SONAR en contexto</h3>
+    <p>Los sistemas que usan partidos políticos y gobiernos en el mundo para lo que SONAR hace cuestan entre <strong>$40,000 y millones de dólares al año</strong>. Zignal Labs, la herramienta del Pentágono y del ICE de EE.UU., fue fundada en 2011 exactamente para el mismo caso de uso que SONAR atiende: <em>war rooms de monitoreo político en tiempo real</em>.</p>
+    <p style="margin-top:12px;">SONAR ofrece las mismas capacidades funcionales — monitoreo multiplatforma, NLP, alertas en tiempo real, detección de bots, análisis de sentimiento, dashboard y asistente IA — a una fracción del costo, adaptado al contexto colombiano y en español.</p>
+    <ul style="margin-top:12px;">
+      <li>✓ Plataforma propia, no dependiente de un tercero para el análisis</li>
+      <li>✓ Integración con proveedor de datos licenciado y confiable</li>
+      <li>✓ Detección de ataques en ~3–12 minutos según configuración</li>
+      <li>✓ Alertas automáticas 24/7 por Telegram, WhatsApp y correo</li>
+      <li>✓ Costo total: $1,000–$2,000/mes vs. $40,000–$150,000/año de competidores globales</li>
+    </ul>
+  </div>
+
+  <h3>Los 5 puntos clave para el cliente</h3>
+  <table>
+    <thead>
+      <tr><th>#</th><th>Punto</th><th>Detalle</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>1</strong></td>
+        <td>El monitoreo social es una necesidad, no un lujo</td>
+        <td>Las instituciones en Colombia son objeto de campañas coordinadas. La detección tardía convierte ataques manejables en crisis reputacionales.</td>
+      </tr>
+      <tr>
+        <td><strong>2</strong></td>
+        <td>No existe solución gratuita confiable en 2026</td>
+        <td>Las tres plataformas prioritarias (Twitter, Facebook, Instagram) requieren acceso licenciado. Esto es transparente y presentable al cliente.</td>
+      </tr>
+      <tr>
+        <td><strong>3</strong></td>
+        <td>SONAR cuesta 20x menos que las alternativas globales</td>
+        <td>Brandwatch Enterprise: $150,000/año. SONAR + Tooldata: $12,000–$18,000/año con capacidades equivalentes para el contexto colombiano.</td>
+      </tr>
+      <tr>
+        <td><strong>4</strong></td>
+        <td>La detección ocurre en minutos, no en horas</td>
+        <td>Con webhook integration, las alertas llegan en 3–7 minutos desde la publicación. El equipo de comunicaciones puede responder antes de que el ataque se viralice.</td>
+      </tr>
+      <tr>
+        <td><strong>5</strong></td>
+        <td>Tooldata es el proveedor óptimo para Colombia</td>
+        <td>Única herramienta con oficina en Colombia, NLP en español colombiano, cobertura de medios nacionales y soporte en zona horaria local.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div style="margin-top:30px;padding:20px;background:var(--gris-claro);border-radius:10px;border:1px solid var(--gris-borde);text-align:center;">
+    <div style="font-size:13px;color:var(--texto-seco);margin-bottom:8px;">Para más información sobre SONAR</div>
+    <div style="font-size:22px;font-weight:900;color:var(--acento);letter-spacing:4px;">SONAR</div>
+    <div style="font-size:12px;color:var(--texto-seco);margin-top:6px;">Sistema de Monitoreo Inteligente de Redes Sociales — Marzo 2026</div>
+  </div>
+
+  <div class="pie-pagina" style="margin-top:30px;">
+    <span>SONAR — Sistema de Monitoreo Inteligente</span>
+    <span>Documento Confidencial — Marzo 2026</span>
+  </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SONAR v2 — Manual de Usuario</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; color: #1e293b; background: #fff; font-size: 14px; line-height: 1.6; }
+
+  /* ── Portada ── */
+  .cover { background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 60%, #1e40af 100%); color: #fff; min-height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 60px 40px; page-break-after: always; }
+  .cover .logo-circle { width: 100px; height: 100px; background: rgba(255,255,255,0.15); border: 3px solid rgba(255,255,255,0.4); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 42px; margin: 0 auto 32px; }
+  .cover h1 { font-size: 56px; font-weight: 800; letter-spacing: 8px; margin-bottom: 8px; }
+  .cover .version { font-size: 18px; color: #93c5fd; letter-spacing: 4px; margin-bottom: 20px; }
+  .cover h2 { font-size: 22px; font-weight: 300; color: #e2e8f0; margin-bottom: 48px; }
+  .cover .divider { width: 80px; height: 3px; background: #3b82f6; margin: 32px auto; }
+  .cover .meta { color: #94a3b8; font-size: 13px; line-height: 2; }
+  .cover .meta strong { color: #cbd5e1; }
+  .cover .confidential { margin-top: 60px; border: 1px solid rgba(239,68,68,0.4); background: rgba(239,68,68,0.1); padding: 10px 24px; border-radius: 6px; color: #fca5a5; font-size: 12px; letter-spacing: 2px; }
+
+  /* ── Layout general ── */
+  .page { padding: 40px 48px; max-width: 900px; margin: 0 auto; }
+  @media print {
+    .page { padding: 20px 32px; max-width: 100%; }
+    .cover { page-break-after: always; }
+    h2.section-title { page-break-before: always; }
+    .no-break { page-break-inside: avoid; }
+  }
+
+  /* ── Índice ── */
+  .toc { page-break-after: always; }
+  .toc h2 { font-size: 26px; color: #1e3a5f; border-bottom: 3px solid #3b82f6; padding-bottom: 10px; margin-bottom: 28px; }
+  .toc-section { margin-bottom: 8px; }
+  .toc-section > a { display: flex; justify-content: space-between; color: #1e3a5f; text-decoration: none; font-weight: 600; font-size: 14px; padding: 6px 0; border-bottom: 1px dotted #cbd5e1; }
+  .toc-section > a:hover { color: #2563eb; }
+  .toc-sub { margin-left: 20px; }
+  .toc-sub a { display: flex; justify-content: space-between; color: #475569; text-decoration: none; font-size: 13px; padding: 3px 0; }
+  .toc-chapter { font-size: 11px; color: #94a3b8; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; margin: 20px 0 8px; }
+
+  /* ── Títulos ── */
+  h2.section-title { font-size: 26px; color: #1e3a5f; border-bottom: 3px solid #3b82f6; padding-bottom: 10px; margin: 0 0 28px; }
+  h3.sub-title { font-size: 18px; color: #1e40af; margin: 28px 0 12px; font-weight: 700; }
+  h4 { font-size: 14px; color: #334155; font-weight: 700; margin: 18px 0 8px; }
+
+  /* ── Texto ── */
+  p { margin-bottom: 12px; color: #374151; }
+  ul, ol { margin: 0 0 12px 24px; }
+  li { margin-bottom: 5px; color: #374151; }
+  strong { color: #1e293b; }
+  code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 12px; color: #0f766e; }
+
+  /* ── Cajas especiales ── */
+  .info-box { background: #eff6ff; border-left: 4px solid #3b82f6; padding: 14px 18px; border-radius: 0 8px 8px 0; margin: 16px 0; }
+  .info-box .icon { font-size: 16px; margin-right: 8px; }
+  .warning-box { background: #fffbeb; border-left: 4px solid #f59e0b; padding: 14px 18px; border-radius: 0 8px 8px 0; margin: 16px 0; }
+  .danger-box { background: #fef2f2; border-left: 4px solid #ef4444; padding: 14px 18px; border-radius: 0 8px 8px 0; margin: 16px 0; }
+  .tip-box { background: #f0fdf4; border-left: 4px solid #22c55e; padding: 14px 18px; border-radius: 0 8px 8px 0; margin: 16px 0; }
+
+  /* ── Tablas ── */
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }
+  th { background: #1e3a5f; color: #fff; padding: 10px 14px; text-align: left; font-weight: 600; }
+  td { padding: 9px 14px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+  tr:nth-child(even) td { background: #f8fafc; }
+  tr:hover td { background: #eff6ff; }
+
+  /* ── Pasos ── */
+  .steps { counter-reset: step-counter; margin: 16px 0; }
+  .step { display: flex; gap: 16px; margin-bottom: 16px; }
+  .step-num { min-width: 32px; height: 32px; background: #1e40af; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; flex-shrink: 0; margin-top: 2px; }
+  .step-content { flex: 1; }
+  .step-content strong { display: block; margin-bottom: 4px; color: #1e293b; }
+
+  /* ── Campos de formulario ── */
+  .field-table td:first-child { font-weight: 600; color: #1e40af; white-space: nowrap; }
+  .field-table td:nth-child(2) { color: #64748b; font-style: italic; font-size: 12px; }
+  .badge-req { background: #fee2e2; color: #b91c1c; font-size: 10px; padding: 1px 5px; border-radius: 3px; font-weight: 600; margin-left: 4px; }
+  .badge-opt { background: #f1f5f9; color: #64748b; font-size: 10px; padding: 1px 5px; border-radius: 3px; font-weight: 600; margin-left: 4px; }
+
+  /* ── Roles ── */
+  .role-admin { background: #f3e8ff; color: #6b21a8; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+  .role-analyst { background: #dbeafe; color: #1d4ed8; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+  .role-viewer { background: #f1f5f9; color: #475569; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+
+  /* ── Navegación lateral visual ── */
+  .nav-preview { background: #0f172a; border-radius: 10px; padding: 16px; margin: 16px 0; display: inline-block; min-width: 200px; }
+  .nav-preview .nav-logo { color: #fff; font-weight: 800; font-size: 16px; letter-spacing: 2px; margin-bottom: 4px; }
+  .nav-preview .nav-sub { color: #64748b; font-size: 11px; margin-bottom: 14px; }
+  .nav-item { color: #94a3b8; font-size: 12px; padding: 5px 8px; border-radius: 5px; margin-bottom: 2px; }
+  .nav-item.active { background: #1e40af; color: #fff; }
+  .nav-item .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 8px; background: #64748b; }
+  .nav-item.active .dot { background: #93c5fd; }
+
+  /* ── Separadores de sección ── */
+  .section-wrap { padding: 40px 48px; max-width: 900px; margin: 0 auto; }
+  .section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+  .section-icon { width: 44px; height: 44px; background: #1e40af; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 22px; color: #fff; flex-shrink: 0; }
+
+  /* ── Screenshots placeholder ── */
+  .screen-mock { background: #f8fafc; border: 2px dashed #cbd5e1; border-radius: 8px; padding: 20px; text-align: center; color: #94a3b8; font-size: 12px; margin: 12px 0; }
+
+  /* ── Footer de página ── */
+  .page-footer { text-align: center; color: #94a3b8; font-size: 11px; margin-top: 40px; padding-top: 16px; border-top: 1px solid #e2e8f0; }
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════
+     PORTADA
+════════════════════════════════════════════════ -->
+<div class="cover">
+  <div class="logo-circle">📡</div>
+  <h1>SONAR</h1>
+  <div class="version">VERSIÓN 2.0</div>
+  <h2>Manual de Usuario — Guía Completa de Operación</h2>
+  <div class="divider"></div>
+  <div class="meta">
+    <strong>Plataforma:</strong> Monitoreo Reputacional de Redes Sociales<br>
+    <strong>Clasificación:</strong> Confidencial — Solo personal autorizado<br>
+    <strong>Versión del documento:</strong> 2.0.0<br>
+    <strong>Última actualización:</strong> Marzo 2026
+  </div>
+  <div class="confidential">DOCUMENTO CONFIDENCIAL — USO INTERNO</div>
+</div>
+
+<!-- ════════════════════════════════════════════════
+     ÍNDICE
+════════════════════════════════════════════════ -->
+<div class="page toc">
+  <h2>Contenido</h2>
+
+  <div class="toc-chapter">Introducción</div>
+  <div class="toc-section"><a href="#sec-intro">1. ¿Qué es SONAR? <span>4</span></a></div>
+  <div class="toc-section"><a href="#sec-roles">2. Roles y permisos <span>5</span></a></div>
+  <div class="toc-section"><a href="#sec-login">3. Acceso al sistema <span>6</span></a></div>
+  <div class="toc-section"><a href="#sec-nav">4. Navegación general <span>7</span></a></div>
+
+  <div class="toc-chapter">Módulos del sistema</div>
+  <div class="toc-section"><a href="#sec-dashboard">5. Dashboard — Panel principal <span>8</span></a></div>
+  <div class="toc-section"><a href="#sec-entities">6. Entidades <span>10</span></a></div>
+  <div class="toc-section toc-sub">
+    <a href="#sec-entity-create">6.1 Crear entidad <span>11</span></a>
+    <a href="#sec-entity-keywords">6.2 Keywords y aliases <span>12</span></a>
+    <a href="#sec-entity-visual">6.3 Reconocimiento visual <span>13</span></a>
+    <a href="#sec-entity-detail">6.4 Detalle analítico <span>14</span></a>
+  </div>
+  <div class="toc-section"><a href="#sec-mentions">7. Menciones <span>15</span></a></div>
+  <div class="toc-section toc-sub">
+    <a href="#sec-mentions-filters">7.1 Filtros avanzados <span>15</span></a>
+    <a href="#sec-mentions-semantic">7.2 Búsqueda semántica <span>17</span></a>
+  </div>
+  <div class="toc-section"><a href="#sec-alerts">8. Alertas <span>18</span></a></div>
+  <div class="toc-section"><a href="#sec-rules">9. Reglas de alerta <span>20</span></a></div>
+  <div class="toc-section"><a href="#sec-reports">10. Reportes PDF <span>23</span></a></div>
+  <div class="toc-section"><a href="#sec-chat">11. Asistente IA (MIRA) <span>25</span></a></div>
+  <div class="toc-section"><a href="#sec-platforms">12. Plataformas <span>27</span></a></div>
+
+  <div class="toc-chapter">Administración</div>
+  <div class="toc-section"><a href="#sec-users">13. Gestión de usuarios <span>29</span></a></div>
+  <div class="toc-section"><a href="#sec-profile">14. Mi perfil y notificaciones <span>31</span></a></div>
+
+  <div class="toc-chapter">Referencia</div>
+  <div class="toc-section"><a href="#sec-glosario">15. Glosario <span>33</span></a></div>
+  <div class="toc-section"><a href="#sec-faq">16. Preguntas frecuentes <span>34</span></a></div>
+</div>
+
+<!-- ════════════════════════════════════════════════
+     SECCIÓN 1 — QUÉ ES SONAR
+════════════════════════════════════════════════ -->
+<div class="page" id="sec-intro">
+  <h2 class="section-title">1. ¿Qué es SONAR?</h2>
+  <p>SONAR es una plataforma de <strong>monitoreo reputacional en tiempo real</strong> diseñada para detectar, analizar y alertar sobre menciones de entidades (personas, organizaciones, instituciones) en redes sociales y medios digitales.</p>
+
+  <h3 class="sub-title">Capacidades principales</h3>
+  <table>
+    <tr><th>Capacidad</th><th>Descripción</th></tr>
+    <tr><td>Recolección automática</td><td>Monitoreo continuo de Reddit, YouTube, RSS/noticias y Twitter/X cada 15–30 minutos</td></tr>
+    <tr><td>Análisis de sentimiento</td><td>Clasificación automática: positivo, neutral, negativo, muy negativo</td></tr>
+    <tr><td>Detección de bots</td><td>Identifica cuentas automatizadas mediante análisis de patrones de comportamiento</td></tr>
+    <tr><td>Detección de odio</td><td>Reconoce discurso de odio y contenido hostil dirigido a las entidades</td></tr>
+    <tr><td>Alertas inteligentes</td><td>Notificaciones por Telegram, WhatsApp, Email y dashboard según reglas configuradas</td></tr>
+    <tr><td>Búsqueda semántica</td><td>Encuentra menciones por significado, no solo por palabras clave exactas</td></tr>
+    <tr><td>Asistente IA</td><td>Chat en lenguaje natural para consultas analíticas sobre los datos recolectados</td></tr>
+    <tr><td>Reconocimiento visual</td><td>Detecta rostros de personas monitoreadas en imágenes publicadas</td></tr>
+    <tr><td>Reportes PDF</td><td>Generación de informes por entidad, país, bots, alertas o campañas</td></tr>
+    <tr><td>Detección de campañas</td><td>Identifica ataques coordinados o amplificación artificial de mensajes</td></tr>
+  </table>
+
+  <h3 class="sub-title">Plataformas monitoreadas</h3>
+  <table>
+    <tr><th>Red social</th><th>Frecuencia</th><th>Requisito</th></tr>
+    <tr><td>Reddit</td><td>Cada 15 minutos</td><td>Sin costo</td></tr>
+    <tr><td>YouTube</td><td>Cada 30 minutos</td><td>YouTube API Key (gratuita)</td></tr>
+    <tr><td>RSS / Noticias</td><td>Cada 20 minutos</td><td>Sin costo</td></tr>
+    <tr><td>Twitter / X</td><td>Cada 20 minutos</td><td>Cuentas twscrape o Bearer Token API v2</td></tr>
+  </table>
+
+  <div class="info-box">
+    <span class="icon">ℹ️</span><strong>Tiempo de detección:</strong> Entre 5 y 25 minutos desde que se publica un post hasta que aparece en SONAR, dependiendo de la plataforma y el ciclo de scraping activo.
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════
+     SECCIÓN 2 — ROLES
+════════════════════════════════════════════════ -->
+<div class="page" id="sec-roles">
+  <h2 class="section-title">2. Roles y permisos</h2>
+  <p>SONAR tiene tres niveles de acceso. Cada usuario tiene asignado un rol que determina qué acciones puede realizar.</p>
+
+  <table>
+    <tr><th>Acción</th><th style="text-align:center">Consulta</th><th style="text-align:center">Analista</th><th style="text-align:center">Administrador</th></tr>
+    <tr><td>Ver Dashboard, Menciones, Alertas, Reportes</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
+    <tr><td>Ver Entidades y detalle</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
+    <tr><td>Ver Plataformas</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
+    <tr><td>Usar Asistente IA</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
+    <tr><td>Generar reportes PDF</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
+    <tr><td>Atender (acknowledger) alertas</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
+    <tr><td>Crear / editar entidades</td><td style="text-align:center">❌</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
+    <tr><td>Activar / pausar entidades</td><td style="text-align:center">❌</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
+    <tr><td>Administrar keywords y aliases</td><td style="text-align:center">❌</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
+    <tr><td>Crear / editar reglas de alerta</td><td style="text-align:center">❌</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
+    <tr><td>Cargar fotos para reconocimiento visual</td><td style="text-align:center">❌</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
+    <tr><td>Gestionar usuarios</td><td style="text-align:center">❌</td><td style="text-align:center">❌</td><td style="text-align:center">✅</td></tr>
+    <tr><td>Configurar cuentas de Twitter</td><td style="text-align:center">❌</td><td style="text-align:center">❌</td><td style="text-align:center">✅</td></tr>
+  </table>
+
+  <div class="info-box">
+    <span class="icon">💡</span> Los elementos que requieren permisos de <strong>Analista</strong> o <strong>Administrador</strong> simplemente no aparecen en pantalla para los usuarios de tipo Consulta. No se muestra mensaje de error, el botón o formulario correspondiente queda oculto.
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════
+     SECCIÓN 3 — ACCESO
+════════════════════════════════════════════════ -->
+<div class="page" id="sec-login">
+  <h2 class="section-title">3. Acceso al sistema</h2>
+
+  <h3 class="sub-title">Pantalla de inicio de sesión</h3>
+  <p>Al ingresar a la URL de SONAR, el sistema mostrará la pantalla de acceso si el usuario no tiene sesión activa.</p>
+
+  <table class="field-table">
+    <tr><th>Campo</th><th>Descripción</th><th>Formato</th></tr>
+    <tr><td>Usuario <span class="badge-req">obligatorio</span></td><td>Nombre de usuario asignado por el administrador</td><td>nombre.usuario (ej: ana.lopez)</td></tr>
+    <tr><td>Contraseña <span class="badge-req">obligatorio</span></td><td>Contraseña personal. Usar el ícono 👁 para mostrar/ocultar</td><td>Mínimo 8 caracteres</td></tr>
+  </table>
+
+  <div class="steps">
+    <div class="step"><div class="step-num">1</div><div class="step-content"><strong>Ingrese su usuario</strong> en el campo "Usuario" (ej: <code>ana.lopez</code>)</div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-content"><strong>Ingrese su contraseña</strong>. Use el ícono del ojo para verificarla antes de enviar.</div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-content"><strong>Haga clic en "Ingresar"</strong>. El sistema lo redirigirá al Dashboard automáticamente.</div></div>
+  </div>
+
+  <div class="warning-box">
+    <strong>⚠️ Sesión automática:</strong> La sesión expira después de <strong>8 horas</strong> de inactividad. Si ve la pantalla de login sin haberla cerrado manualmente, es porque la sesión venció. Ingrese nuevamente sus credenciales.
+  </div>
+
+  <h3 class="sub-title">Cierre de sesión</h3>
+  <p>Para cerrar sesión de forma segura, haga clic en su nombre en la esquina superior derecha del menú de navegación y seleccione <strong>"Cerrar sesión"</strong>.</p>
+</div>
+
+<!-- ════════════════════════════════════════════════
+     SECCIÓN 4 — NAVEGACIÓN
+════════════════════════════════════════════════ -->
+<div class="page" id="sec-nav">
+  <h2 class="section-title">4. Navegación general</h2>
+
+  <h3 class="sub-title">Menú lateral (Sidebar)</h3>
+  <p>El menú lateral izquierdo está siempre visible en pantallas de escritorio. En dispositivos móviles se puede abrir con el botón de menú de la barra superior.</p>
+
+  <table>
+    <tr><th>Ítem de menú</th><th>Sección</th><th>Rol mínimo</th></tr>
+    <tr><td>📊 Dashboard</td><td>Panel principal con métricas en tiempo real</td><td><span class="role-viewer">Consulta</span></td></tr>
+    <tr><td>🏢 Entidades</td><td>Lista y gestión de entidades monitoreadas</td><td><span class="role-viewer">Consulta</span></td></tr>
+    <tr><td>💬 Menciones</td><td>Menciones recolectadas con filtros y búsqueda</td><td><span class="role-viewer">Consulta</span></td></tr>
+    <tr><td>🔔 Alertas</td><td>Historial de alertas generadas (con contador de no leídas)</td><td><span class="role-viewer">Consulta</span></td></tr>
+    <tr><td>📄 Reportes</td><td>Generación y descarga de informes PDF</td><td><span class="role-viewer">Consulta</span></td></tr>
+    <tr><td>✨ Asistente IA</td><td>Chat inteligente para consultas analíticas</td><td><span class="role-viewer">Consulta</span></td></tr>
+    <tr><td>📡 Plataformas</td><td>Estado de conexión de redes sociales</td><td><span class="role-viewer">Consulta</span></td></tr>
+    <tr><td>⚙️ Reglas de alerta</td><td>Configuración de reglas automáticas</td><td><span class="role-analyst">Analista</span></td></tr>
+    <tr><td>👥 Usuarios</td><td>Gestión de cuentas de usuario</td><td><span class="role-admin">Administrador</span></td></tr>
+    <tr><td>👤 Mi perfil</td><td>Datos personales y canales de notificación</td><td><span class="role-viewer">Consulta</span></td></tr>
+  </table>
+
+  <h3 class="sub-title">Barra superior (Navbar)</h3>
+  <p>La barra superior contiene dos elementos interactivos importantes:</p>
+  <ul>
+    <li><strong>Campana de alertas 🔔:</strong> Muestra las alertas recientes sin leer. Al hacer clic se despliega un panel con las últimas alertas y un enlace a "Ver todas".</li>
+    <li><strong>Menú de usuario:</strong> Al hacer clic en su nombre aparecen las opciones "Mi perfil" y "Cerrar sesión".</li>
+  </ul>
+</div>
+
+<!-- ════════════════════════════════════════════════
+     SECCIÓN 5 — DASHBOARD
+════════════════════════════════════════════════ -->
+<div class="page" id="sec-dashboard">
+  <h2 class="section-title">5. Dashboard — Panel principal</h2>
+  <p>El Dashboard es la pantalla de inicio. Presenta un resumen ejecutivo en tiempo real del estado del monitoreo.</p>
+
+  <h3 class="sub-title">Tarjetas de métricas (fila superior)</h3>
+  <table>
+    <tr><th>Tarjeta</th><th>Qué muestra</th></tr>
+    <tr><td>Menciones hoy</td><td>Total de menciones recolectadas en las últimas 24 horas</td></tr>
+    <tr><td>Menciones negativas</td><td>Porcentaje y cantidad de menciones con sentimiento negativo o muy negativo del día</td></tr>
+    <tr><td>Bots detectados</td><td>Número de cuentas automatizadas identificadas en el período</td></tr>
+    <tr><td>Entidades activas</td><td>Cantidad de entidades con monitoreo activado actualmente</td></tr>
+  </table>
+
+  <h3 class="sub-title">Gráficas</h3>
+  <table>
+    <tr><th>Gráfica</th><th>Qué muestra</th><th>Período</th></tr>
+    <tr><td>Menciones por día</td><td>Barras apiladas por sentimiento: Negativas / Neutras / Positivas</td><td>Últimos 14 días</td></tr>
+    <tr><td>Distribución de sentimiento</td><td>Gráfica de dona mostrando proporciones: Muy negativo / Negativo / Neutral / Positivo</td><td>Período actual</td></tr>
+    <tr><td>% Bots por plataforma</td><td>Dona con porcentaje de cuentas bot en cada red social</td><td>Acumulado</td></tr>
+    <tr><td>Top 5 entidades</td><td>Barras horizontales con las entidades que más menciones negativas reciben</td><td>Últimos 7 días</td></tr>
+  </table>
+
+  <h3 class="sub-title">Alertas recientes</h3>
+  <p>En la parte inferior del Dashboard se listan las alertas más recientes con:</p>
+  <ul>
+    <li>Ícono de severidad: 🚨 Crítica | 🔴 Alta | ⚠️ Media | ℹ️ Baja</li>
+    <li>Nombre de la entidad afectada</li>
+    <li>Tipo de alerta y hora de activación</li>
+  </ul>
+
+  <div class="tip-box">
+    <strong>💡 Uso recomendado:</strong> Consulte el Dashboard cada mañana como primer punto de revisión. Las métricas del día anterior quedan consolidadas y permiten detectar tendencias antes de revisar menciones individuales.
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════
+     SECCIÓN 6 — ENTIDADES
+════════════════════════════════════════════════ -->
+<div class="page" id="sec-entities">
+  <h2 class="section-title">6. Entidades</h2>
+  <p>Las <strong>Entidades</strong> son las personas, organizaciones o instituciones que SONAR monitorea. Cada entidad agrupa sus menciones, keywords, alertas y análisis.</p>
+
+  <h3 class="sub-title">Vista de lista</h3>
+  <p>La página muestra tarjetas con información resumida de cada entidad:</p>
+  <ul>
+    <li>Foto o avatar (ícono de edificio si no hay foto)</li>
+    <li>Nombre de la entidad</li>
+    <li>Tipo y código de país</li>
+    <li>Conteo de menciones del día</li>
+    <li>Nivel de riesgo: <strong style="color:#ef4444">● ALTO</strong> / <strong style="color:#f59e0b">● MEDIO</strong> / <strong style="color:#22c55e">● BAJO</strong></li>
+    <li>Estado: activa o pausada</li>
+  </ul>
+
+  <p>Use el campo de búsqueda "<em>Buscar entidad…</em>" para filtrar por nombre.</p>
+</div>
+
+<div class="page" id="sec-entity-create">
+  <h2 class="section-title">6.1 Crear una entidad</h2>
+  <p>Solo los usuarios con rol <span class="role-analyst">Analista</span> o <span class="role-admin">Administrador</span> pueden crear entidades.</p>
+
+  <div class="steps">
+    <div class="step"><div class="step-num">1</div><div class="step-content"><strong>Haga clic en "Nueva entidad"</strong> (botón azul, esquina superior derecha).</div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-content"><strong>Complete el formulario</strong> con los datos de la entidad.</div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-content"><strong>Haga clic en "Guardar"</strong>. La entidad aparecerá en la lista inmediatamente.</div></div>
+  </div>
+
+  <h4>Campos del formulario "Nueva entidad"</h4>
+  <table class="field-table">
+    <tr><th>Campo</th><th>Descripción</th><th>Ejemplo</th></tr>
+    <tr><td>Nombre <span class="badge-req">obligatorio</span></td><td>Nombre completo de la entidad tal como se debe reconocer</td><td>Instituto Distrital de las Artes IDARTES</td></tr>
+    <tr><td>Tipo <span class="badge-req">obligatorio</span></td><td>Categoría de la entidad (selector desplegable)</td><td>Institución pública / Político / ONG…</td></tr>
+    <tr><td>País <span class="badge-opt">opcional</span></td><td>Código ISO del país de origen</td><td>CO (Colombia), MX, US, PE…</td></tr>
+    <tr><td>Descripción <span class="badge-opt">opcional</span></td><td>Breve descripción de la entidad</td><td>"Entidad cultural del Distrito Capital"</td></tr>
+    <tr><td>URL de foto <span class="badge-opt">opcional</span></td><td>Enlace directo a una imagen de perfil (https://…)</td><td>https://ejemplo.com/foto.jpg</td></tr>
+  </table>
+
+  <h4>Activar / Pausar una entidad</h4>
+  <p>Cada tarjeta de entidad tiene un botón de activación. Al pausar una entidad, SONAR deja de recolectar menciones para ella pero conserva el historial. Para reactivarla, use el mismo botón.</p>
+</div>
+
+<div class="page" id="sec-entity-keywords">
+  <h2 class="section-title">6.2 Keywords y aliases</h2>
+  <p>Las <strong>Keywords</strong> son los términos que SONAR buscará en las redes sociales para identificar menciones de la entidad. Los <strong>Aliases</strong> son nombres alternativos.</p>
+
+  <p>Para acceder, haga clic en <strong>"Ver detalle"</strong> en la tarjeta de la entidad, luego seleccione las pestañas <strong>"Keywords"</strong> o <strong>"Aliases"</strong>.</p>
+
+  <h4>Agregar una keyword</h4>
+  <table class="field-table">
+    <tr><th>Campo</th><th>Descripción</th><th>Opciones</th></tr>
+    <tr><td>Keyword <span class="badge-req">obligatorio</span></td><td>Término o frase a monitorear</td><td>Texto libre, puede incluir frases</td></tr>
+    <tr><td>Idioma <span class="badge-req">obligatorio</span></td><td>Idioma en que está escrita la keyword</td><td>es (Español) / en (Inglés)</td></tr>
+    <tr><td>Peso <span class="badge-req">obligatorio</span></td><td>Importancia de la keyword para el cálculo de urgencia</td><td>1 - Normal / 2 - Importante / 3 - Crítico</td></tr>
+  </table>
+
+  <div class="info-box">
+    <span class="icon">💡</span> <strong>Consejo:</strong> Use peso <strong>3 - Crítico</strong> solo para términos que por sí solos justifican una alerta inmediata (ej: "amenaza de muerte"). Use <strong>1 - Normal</strong> para el nombre genérico de la entidad.
+  </div>
+
+  <h4>Agregar un alias</h4>
+  <p>Los aliases son nombres alternativos de la entidad (apodos, siglas, variantes de escritura). SONAR los usa internamente para vincular menciones a la entidad correcta.</p>
+  <ul>
+    <li>Escriba el alias en el campo de texto</li>
+    <li>Presione <strong>Enter</strong> o haga clic en el botón <strong>"+"</strong></li>
+    <li>Para eliminar, haga clic en la <strong>X</strong> junto al alias</li>
+  </ul>
+</div>
+
+<div class="page" id="sec-entity-visual">
+  <h2 class="section-title">6.3 Reconocimiento visual (Módulo 7)</h2>
+  <p>El módulo de reconocimiento visual permite que SONAR detecte rostros de personas asociadas a una entidad en imágenes publicadas en redes sociales.</p>
+
+  <div class="warning-box">
+    <strong>⚠️ Requisito:</strong> Este módulo debe estar activado en la configuración del servidor (<code>FACE_RECOGNITION_ENABLED=true</code>). Si no está activado, la pestaña aparece pero las funciones no tienen efecto.
+  </div>
+
+  <p>Acceda a la pestaña <strong>"📸 Reconocimiento visual"</strong> dentro del detalle de la entidad.</p>
+
+  <h4>Agregar una foto de referencia</h4>
+  <table class="field-table">
+    <tr><th>Campo</th><th>Descripción</th></tr>
+    <tr><td>Nombre de la persona <span class="badge-req">obligatorio</span></td><td>Nombre completo de la persona cuyo rostro se registrará</td></tr>
+    <tr><td>URL de la foto <span class="badge-req">obligatorio</span></td><td>Enlace directo a una imagen clara del rostro (formato JPG o PNG)</td></tr>
+  </table>
+
+  <p>Una vez registradas las fotos, el sistema revisará las imágenes de nuevas menciones cada 30 minutos. Cuando detecte una coincidencia, la mención aparecerá marcada con el ícono de cámara 📷 y el nombre de la persona identificada.</p>
+</div>
+
+<div class="page" id="sec-entity-detail">
+  <h2 class="section-title">6.4 Vista de detalle analítico</h2>
+  <p>La pestaña <strong>"Resumen"</strong> del detalle de entidad muestra análisis avanzados:</p>
+
+  <table>
+    <tr><th>Elemento</th><th>Qué muestra</th></tr>
+    <tr><td>Menciones hoy</td><td>Total de menciones recolectadas en las últimas 24 horas para esta entidad</td></tr>
+    <tr><td>Total 7 días</td><td>Suma acumulada de los últimos 7 días</td></tr>
+    <tr><td>% Negativas 7d</td><td>Porcentaje de menciones con sentimiento negativo o muy negativo</td></tr>
+    <tr><td>Keywords activas</td><td>Número de keywords habilitadas para esta entidad</td></tr>
+    <tr><td>Distribución de sentimiento</td><td>Gráfica de dona con proporciones de cada etiqueta de sentimiento (7 días)</td></tr>
+    <tr><td>Temas detectados</td><td>Nube de etiquetas con los temas más frecuentes en las menciones (7 días)</td></tr>
+    <tr><td>Pronóstico</td><td>Línea histórica de menciones con proyección para los próximos días</td></tr>
+    <tr><td>Resumen IA</td><td>Síntesis generada automáticamente por IA sobre el estado reputacional actual</td></tr>
+  </table>
+
+  <div class="tip-box">
+    <strong>💡 Pestaña "Reglas de alerta":</strong> Permite crear reglas específicas para esta entidad sin ir al módulo general de Reglas. Funciona igual que el módulo dedicado (ver Sección 9).
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════
+     SECCIÓN 7 — MENCIONES
+════════════════════════════════════════════════ -->
+<div class="page" id="sec-mentions">
+  <h2 class="section-title">7. Menciones</h2>
+  <p>El módulo de Menciones permite explorar y analizar todas las publicaciones recolectadas por SONAR de las diferentes redes sociales.</p>
+
+  <h3 class="sub-title" id="sec-mentions-filters">7.1 Filtros avanzados</h3>
+  <p>Haga clic en el botón <strong>"Filtros"</strong> para activar el modo de búsqueda por criterios.</p>
+
+  <h4>Controles de filtro disponibles</h4>
+  <table class="field-table">
+    <tr><th>Filtro</th><th>Opciones</th><th>Descripción</th></tr>
+    <tr><td>Entidad</td><td>Desplegable con todas las entidades</td><td>"Todas las entidades" muestra menciones de todas</td></tr>
+    <tr><td>Plataforma</td><td>Desplegable con plataformas activas</td><td>"Todas las plataformas" o una específica</td></tr>
+    <tr><td>Sentimiento</td><td>Todos / Muy negativo / Negativo / Neutral / Positivo</td><td>Filtra por la etiqueta asignada por el modelo NLP</td></tr>
+    <tr><td>Idioma</td><td>Todos / Español / Inglés</td><td>Idioma detectado del contenido</td></tr>
+    <tr><td>Urgencia</td><td>Todas / Media o mayor (≥30) / Alta o mayor (≥60) / Solo críticas (≥80)</td><td>Score de urgencia calculado por peso de keywords y sentimiento</td></tr>
+    <tr><td>Ocultar duplicados</td><td>Toggle activar/desactivar</td><td>Oculta menciones marcadas como duplicados semánticos</td></tr>
+    <tr><td>Solo visuales</td><td>Toggle activar/desactivar</td><td>Muestra solo menciones con coincidencia de reconocimiento facial</td></tr>
+  </table>
+
+  <h4>Información en cada tarjeta de mención</h4>
+  <table>
+    <tr><th>Elemento</th><th>Descripción</th></tr>
+    <tr><td>Ícono de plataforma</td><td>Red social de origen (Reddit, YouTube, Twitter, etc.)</td></tr>
+    <tr><td>@usuario</td><td>Nombre de la cuenta que publicó</td></tr>
+    <tr><td>Fecha y hora</td><td>Momento de publicación (no de recolección)</td></tr>
+    <tr><td>BOT</td><td>Badge morado: cuenta identificada como automatizada</td></tr>
+    <tr><td>Duplicado</td><td>Badge gris: contenido semánticamente similar a otra mención ya registrada</td></tr>
+    <tr><td>📷 Coincidencia visual</td><td>Badge verde: se detectó un rostro registrado en la imagen del post</td></tr>
+    <tr><td>Contenido</td><td>Texto de la mención (truncado si es largo)</td></tr>
+    <tr><td>Score de urgencia</td><td>Porcentaje de 0 a 100. Mayor puntaje = mayor urgencia de atención</td></tr>
+    <tr><td>Sentimiento</td><td>Etiqueta con color: verde (positivo), gris (neutral), naranja/rojo (negativo)</td></tr>
+    <tr><td>Discurso de odio</td><td>Badge rojo si el modelo detectó contenido hostil</td></tr>
+    <tr><td>Entidad</td><td>A qué entidad está vinculada la mención</td></tr>
+    <tr><td>👍 Interacciones</td><td>Likes, retweets o vistas (según la plataforma)</td></tr>
+    <tr><td>Enlace externo</td><td>Abre la publicación original en la red social</td></tr>
+  </table>
+
+  <h4>Paginación</h4>
+  <p>Use los botones <strong>"← Anterior"</strong> y <strong>"Siguiente →"</strong> para navegar entre páginas. Se indica la página actual y el total.</p>
+</div>
+
+<div class="page" id="sec-mentions-semantic">
+  <h2 class="section-title">7.2 Búsqueda semántica</h2>
+  <p>La búsqueda semántica encuentra menciones por <strong>significado</strong>, no por palabras exactas. Es útil para encontrar publicaciones que expresan ideas similares con vocabulario diferente.</p>
+
+  <div class="info-box">
+    <span class="icon">⏱️</span> <strong>Importante:</strong> Los embeddings semánticos se generan cada 30 minutos. Las menciones muy recientes pueden no aparecer aún en la búsqueda semántica, pero sí en la búsqueda por filtros.
+  </div>
+
+  <div class="steps">
+    <div class="step"><div class="step-num">1</div><div class="step-content"><strong>Haga clic en "Búsqueda semántica"</strong> (botón en la parte superior, junto a "Filtros").</div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-content"><strong>Seleccione la entidad</strong> sobre la que quiere buscar (desplegable).</div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-content"><strong>Escriba su pregunta o frase</strong> en lenguaje natural. Ejemplos:<br><code>"críticas al servicio al cliente"</code>, <code>"amenazas directas"</code>, <code>"campaña de desprestigio"</code></div></div>
+    <div class="step"><div class="step-num">4</div><div class="step-content"><strong>Haga clic en el botón de búsqueda</strong> (ícono de lupa o botón primario).</div></div>
+  </div>
+
+  <p>Los resultados muestran un <strong>porcentaje de similitud</strong> (badge índigo) que indica qué tan parecida semánticamente es la mención a su consulta.</p>
+
+  <div class="tip-box">
+    <strong>💡 Casos de uso recomendados:</strong>
+    <ul style="margin-top:8px">
+      <li>Encontrar ataques que no usan el nombre exacto de la entidad</li>
+      <li>Identificar patrones de narrativa específica ("corrupción", "ineficiencia")</li>
+      <li>Rastrear variaciones de una frase o campaña</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════
+     SECCIÓN 8 — ALERTAS
+════════════════════════════════════════════════ -->
+<div class="page" id="sec-alerts">
+  <h2 class="section-title">8. Alertas</h2>
+  <p>Las alertas son notificaciones automáticas generadas cuando las condiciones de una regla se cumplen. El módulo de Alertas es el historial completo de todas las alertas disparadas.</p>
+
+  <h3 class="sub-title">Niveles de severidad</h3>
+  <table>
+    <tr><th>Ícono</th><th>Nivel</th><th>Canales de notificación</th><th>Descripción</th></tr>
+    <tr><td>🚨</td><td><strong>Crítica</strong></td><td>Todos los canales configurados</td><td>Situación de máxima urgencia. Requiere atención inmediata.</td></tr>
+    <tr><td>🔴</td><td><strong>Alta</strong></td><td>Todos los canales configurados</td><td>Evento importante que requiere revisión en minutos.</td></tr>
+    <tr><td>⚠️</td><td><strong>Media</strong></td><td>Telegram + Dashboard</td><td>Evento de relevancia moderada. Revisar en el día.</td></tr>
+    <tr><td>ℹ️</td><td><strong>Baja</strong></td><td>Solo Dashboard</td><td>Información de seguimiento. Sin urgencia inmediata.</td></tr>
+  </table>
+
+  <h3 class="sub-title">Filtros disponibles</h3>
+  <table class="field-table">
+    <tr><th>Filtro</th><th>Opciones</th></tr>
+    <tr><td>Severidad</td><td>Todas las severidades / 🚨 Crítica / 🔴 Alta / ⚠️ Media / ℹ️ Baja</td></tr>
+    <tr><td>Estado</td><td>Todas / Sin atender / Atendidas</td></tr>
+  </table>
+
+  <h3 class="sub-title">Información en cada alerta</h3>
+  <table>
+    <tr><th>Campo</th><th>Descripción</th></tr>
+    <tr><td>Ícono y badge de severidad</td><td>Identificación visual del nivel de urgencia</td></tr>
+    <tr><td>Nombre de entidad</td><td>A qué entidad hace referencia la alerta</td></tr>
+    <tr><td>Tipo de regla</td><td>Qué condición se activó (pico de volumen, umbral negatividad, etc.)</td></tr>
+    <tr><td>● Sin atender</td><td>Badge azul visible si nadie ha marcado la alerta como atendida</td></tr>
+    <tr><td>Mensaje</td><td>Descripción automática de lo que ocurrió (ej: "22 menciones en 15 min")</td></tr>
+    <tr><td>Hora de activación</td><td>Cuándo se disparó la alerta</td></tr>
+    <tr><td>Atendida por</td><td>Nombre del usuario que la marcó como revisada (si aplica)</td></tr>
+    <tr><td>Contexto IA</td><td>Para alertas de anomalía: explicación generada por IA del por qué ocurrió</td></tr>
+  </table>
+
+  <h3 class="sub-title">Atender una alerta</h3>
+  <div class="steps">
+    <div class="step"><div class="step-num">1</div><div class="step-content"><strong>Localice la alerta</strong> con el badge "<strong>● Sin atender</strong>".</div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-content"><strong>Haga clic en "Atender"</strong>. El sistema registrará su nombre y la hora.</div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-content">La alerta pasa a estado "<strong>Atendida</strong>" y el badge desaparece.</div></div>
+  </div>
+
+  <h3 class="sub-title">Contexto IA en alertas de anomalía</h3>
+  <p>Las alertas de tipo <strong>"Anomalía detectada"</strong> incluyen un botón expandible <strong>"¿Por qué ocurrió esto?"</strong>. Al hacer clic, se muestra una explicación generada por inteligencia artificial sobre las posibles causas del evento inusual.</p>
+
+  <div class="info-box">
+    <span class="icon">ℹ️</span> El Contexto IA requiere que <code>GROQ_API_KEY</code> esté configurado en el servidor. Si aparece el mensaje "Contexto IA pendiente", contacte al administrador del sistema.
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════
+     SECCIÓN 9 — REGLAS DE ALERTA
+════════════════════════════════════════════════ -->
+<div class="page" id="sec-rules">
+  <h2 class="section-title">9. Reglas de alerta</h2>
+  <p>Las reglas de alerta definen las condiciones bajo las cuales SONAR genera una notificación. Solo usuarios con rol <span class="role-analyst">Analista</span> o <span class="role-admin">Administrador</span> pueden crear y gestionar reglas.</p>
+
+  <p>Acceda desde el menú lateral: <strong>Reglas de alerta</strong>.</p>
+
+  <h3 class="sub-title">Crear una nueva regla</h3>
+  <div class="steps">
+    <div class="step"><div class="step-num">1</div><div class="step-content"><strong>Haga clic en "Nueva regla"</strong> (botón azul, esquina superior derecha).</div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-content"><strong>Complete todos los campos</strong> del formulario (ver tabla a continuación).</div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-content"><strong>Haga clic en "Crear regla"</strong>. La regla quedará activa de inmediato.</div></div>
+  </div>
+
+  <h4>Campos del formulario "Nueva regla"</h4>
+  <table class="field-table">
+    <tr><th>Campo</th><th>Descripción</th><th>Ejemplo</th></tr>
+    <tr><td>Nombre <span class="badge-req">obligatorio</span></td><td>Nombre descriptivo que identifique el propósito de la regla</td><td>"Pico de menciones negativas IDARTES"</td></tr>
+    <tr><td>Entidad <span class="badge-opt">opcional</span></td><td>Entidad específica o "— Global (todas las entidades) —" para aplicar a todas</td><td>IDARTES / Global</td></tr>
+    <tr><td>Tipo de regla <span class="badge-req">obligatorio</span></td><td>Qué condición monitorea la regla (ver tabla de tipos)</td><td>Pico de Volumen</td></tr>
+    <tr><td>Umbral <span class="badge-req">obligatorio</span></td><td>Valor numérico que dispara la alerta cuando se supera</td><td>20 (menciones), 60 (porcentaje)</td></tr>
+    <tr><td>Ventana de evaluación <span class="badge-req">obligatorio</span></td><td>Período de tiempo que el sistema evalúa para verificar la condición</td><td>15 minutos / 1 hora / 6 horas</td></tr>
+    <tr><td>Severidad <span class="badge-req">obligatorio</span></td><td>Nivel de urgencia y canales de notificación</td><td>Alta — Todos los canales</td></tr>
+  </table>
+
+  <h4>Tipos de regla disponibles</h4>
+  <table>
+    <tr><th>Tipo</th><th>Qué evalúa</th><th>Umbral representa</th></tr>
+    <tr><td>Pico de Volumen</td><td>Detecta cuando el número de menciones supera el umbral en la ventana de tiempo</td><td>Número de menciones (ej: 20)</td></tr>
+    <tr><td>Umbral Negatividad</td><td>Activa cuando el porcentaje de menciones negativas supera el umbral</td><td>Porcentaje 0–100 (ej: 60 = 60%)</td></tr>
+    <tr><td>Actividad Bots</td><td>Detecta cuando la proporción de cuentas bot supera el umbral</td><td>Porcentaje de bots 0–100</td></tr>
+    <tr><td>Keyword Crítica</td><td>Se activa cada vez que aparece una mención con keyword de peso Crítico</td><td>Número de menciones críticas (ej: 1)</td></tr>
+    <tr><td>Campaña Detectada</td><td>Identifica patrones de amplificación coordinada de mensajes</td><td>Score de campaña 0–100</td></tr>
+    <tr><td>Discurso de Odio</td><td>Activa cuando el porcentaje de menciones con odio supera el umbral</td><td>Porcentaje de menciones de odio</td></tr>
+  </table>
+
+  <h4>Niveles de severidad y canales</h4>
+  <table>
+    <tr><th>Severidad</th><th>Canales de notificación</th></tr>
+    <tr><td>Baja</td><td>Solo Dashboard (no envía mensajes externos)</td></tr>
+    <tr><td>Media</td><td>Telegram + Dashboard</td></tr>
+    <tr><td>Alta</td><td>Telegram + WhatsApp + Email + Dashboard</td></tr>
+    <tr><td>Crítica</td><td>Telegram + WhatsApp + Email + Dashboard (máxima prioridad)</td></tr>
+  </table>
+
+  <h4>Ventanas de evaluación</h4>
+  <table>
+    <tr><th>Opción</th><th>Cuándo usarla</th></tr>
+    <tr><td>15 minutos</td><td>Detección de ataques súbitos y campañas coordinadas en tiempo real</td></tr>
+    <tr><td>30 minutos</td><td>Monitoreo de picos moderados sin generar ruido</td></tr>
+    <tr><td>1 hora</td><td>Tendencias de negatividad sostenida</td></tr>
+    <tr><td>2 horas</td><td>Análisis de patrones de medio plazo</td></tr>
+    <tr><td>6 horas</td><td>Actividad de bots (los bots operan en ciclos largos)</td></tr>
+    <tr><td>24 horas</td><td>Resumen diario de alertas de bajo nivel</td></tr>
+  </table>
+
+  <h3 class="sub-title">Gestión de reglas existentes</h3>
+  <p>Cada tarjeta de regla muestra el nombre, severidad, tipo, entidad, umbral y ventana. Hay dos acciones disponibles (solo Analistas y Administradores):</p>
+  <ul>
+    <li><strong>Toggle (activar/desactivar):</strong> Pausa temporalmente la regla sin eliminarla. Las reglas inactivas muestran el badge "Inactiva".</li>
+    <li><strong>Eliminar (ícono de papelera):</strong> Elimina permanentemente la regla. Esta acción no se puede deshacer.</li>
+  </ul>
+
+  <h4>Filtrar reglas por entidad</h4>
+  <p>Use el selector de entidad en la parte superior de la lista para ver solo las reglas de una entidad específica o las reglas globales.</p>
+
+  <div class="warning-box">
+    <strong>⚠️ Recomendación:</strong> Antes de eliminar una regla, considere desactivarla primero. Así puede reactivarla si la necesita más adelante, sin perder la configuración.
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════
+     SECCIÓN 10 — REPORTES
+════════════════════════════════════════════════ -->
+<div class="page" id="sec-reports">
+  <h2 class="section-title">10. Reportes PDF</h2>
+  <p>SONAR puede generar informes en formato PDF sobre distintos aspectos del monitoreo. Los reportes quedan guardados en el sistema y pueden descargarse en cualquier momento.</p>
+
+  <h3 class="sub-title">Generar un nuevo reporte</h3>
+  <div class="steps">
+    <div class="step"><div class="step-num">1</div><div class="step-content"><strong>Haga clic en "Nuevo reporte"</strong> (botón con ícono 📄).</div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-content"><strong>Complete los campos</strong> del formulario (ver tabla).</div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-content"><strong>Haga clic en "Generar PDF"</strong>. El sistema procesará el reporte (puede tardar unos segundos).</div></div>
+    <div class="step"><div class="step-num">4</div><div class="step-content"><strong>El reporte aparece en la lista</strong>. Use el botón <strong>"Descargar"</strong> para obtener el archivo PDF.</div></tr></div></div>
+  </div>
+
+  <h4>Campos del formulario</h4>
+  <table class="field-table">
+    <tr><th>Campo</th><th>Descripción</th><th>Ejemplo</th></tr>
+    <tr><td>Nombre del reporte <span class="badge-req">obligatorio</span></td><td>Título identificador del reporte generado</td><td>Reporte marzo 2026</td></tr>
+    <tr><td>Tipo <span class="badge-req">obligatorio</span></td><td>Tipo de análisis que incluirá el reporte (ver tipos)</td><td>Por entidad</td></tr>
+    <tr><td>Entidad <span class="badge-opt">condicional</span></td><td>Visible solo si el tipo es "Por entidad". Seleccione la entidad</td><td>IDARTES</td></tr>
+    <tr><td>País (código) <span class="badge-opt">condicional</span></td><td>Visible solo si el tipo es "Por país". Ingrese el código ISO</td><td>CO, MX, US…</td></tr>
+    <tr><td>Fecha desde <span class="badge-req">obligatorio</span></td><td>Inicio del período a analizar</td><td>2026-03-01</td></tr>
+    <tr><td>Fecha hasta <span class="badge-req">obligatorio</span></td><td>Fin del período a analizar</td><td>2026-03-31</td></tr>
+  </table>
+
+  <h4>Tipos de reporte</h4>
+  <table>
+    <tr><th>Tipo</th><th>Contenido del PDF</th></tr>
+    <tr><td>Por entidad</td><td>Análisis completo de una entidad: menciones, sentimiento, plataformas, keywords más activas, evolución temporal</td></tr>
+    <tr><td>Por país</td><td>Comparativa de menciones agrupadas por país de origen de los autores</td></tr>
+    <tr><td>Por bots</td><td>Análisis de actividad de cuentas automatizadas: porcentajes, plataformas, patrones</td></tr>
+    <tr><td>Por alertas</td><td>Historial de alertas disparadas: tipos, severidades, entidades, frecuencia</td></tr>
+    <tr><td>Por campaña</td><td>Detección de campañas coordinadas: clusters de mensajes similares, amplificación artificial</td></tr>
+  </table>
+
+  <h4>Descargar un reporte existente</h4>
+  <p>Cada reporte en la lista muestra su nombre, tipo, rango de fechas y quién lo generó. Para descargarlo, haga clic en el botón <strong>"Descargar"</strong>.</p>
+
+  <div class="tip-box">
+    <strong>💡 Recomendación:</strong> Para entregas ejecutivas o ante clientes, genere un reporte "Por entidad" con el período del mes completo. Incluye gráficas y métricas listas para presentación.
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════
+     SECCIÓN 11 — CHAT IA
+════════════════════════════════════════════════ -->
+<div class="page" id="sec-chat">
+  <h2 class="section-title">11. Asistente IA — MIRA</h2>
+  <p>El Asistente MIRA permite hacer <strong>consultas en lenguaje natural</strong> sobre los datos recolectados por SONAR. No es necesario conocer filtros técnicos; se le pregunta como a una persona.</p>
+
+  <div class="info-box">
+    <span class="icon">⚙️</span> <strong>Requisito técnico:</strong> El asistente requiere que <code>GROQ_API_KEY</code> y <code>HUGGINGFACE_TOKEN</code> estén configurados en el servidor. Si ve el mensaje de alerta en la pantalla, contacte al administrador.
+  </div>
+
+  <h3 class="sub-title">Controles de la pantalla</h3>
+  <table class="field-table">
+    <tr><th>Control</th><th>Descripción</th></tr>
+    <tr><td>Selector de entidad</td><td>"Todas las entidades" o una específica. Limita el contexto de búsqueda</td></tr>
+    <tr><td>Modo conversacional</td><td>Toggle que activa el historial multi-turno (el asistente recuerda el hilo de la conversación)</td></tr>
+  </table>
+
+  <h3 class="sub-title">Cómo hacer una consulta</h3>
+  <div class="steps">
+    <div class="step"><div class="step-num">1</div><div class="step-content"><strong>Seleccione la entidad</strong> de interés (o deje "Todas las entidades").</div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-content"><strong>Escriba su pregunta</strong> en el campo inferior. Use lenguaje natural.</div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-content"><strong>Presione Enter o el botón enviar</strong> (ícono de flecha →).</div></div>
+    <div class="step"><div class="step-num">4</div><div class="step-content"><strong>Revise la respuesta</strong> del asistente. Puede expandir <strong>"Ver X menciones utilizadas como contexto"</strong> para ver las fuentes.</div></div>
+  </div>
+
+  <h4>Ejemplos de preguntas útiles</h4>
+  <table>
+    <tr><th>Pregunta</th><th>Qué responde MIRA</th></tr>
+    <tr><td>"¿Qué amenazas se presentaron esta semana?"</td><td>Lista las menciones de alta urgencia con contenido hostil detectado</td></tr>
+    <tr><td>"¿Hay menciones con discurso de odio recientes?"</td><td>Identifica y resume publicaciones con lenguaje violento u hostil</td></tr>
+    <tr><td>"¿Cuáles son las publicaciones más urgentes?"</td><td>Ordena por score de urgencia y resume los temas más críticos</td></tr>
+    <tr><td>"¿Hay alguna campaña coordinada detectada?"</td><td>Analiza si existe amplificación artificial o mensajes repetidos</td></tr>
+    <tr><td>"¿Cómo es el sentimiento general esta semana?"</td><td>Resumen del sentimiento con proporción de positivo/negativo y temas</td></tr>
+    <tr><td>"¿Qué están diciendo sobre [entidad] en Twitter?"</td><td>Filtra por plataforma y resume los temas más frecuentes</td></tr>
+  </table>
+
+  <h4>Sección de fuentes (contexto)</h4>
+  <p>Cada respuesta del asistente muestra un enlace expandible <strong>"Ver X menciones utilizadas como contexto"</strong>. Al abrirlo, aparecen las tarjetas de menciones que usó para generar la respuesta, con:</p>
+  <ul>
+    <li>Plataforma, usuario y fecha de la mención</li>
+    <li>Score de urgencia (⚡)</li>
+    <li>Porcentaje de relevancia semántica</li>
+    <li>Fragmento del contenido</li>
+    <li>Enlace a la publicación original</li>
+  </ul>
+
+  <h4>Limpiar conversación</h4>
+  <p>Use el botón <strong>"Limpiar conversación"</strong> (aparece después del primer mensaje) para iniciar una nueva consulta desde cero, especialmente antes de cambiar de entidad o tema.</p>
+
+  <div class="warning-box">
+    <strong>⚠️ Limitación:</strong> El asistente responde basándose en las menciones ya recolectadas en la base de datos. No accede a internet ni a publicaciones que SONAR aún no haya procesado.
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════
+     SECCIÓN 12 — PLATAFORMAS
+════════════════════════════════════════════════ -->
+<div class="page" id="sec-platforms">
+  <h2 class="section-title">12. Plataformas</h2>
+  <p>El módulo de Plataformas muestra el estado operativo de cada red social integrada en SONAR y permite gestionar las credenciales de acceso.</p>
+
+  <h3 class="sub-title">Indicadores de estado</h3>
+  <table>
+    <tr><th>Badge</th><th>Significado</th></tr>
+    <tr><td style="color:#16a34a">✓ X activa(s)</td><td>La plataforma está recolectando menciones normalmente</td></tr>
+    <tr><td style="color:#b45309">⚠️ X sin menciones recientes</td><td>La plataforma está configurada pero no ha traído menciones en las últimas horas</td></tr>
+    <tr><td style="color:#dc2626">✗ X no configurada(s)</td><td>Faltan credenciales o la plataforma no está activa</td></tr>
+  </table>
+
+  <h3 class="sub-title">Información por plataforma</h3>
+  <table>
+    <tr><th>Dato</th><th>Descripción</th></tr>
+    <tr><td>Últimas 24h</td><td>Menciones recolectadas en las últimas 24 horas</td></tr>
+    <tr><td>Últimos 7 días</td><td>Menciones del período semanal</td></tr>
+    <tr><td>Última mención</td><td>Tiempo transcurrido desde la mención más reciente</td></tr>
+    <tr><td>Frecuencia</td><td>Cada cuánto corre el scraper (ej: "cada 15 minutos")</td></tr>
+  </table>
+
+  <h3 class="sub-title">Twitter / X — Gestión de cuentas (solo Administrador)</h3>
+  <p>Twitter tiene un sistema de tres niveles de acceso:</p>
+  <ol>
+    <li><strong>Tier 1 — Cuentas twscrape:</strong> Cuentas de Twitter reales con cookies de sesión. Mayor cobertura.</li>
+    <li><strong>Tier 2 — API v2 Bearer Token:</strong> Token oficial de la API de Twitter. Se usa cuando las cuentas twscrape fallan.</li>
+    <li><strong>Tier 3 — Nitter:</strong> Proxies alternativos. Fallback de último recurso.</li>
+  </ol>
+
+  <div class="info-box">
+    <span class="icon">ℹ️</span> El sistema intenta automáticamente el Tier 1, luego Tier 2, luego Tier 3. No requiere intervención manual para el cambio.
+  </div>
+
+  <h4>Agregar una cuenta de Twitter (Tier 1)</h4>
+  <p>Expanda la sección <strong>"Gestionar cuentas"</strong> en la tarjeta de Twitter.</p>
+
+  <p><strong>Modo 🍪 Cookies (recomendado):</strong></p>
+  <table class="field-table">
+    <tr><th>Campo</th><th>Descripción</th></tr>
+    <tr><td>Username (sin @) <span class="badge-req">obligatorio</span></td><td>Nombre de usuario de la cuenta de Twitter</td></tr>
+    <tr><td>Email <span class="badge-req">obligatorio</span></td><td>Email asociado a la cuenta</td></tr>
+    <tr><td>Contraseña <span class="badge-req">obligatorio</span></td><td>Contraseña de la cuenta</td></tr>
+    <tr><td>Cookies JSON <span class="badge-req">obligatorio</span></td><td>JSON exportado con la extensión Cookie-Editor desde Chrome/Edge en twitter.com</td></tr>
+  </table>
+
+  <p><strong>Modo 🔑 Usuario/Contraseña:</strong></p>
+  <table class="field-table">
+    <tr><th>Campo</th><th>Descripción</th></tr>
+    <tr><td>Username (sin @) <span class="badge-req">obligatorio</span></td><td>Nombre de usuario de la cuenta</td></tr>
+    <tr><td>Email <span class="badge-req">obligatorio</span></td><td>Email de la cuenta</td></tr>
+    <tr><td>Contraseña <span class="badge-req">obligatorio</span></td><td>Contraseña de acceso a Twitter</td></tr>
+    <tr><td>Contraseña de email <span class="badge-req">obligatorio</span></td><td>Contraseña del email para verificación de dos factores</td></tr>
+  </table>
+
+  <h4>Gestionar cuentas existentes</h4>
+  <p>Cada cuenta en la lista muestra su estado (punto verde/rojo), username, email e indicador de cookies. Las acciones disponibles son:</p>
+  <ul>
+    <li><strong>Activar/Desactivar:</strong> Habilita o suspende el uso de la cuenta sin eliminarla</li>
+    <li><strong>Editar:</strong> Permite actualizar las cookies o la contraseña cuando expiran</li>
+    <li><strong>Eliminar:</strong> Elimina la cuenta del sistema</li>
+  </ul>
+
+  <h4>Actualizar cookies de una cuenta</h4>
+  <div class="steps">
+    <div class="step"><div class="step-num">1</div><div class="step-content">Instale la extensión <strong>Cookie-Editor</strong> en Chrome o Edge.</div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-content">Inicie sesión en <code>twitter.com</code> con la cuenta.</div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-content">Abra Cookie-Editor y haga clic en <strong>"Export"</strong> → copie el JSON.</div></div>
+    <div class="step"><div class="step-num">4</div><div class="step-content">En SONAR, haga clic en <strong>"Editar"</strong> junto a la cuenta, pegue el JSON y guarde.</div></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════
+     SECCIÓN 13 — USUARIOS
+════════════════════════════════════════════════ -->
+<div class="page" id="sec-users">
+  <h2 class="section-title">13. Gestión de usuarios</h2>
+  <p>Solo los <span class="role-admin">Administradores</span> pueden acceder a este módulo. Se accede desde el menú lateral: <strong>Usuarios</strong>.</p>
+
+  <h3 class="sub-title">Crear un nuevo usuario</h3>
+  <div class="steps">
+    <div class="step"><div class="step-num">1</div><div class="step-content"><strong>Haga clic en "Nuevo usuario"</strong>.</div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-content"><strong>Complete todos los campos</strong> del formulario.</div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-content"><strong>Haga clic en "Crear usuario"</strong>. El usuario podrá ingresar de inmediato con su contraseña temporal.</div></div>
+  </div>
+
+  <h4>Campos del formulario "Nuevo usuario"</h4>
+  <table class="field-table">
+    <tr><th>Campo</th><th>Descripción</th><th>Ejemplo</th></tr>
+    <tr><td>Nombre completo <span class="badge-req">obligatorio</span></td><td>Nombre real del usuario para identificación en el sistema</td><td>Ana López</td></tr>
+    <tr><td>Usuario <span class="badge-req">obligatorio</span></td><td>Nombre de usuario para el login. Sin espacios, usar punto como separador</td><td>ana.lopez</td></tr>
+    <tr><td>Email <span class="badge-req">obligatorio</span></td><td>Correo electrónico del usuario. Se usará para notificaciones de alertas alta/crítica</td><td>ana@ejemplo.com</td></tr>
+    <tr><td>Contraseña temporal <span class="badge-req">obligatorio</span></td><td>Contraseña inicial que el usuario deberá cambiar desde su perfil</td><td>Mínimo 8 caracteres</td></tr>
+    <tr><td>Rol <span class="badge-req">obligatorio</span></td><td>Nivel de permisos asignado (ver Sección 2)</td><td>Consulta / Analista / Administrador</td></tr>
+  </table>
+
+  <h3 class="sub-title">Tabla de usuarios</h3>
+  <p>La tabla muestra todos los usuarios del sistema con las siguientes columnas:</p>
+  <table>
+    <tr><th>Columna</th><th>Descripción</th></tr>
+    <tr><td>Usuario</td><td>Avatar con iniciales, nombre completo y @username</td></tr>
+    <tr><td>Email</td><td>Correo electrónico registrado</td></tr>
+    <tr><td>Rol</td><td>Badge de color: <span class="role-admin">Administrador</span> (morado) / <span class="role-analyst">Analista</span> (azul) / <span class="role-viewer">Consulta</span> (gris)</td></tr>
+    <tr><td>Estado</td><td>Activo (verde) / Inactivo (gris)</td></tr>
+    <tr><td>Último acceso</td><td>Fecha y hora del último login o "Nunca" si no ha ingresado</td></tr>
+    <tr><td>Acciones</td><td>Botón para activar o desactivar la cuenta</td></tr>
+  </table>
+
+  <div class="warning-box">
+    <strong>⚠️ Desactivar vs. eliminar:</strong> SONAR no permite eliminar usuarios para conservar el historial de auditoría. Use la función de desactivar para impedir el acceso de un usuario sin perder el registro de sus acciones.
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════
+     SECCIÓN 14 — MI PERFIL
+════════════════════════════════════════════════ -->
+<div class="page" id="sec-profile">
+  <h2 class="section-title">14. Mi perfil y notificaciones</h2>
+  <p>Acceda desde el menú lateral: <strong>Mi perfil</strong> (parte inferior) o desde el menú de usuario en la barra superior.</p>
+
+  <h3 class="sub-title">Información personal</h3>
+  <table class="field-table">
+    <tr><th>Campo</th><th>Editable</th><th>Descripción</th></tr>
+    <tr><td>Nombre de usuario</td><td>No</td><td>Su @usuario de login. Solo el administrador puede cambiarlo.</td></tr>
+    <tr><td>Email</td><td>No</td><td>Email registrado. Modificable solo por el administrador.</td></tr>
+    <tr><td>Nombre completo</td><td>Sí</td><td>Cómo aparecerá en el sistema (alertas atendidas, reportes generados)</td></tr>
+    <tr><td>Rol</td><td>No</td><td>Nivel de acceso asignado. Solo el administrador puede cambiarlo.</td></tr>
+  </table>
+
+  <p>Haga clic en <strong>"Guardar cambios"</strong> después de editar el nombre completo.</p>
+
+  <h3 class="sub-title">Canales de notificación</h3>
+  <p>Configure por cuáles canales quiere recibir las alertas. Cada canal tiene un toggle de activación y campos de configuración que aparecen solo cuando el canal está habilitado.</p>
+
+  <h4>Telegram</h4>
+  <table class="field-table">
+    <tr><th>Campo</th><th>Descripción</th></tr>
+    <tr><td>Toggle Activo/Inactivo</td><td>Habilita o deshabilita las notificaciones por Telegram</td></tr>
+    <tr><td>Chat ID de Telegram</td><td>Número de identificación de su chat con el bot SONAR. Envíe /start al bot y copie su Chat ID</td></tr>
+  </table>
+  <p><em>Alertas que llegan: Media, Alta y Crítica. Gratuito, sin límites prácticos.</em></p>
+
+  <h4>WhatsApp (CallMeBot)</h4>
+  <table class="field-table">
+    <tr><th>Campo</th><th>Descripción</th></tr>
+    <tr><td>Toggle Activo/Inactivo</td><td>Habilita las notificaciones por WhatsApp vía CallMeBot</td></tr>
+    <tr><td>Teléfono (con código de país, sin +)</td><td>Número completo sin el símbolo +. Ej: 573001234567</td></tr>
+    <tr><td>API Key de CallMeBot</td><td>Clave generada por CallMeBot. Agregue el número +34 644 62 08 61 a WhatsApp y envíe "I allow callmebot to send me messages" para obtenerla</td></tr>
+  </table>
+  <p><em>Alertas que llegan: Alta y Crítica únicamente. Gratuito.</em></p>
+
+  <h4>Email</h4>
+  <table class="field-table">
+    <tr><th>Campo</th><th>Descripción</th></tr>
+    <tr><td>Toggle Activo/Inactivo</td><td>Habilita las notificaciones por correo electrónico</td></tr>
+  </table>
+  <p><em>Alertas que llegan: Alta y Crítica. Se envía al email registrado en su cuenta. Requiere que el administrador configure Gmail SMTP en el servidor.</em></p>
+
+  <p>Haga clic en <strong>"Guardar notificaciones"</strong> para confirmar los cambios en cualquier canal.</p>
+
+  <h3 class="sub-title">Cambiar contraseña</h3>
+  <table class="field-table">
+    <tr><th>Campo</th><th>Descripción</th></tr>
+    <tr><td>Contraseña actual <span class="badge-req">obligatorio</span></td><td>Su contraseña actual de acceso al sistema</td></tr>
+    <tr><td>Nueva contraseña <span class="badge-req">obligatorio</span></td><td>Nueva contraseña. Mínimo 8 caracteres.</td></tr>
+    <tr><td>Confirmar nueva contraseña <span class="badge-req">obligatorio</span></td><td>Repita la nueva contraseña. Debe coincidir exactamente.</td></tr>
+  </table>
+
+  <p>Haga clic en <strong>"Cambiar contraseña"</strong> para guardar. Si las contraseñas no coinciden, aparecerá el mensaje de error "Las contraseñas no coinciden" debajo del tercer campo.</p>
+
+  <div class="tip-box">
+    <strong>💡 Recomendación de seguridad:</strong> Cambie su contraseña temporal la primera vez que ingrese al sistema. Use una contraseña que combine letras, números y caracteres especiales.
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════
+     SECCIÓN 15 — GLOSARIO
+════════════════════════════════════════════════ -->
+<div class="page" id="sec-glosario">
+  <h2 class="section-title">15. Glosario</h2>
+  <table>
+    <tr><th>Término</th><th>Definición</th></tr>
+    <tr><td>Entidad</td><td>Persona, organización o institución que SONAR monitorea.</td></tr>
+    <tr><td>Mención</td><td>Publicación en redes sociales que contiene una o más keywords de una entidad monitoreada.</td></tr>
+    <tr><td>Keyword</td><td>Término de búsqueda que SONAR usa para identificar menciones relacionadas con una entidad.</td></tr>
+    <tr><td>Alias</td><td>Nombre alternativo de una entidad (apodo, sigla, variante de escritura).</td></tr>
+    <tr><td>Sentimiento</td><td>Clasificación automática del tono emocional de una mención: positivo, neutral, negativo o muy negativo.</td></tr>
+    <tr><td>Score de urgencia</td><td>Puntaje de 0 a 100 que combina sentimiento, peso de keywords y alcance para priorizar atención.</td></tr>
+    <tr><td>Bot</td><td>Cuenta automatizada o sospechosa de serlo, identificada por patrones de comportamiento inusual.</td></tr>
+    <tr><td>Discurso de odio</td><td>Contenido que expresa violencia, hostilidad o discriminación hacia una persona o grupo.</td></tr>
+    <tr><td>Embedding</td><td>Representación matemática del significado de un texto, usada para la búsqueda semántica.</td></tr>
+    <tr><td>Scraping</td><td>Proceso automático de recolección de publicaciones desde redes sociales.</td></tr>
+    <tr><td>Bearer Token</td><td>Credencial de autenticación para la API oficial de Twitter/X.</td></tr>
+    <tr><td>twscrape</td><td>Biblioteca de Python que permite extraer tweets usando cuentas de usuario reales.</td></tr>
+    <tr><td>Campaña coordinada</td><td>Patrón de publicaciones similares amplificadas artificialmente por múltiples cuentas en un período corto.</td></tr>
+    <tr><td>Alcance (reach)</td><td>Estimación del número de personas que vieron o interactuaron con una publicación.</td></tr>
+    <tr><td>NER</td><td>Reconocimiento de Entidades Nombradas: identificación automática de personas, lugares y organizaciones en el texto.</td></tr>
+    <tr><td>Ventana de evaluación</td><td>Período de tiempo que el motor de reglas analiza para determinar si se cumple una condición de alerta.</td></tr>
+    <tr><td>Atender (una alerta)</td><td>Acción de marcar una alerta como revisada, registrando quién y cuándo la procesó.</td></tr>
+    <tr><td>RAG</td><td>Retrieval-Augmented Generation: técnica del Asistente IA que recupera menciones relevantes antes de generar la respuesta.</td></tr>
+  </table>
+</div>
+
+<!-- ════════════════════════════════════════════════
+     SECCIÓN 16 — FAQ
+════════════════════════════════════════════════ -->
+<div class="page" id="sec-faq">
+  <h2 class="section-title">16. Preguntas frecuentes</h2>
+
+  <h4>¿Cuánto tiempo tarda SONAR en detectar una publicación nueva?</h4>
+  <p>Entre 5 y 25 minutos desde que se publica. Reddit se revisa cada 15 min, RSS/Twitter cada 20 min, YouTube cada 30 min. Tras la recolección, el análisis NLP (sentimiento, bots) corre cada 5 minutos. En total, una mención urgente puede estar en el sistema y generar alerta en menos de 10 minutos.</p>
+
+  <h4>¿Por qué no aparecen menciones de Twitter?</h4>
+  <p>Twitter es la plataforma más restrictiva. Verifique en <strong>Plataformas</strong>: si la tarjeta de Twitter muestra "No configurada", es necesario agregar cuentas twscrape o un Bearer Token. Si muestra "Sin menciones recientes", puede ser que las cuentas estén bloqueadas o que el Bearer Token sea de plan gratuito (no permite búsqueda).</p>
+
+  <h4>¿Qué significa el score de urgencia?</h4>
+  <p>Es un puntaje de 0 a 100 que combina: el peso de la keyword que disparó la mención (1=normal, 3=crítico), el sentimiento (negativo suma más), y el alcance de la publicación. Un score ≥80 se considera crítico.</p>
+
+  <h4>¿La búsqueda semántica funciona en tiempo real?</h4>
+  <p>No exactamente. Los embeddings semánticos se generan cada 30 minutos. Las menciones muy recientes (menos de 30 minutos) pueden no aparecer en búsqueda semántica pero sí en el modo de filtros normal.</p>
+
+  <h4>¿Puedo recibir alertas en varios canales a la vez?</h4>
+  <p>Sí. Configure Telegram, WhatsApp y Email en su perfil. Los canales que reciben notificación dependen de la severidad: Baja = solo dashboard, Media = Telegram + dashboard, Alta/Crítica = todos los canales configurados.</p>
+
+  <h4>¿Cómo sé si una alerta ya fue atendida por otra persona?</h4>
+  <p>Las alertas atendidas muestran el nombre del usuario que las marcó y la hora de atención, en lugar del badge "Sin atender". Si usa el filtro "Sin atender" solo verá las pendientes.</p>
+
+  <h4>¿Puedo ver menciones de períodos anteriores?</h4>
+  <p>Sí. El módulo de Menciones muestra todo el historial. Use los filtros de fecha o la búsqueda semántica para buscar en períodos específicos. Los reportes PDF también permiten seleccionar rangos de fechas históricos.</p>
+
+  <h4>¿Qué pasa si pauso una entidad?</h4>
+  <p>SONAR deja de recolectar nuevas menciones para esa entidad, pero todo el historial anterior se conserva. Las reglas de alerta asociadas tampoco se evalúan mientras la entidad está pausada. Para reanudar el monitoreo, active la entidad nuevamente desde su tarjeta.</p>
+
+  <h4>¿El Asistente IA puede equivocarse?</h4>
+  <p>Sí. MIRA genera respuestas basadas en las menciones de la base de datos, pero puede interpretar incorrectamente el contexto o no encontrar información relevante si las keywords no están bien configuradas. Use siempre el botón "Ver menciones utilizadas como contexto" para verificar las fuentes de la respuesta.</p>
+
+  <h4>¿Cómo actualizo las cookies de Twitter cuando expiran?</h4>
+  <p>Las cookies de Twitter expiran periódicamente (semanas o meses). Cuando vea que la cuenta aparece en rojo en la tarjeta de Twitter, use Cookie-Editor en Chrome/Edge para exportar nuevas cookies desde twitter.com, luego actualícelas en SONAR: Plataformas → Gestionar cuentas → Editar → pegar nuevo JSON → Guardar.</p>
+
+  <div class="page-footer">
+    <p>SONAR v2.0 — Manual de Usuario · Confidencial · Marzo 2026</p>
+    <p>Plataforma de Monitoreo Reputacional · Uso exclusivo de personal autorizado</p>
+  </div>
+</div>
+
+</body>
+</html>

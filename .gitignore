@@ -35,3 +35,8 @@ Thumbs.db
 # Logs
 *.log
 celerybeat-schedule
+
+# Credenciales y cookies sensibles
+twitter_cookies.json
+*.key
+*.pem

@@ -56,36 +56,55 @@ def upsert_account_profile(
     external_user_id: Optional[str] = None,
     **kwargs,
 ) -> AccountProfile:
-    """Crea o actualiza el perfil de una cuenta. Retorna el objeto AccountProfile."""
-    profile = None
+    """
+    Crea o actualiza el perfil de una cuenta usando INSERT ... ON CONFLICT DO UPDATE
+    para evitar UniqueViolation cuando dos workers concurrentes procesan el mismo perfil.
+    """
+    import uuid as _uuid
+    now = datetime.now(timezone.utc)
+
+    # Campos a insertar
+    values = {
+        "id":               _uuid.uuid4(),
+        "platform_id":      platform_id,
+        "username":         username,
+        "external_user_id": external_user_id,
+        "last_analyzed_at": now,
+    }
+    for k, v in kwargs.items():
+        if v is not None:
+            values[k] = v
+
+    # Campos a actualizar en caso de conflicto (excluye id y platform_id)
+    update_fields = {k: v for k, v in values.items() if k not in ("id", "platform_id")}
+
+    stmt = pg_insert(AccountProfile).values(**values)
+
     if external_user_id:
-        profile = db.query(AccountProfile).filter(
-            AccountProfile.platform_id == platform_id,
-            AccountProfile.external_user_id == external_user_id,
-        ).first()
-
-    if not profile:
-        profile = db.query(AccountProfile).filter(
-            AccountProfile.platform_id == platform_id,
-            AccountProfile.username == username,
-        ).first()
-
-    if profile:
-        for k, v in kwargs.items():
-            if v is not None:
-                setattr(profile, k, v)
-        profile.last_analyzed_at = datetime.now(timezone.utc)
-    else:
-        profile = AccountProfile(
-            platform_id=platform_id,
-            username=username,
-            external_user_id=external_user_id,
-            last_analyzed_at=datetime.now(timezone.utc),
-            **kwargs,
+        # Conflicto por (platform_id, external_user_id)
+        stmt = stmt.on_conflict_do_update(
+            constraint="uq_platform_user",
+            set_=update_fields,
         )
-        db.add(profile)
+    else:
+        # Conflicto por (platform_id, username) — sin external_user_id
+        stmt = stmt.on_conflict_do_update(
+            index_elements=["platform_id", "username"],
+            set_=update_fields,
+        )
 
+    db.execute(stmt)
     db.flush()
+
+    # Retornar el objeto actualizado
+    profile = db.query(AccountProfile).filter(
+        AccountProfile.platform_id == platform_id,
+        AccountProfile.external_user_id == external_user_id,
+    ).first() if external_user_id else db.query(AccountProfile).filter(
+        AccountProfile.platform_id == platform_id,
+        AccountProfile.username == username,
+    ).first()
+
     return profile
 
 
