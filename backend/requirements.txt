@@ -58,9 +58,9 @@ statsmodels>=0.14.0       # Suavizado exponencial Holt-Winters para pronóstico 
 spacy>=3.7.0,<4.0.0       # NER: extracción de entidades nombradas PER/ORG/LOC (Módulo 1.2)
 pgvector>=0.3.0           # Tipo vector + operadores coseno en SQLAlchemy/PostgreSQL (Módulo 6.1)
 
-# ─── Módulo 7: Reconocimiento Visual (face_recognition + dlib) ───────────────
-# dlib debe instalarse ANTES que face-recognition (dependencia directa).
-# Requiere cmake, g++, python3-dev en el sistema (ver Dockerfile).
-dlib>=19.24.0             # Instalado primero para evitar fallos de compilación en cadena
-face-recognition>=1.3.0   # Reconocimiento facial (usa dlib internamente)
+# ─── Módulo 7: Reconocimiento Visual ────────────────────────────────────────
+# Desactivado en producción (FACE_RECOGNITION_ENABLED=false).
+# Para activar: descomentar, agregar cmake/libopenblas-dev al Dockerfile.prod y rebuildar.
+# dlib>=19.24.0
+# face-recognition>=1.3.0
 requests>=2.32.0          # Descarga de imágenes desde URLs de menciones
