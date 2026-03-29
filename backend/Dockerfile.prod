@@ -1,0 +1,34 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Evita preguntas interactivas durante apt-get
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Solo las dependencias estrictamente necesarias (--no-install-recommends reduce
+# de ~160 paquetes a ~30, eliminando docs, headers y herramientas de compilación extras)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    g++ \
+    python3-dev \
+    libpq-dev \
+    libpango-1.0-0 \
+    libpangoft2-1.0-0 \
+    libpangocairo-1.0-0 \
+    libcairo2 \
+    libgdk-pixbuf2.0-0 \
+    libffi-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Modelo spaCy para NER en español
+RUN python -m spacy download es_core_news_sm
+
+COPY . .
+
+RUN mkdir -p storage/reports storage/uploads storage/faces
+
+RUN chmod +x entrypoint.sh
+ENTRYPOINT ["./entrypoint.sh"]

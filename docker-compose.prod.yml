@@ -41,7 +41,7 @@ services:
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.prod
     container_name: sonar_backend
     restart: unless-stopped
     env_file: .env
@@ -60,7 +60,7 @@ services:
   worker:
     build:
       context: ./backend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.prod
     container_name: sonar_worker
     restart: unless-stopped
     env_file: .env
@@ -77,7 +77,7 @@ services:
   beat:
     build:
       context: ./backend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.prod
     container_name: sonar_beat
     restart: unless-stopped
     env_file: .env
