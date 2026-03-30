@@ -21,7 +21,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir --retries 10 --timeout 120 -r requirements.txt
+
+# uv es 10-100x más rápido que pip (escrito en Rust, descarga en paralelo)
+RUN pip install uv
+RUN uv pip install --no-cache --system -r requirements.txt
 
 # Modelo spaCy para NER en español
 RUN python -m spacy download es_core_news_sm
