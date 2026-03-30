@@ -38,16 +38,14 @@ services:
       retries: 5
 
   # ── Backend FastAPI ──────────────────────────────────────────
+  # Imagen pre-compilada en GitHub Actions → ghcr.io (sin compilar en Oracle)
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile.prod
+    image: ghcr.io/yonatanlop/sonar-backend:latest
     container_name: sonar_backend
     restart: unless-stopped
     env_file: .env
     volumes:
       - storage_data:/app/storage
-    # Solo accesible internamente (nginx hace de proxy)
     expose:
       - "8000"
     depends_on:
@@ -58,9 +56,7 @@ services:
 
   # ── Celery Worker ────────────────────────────────────────────
   worker:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile.prod
+    image: ghcr.io/yonatanlop/sonar-backend:latest
     container_name: sonar_worker
     restart: unless-stopped
     env_file: .env
@@ -75,9 +71,7 @@ services:
 
   # ── Celery Beat (scheduler) ──────────────────────────────────
   beat:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile.prod
+    image: ghcr.io/yonatanlop/sonar-backend:latest
     container_name: sonar_beat
     restart: unless-stopped
     env_file: .env
@@ -90,12 +84,7 @@ services:
 
   # ── Frontend (Nginx + React build) ──────────────────────────
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile.prod
-      args:
-        # Reemplazar TU_IP con la IP pública del servidor Oracle
-        VITE_API_URL: ${VITE_API_URL:-http://localhost}
+    image: ghcr.io/yonatanlop/sonar-frontend:latest
     container_name: sonar_frontend
     restart: unless-stopped
     ports:
