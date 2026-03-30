@@ -39,6 +39,7 @@ services:
 
   # ── Backend FastAPI ──────────────────────────────────────────
   backend:
+    platform: linux/arm64
     build:
       context: ./backend
       dockerfile: Dockerfile.prod
@@ -58,6 +59,7 @@ services:
 
   # ── Celery Worker ────────────────────────────────────────────
   worker:
+    platform: linux/arm64
     build:
       context: ./backend
       dockerfile: Dockerfile.prod
@@ -75,6 +77,7 @@ services:
 
   # ── Celery Beat (scheduler) ──────────────────────────────────
   beat:
+    platform: linux/arm64
     build:
       context: ./backend
       dockerfile: Dockerfile.prod
@@ -90,6 +93,7 @@ services:
 
   # ── Frontend (Nginx + React build) ──────────────────────────
   frontend:
+    platform: linux/arm64
     build:
       context: ./frontend
       dockerfile: Dockerfile.prod
