@@ -197,10 +197,13 @@ async def _twitter_api_v2_search(
             )
             if resp.status_code == 429:
                 logger.warning("[Twitter/APIv2] Rate limit alcanzado (429)")
-                return []
+                raise RuntimeError("rate_limit_429")
+            if resp.status_code == 402:
+                logger.warning(f"[Twitter/APIv2] HTTP 402: {resp.text[:200]}")
+                raise RuntimeError("credits_depleted_402")
             if resp.status_code != 200:
                 logger.warning(f"[Twitter/APIv2] HTTP {resp.status_code}: {resp.text[:200]}")
-                return []
+                raise RuntimeError(f"http_error_{resp.status_code}")
 
             data = resp.json()
             tweets_raw = data.get("data", [])
@@ -242,9 +245,11 @@ async def _twitter_api_v2_search(
                     "user":         user,
                 })
 
+    except RuntimeError:
+        raise  # propagar para que _search_and_save caiga a Nitter (Tier 3)
     except Exception as exc:
         logger.warning(f"[Twitter/APIv2] Error en búsqueda: {exc}")
-        return []
+        raise RuntimeError(str(exc))
 
     logger.info(f"[Twitter/APIv2] '{clean_term}': {len(results)} tweets")
     return results
