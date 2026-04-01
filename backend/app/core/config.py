@@ -45,6 +45,10 @@ class Settings(BaseSettings):
     # Obtener gratis en: developer.twitter.com → Projects & Apps → Keys and Tokens
     # Plan gratuito: 500K tweets/mes, búsqueda últimos 7 días.
     TWITTER_BEARER_TOKEN: str = ""
+    # Proxy residencial para twscrape y Nitter (bypass Cloudflare en datacenters)
+    # Formato: "http://usuario:contraseña@host:puerto"
+    # Recomendado: webshare.io (10 proxies gratuitos permanentes)
+    TWITTER_PROXY_URL: str = ""
 
     # NLP
     NLP_MODE: str = "api"   # 'api' | 'local'

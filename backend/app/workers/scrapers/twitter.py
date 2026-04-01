@@ -261,6 +261,7 @@ async def _nitter_search(query: str, limit: int = 100) -> list[dict]:
         timeout=20,
         follow_redirects=True,
         headers={"User-Agent": "Mozilla/5.0 (compatible; SONAR-monitor/1.0)"},
+        proxy=settings.TWITTER_PROXY_URL or None,
     ) as client:
         for instance in NITTER_INSTANCES:
             url = f"{instance}/search?q={encoded}&f=tweets"
@@ -310,7 +311,8 @@ class TwitterScraper(BaseScraper):
             from twscrape import API
         except ImportError:
             raise RuntimeError("twscrape no está instalado.")
-        return API(settings.TWITTER_ACCOUNTS_DB)
+        proxy = settings.TWITTER_PROXY_URL or None
+        return API(settings.TWITTER_ACCOUNTS_DB, proxy=proxy)
 
     # ── Punto de entrada ───────────────────────────────────────
 
