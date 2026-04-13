@@ -23,6 +23,7 @@ class AccountProfile(Base):
     has_profile_photo: Mapped[bool | None] = mapped_column(Boolean)
     verified: Mapped[bool] = mapped_column(Boolean, default=False)
     bio: Mapped[str | None] = mapped_column(Text)
+    location_text: Mapped[str | None] = mapped_column(String(200), nullable=True)  # ubicación texto libre del perfil
     last_analyzed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     bot_probability: Mapped[float | None] = mapped_column(Numeric(5, 4), nullable=True)
 

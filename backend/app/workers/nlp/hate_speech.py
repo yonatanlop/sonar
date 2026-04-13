@@ -27,7 +27,7 @@ NLP_MODE = os.getenv("NLP_MODE", "api")
 MODEL_HATE_ES = "pysentimiento/robertuito-hate-speech"
 MODEL_HATE_EN = "Hate-speech-CNERG/dehatebert-mono-english"
 
-HF_API_BASE  = "https://api-inference.huggingface.co/models"
+HF_API_BASE  = "https://router.huggingface.co/hf-inference/models"
 HATE_THRESHOLD = 0.60   # score mínimo para clasificar como discurso de odio
 MAX_CHARS      = 512
 

@@ -16,7 +16,19 @@ Modo 1 — Cookies desde navegador (RECOMENDADO cuando el login por contraseña
            --password TU_CONTRASEÑA \\
            --cookies /app/storage/twitter_cookies.json
 
-Modo 2 — Usuario y contraseña (puede ser bloqueado por Cloudflare desde Docker):
+Modo 2 — Usuario y contraseña con 2FA/TOTP (recomendado para cuentas con 2FA activo):
+
+    docker compose exec backend python scripts/add_twitter_account.py \\
+      --username TU_USUARIO \\
+      --email TU@EMAIL.COM \\
+      --password TU_CONTRASEÑA_TWITTER \\
+      --totp-secret TU_SECRETO_BASE32
+
+    El secreto base32 aparece al configurar el autenticador en Twitter/X:
+    Configuración → Seguridad → Autenticación de dos factores → App de autenticación
+    El QR contiene: otpauth://totp/...?secret=ESTE_ES_EL_SECRETO (NO el código de 6 dígitos)
+
+Modo 3 — Usuario y contraseña sin 2FA:
 
     docker compose exec backend python scripts/add_twitter_account.py \\
       --username TU_USUARIO \\
@@ -45,6 +57,7 @@ async def add_account(
     email_password: str,
     db_path: str,
     cookies: str | None = None,
+    totp_secret: str | None = None,
 ) -> bool:
     try:
         from twscrape import API
@@ -62,6 +75,8 @@ async def add_account(
     else:
         print("  Modo: usuario/contraseña")
 
+    if totp_secret:
+        print("  Modo: usuario/contraseña + TOTP (2FA automático)")
     try:
         kwargs = dict(
             username=username,
@@ -71,6 +86,8 @@ async def add_account(
         )
         if cookies:
             kwargs["cookies"] = cookies
+        if totp_secret:
+            kwargs["mfa_code"] = totp_secret
         await api.pool.add_account(**kwargs)
         print("Cuenta agregada al pool.")
     except Exception as e:
@@ -174,6 +191,9 @@ def main():
                         help="Contraseña del correo electrónico (puede ser igual a --password)")
     parser.add_argument("--cookies",        default=os.getenv("TW_COOKIES_FILE",   ""),
                         help="Ruta al archivo JSON de cookies exportado desde el navegador")
+    parser.add_argument("--totp-secret",    default=os.getenv("TW_TOTP_SECRET",    ""),
+                        dest="totp_secret",
+                        help="Secreto base32 del 2FA — NO el código de 6 dígitos (ej: JBSWY3DPEHPK3PXP)")
     parser.add_argument("--list",           action="store_true",
                         help="Listar cuentas configuradas")
     parser.add_argument("--db",             default="/app/storage/twscrape.db",
@@ -228,6 +248,8 @@ def main():
 
     email_password = getattr(args, "email_password", None) or args.password
 
+    totp_secret = args.totp_secret.strip() or None
+
     success = asyncio.run(add_account(
         username=args.username,
         email=args.email,
@@ -235,6 +257,7 @@ def main():
         email_password=email_password,
         db_path=args.db,
         cookies=cookies_str,
+        totp_secret=totp_secret,
     ))
     sys.exit(0 if success else 1)
 

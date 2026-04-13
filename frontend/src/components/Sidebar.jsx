@@ -1,7 +1,8 @@
 import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Building2, MessageSquare,
-  Bell, FileText, Users, Settings2, Radio, UserCircle, Sparkles, Activity,
+  Bell, FileText, Users, Settings2, Radio, UserCircle, Sparkles, Activity, Twitter,
+  MapPin, GitCompareArrows,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useAuthStore } from '../store/authStore'
@@ -21,7 +22,10 @@ export default function Sidebar({ open, onClose }) {
     navItem('/alerts',         Bell,            'Alertas', unread),
     navItem('/reports',        FileText,        'Reportes'),
     navItem('/chat',           Sparkles,        'Asistente IA'),
-    navItem('/platforms',      Activity,        'Plataformas'),
+    navItem('/platforms',         Activity,            'Plataformas'),
+    navItem('/twitter-explorer', Twitter,             'Twitter Explorer'),
+    navItem('/geo',              MapPin,              'Mapa Geográfico'),
+    navItem('/compare',          GitCompareArrows,    'Comparar Entidades'),
     ...(isAnalyst ? [navItem('/settings/rules', Settings2, 'Reglas de alerta')] : []),
     ...(isAdmin   ? [navItem('/admin/users',    Users,     'Usuarios')] : []),
   ]

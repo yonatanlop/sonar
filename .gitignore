@@ -40,3 +40,10 @@ celerybeat-schedule
 twitter_cookies.json
 *.key
 *.pem
+
+# Archivos sensibles adicionales
+.env.v2
+backend/accounts.db
+cookie_sonar.json
+cookies_yonatanlop86.json
+*.db

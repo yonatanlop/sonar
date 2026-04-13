@@ -112,7 +112,11 @@ export default function Reports() {
           </div>
           <div className="flex gap-2 mt-4">
             <button
-              onClick={() => generate.mutate(form)}
+              onClick={() => generate.mutate({
+                  ...form,
+                  entity_id:    form.entity_id    || null,
+                  country_code: form.country_code || null,
+                })}
               disabled={generate.isPending || !form.name || !form.date_from || !form.date_to}
               className="btn-primary"
             >

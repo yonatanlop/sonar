@@ -19,8 +19,8 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
-HF_MODEL         = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
-HF_EMBED_URL     = f"https://api-inference.huggingface.co/models/{HF_MODEL}"
+HF_MODEL         = "BAAI/bge-small-en-v1.5"
+HF_EMBED_URL     = f"https://router.huggingface.co/hf-inference/models/{HF_MODEL}"
 BATCH_PER_RUN    = 15       # max menciones por ejecución (conserva free tier)
 DELAY_SECS       = 2.0      # pausa entre llamadas a HF API
 MAX_TEXT_CHARS   = 512      # truncar texto antes de enviar
@@ -39,9 +39,12 @@ def get_embedding(text: str, token: str) -> list[float] | None:
     text_clean = text.strip()[:MAX_TEXT_CHARS]
 
     try:
+        headers = {
+            "Authorization": f"Bearer {token}",
+        }
         response = httpx.post(
             HF_EMBED_URL,
-            headers={"Authorization": f"Bearer {token}"},
+            headers=headers,
             json={"inputs": text_clean, "options": {"wait_for_model": True}},
             timeout=45,
         )
@@ -51,7 +54,7 @@ def get_embedding(text: str, token: str) -> list[float] | None:
             time.sleep(20)
             response = httpx.post(
                 HF_EMBED_URL,
-                headers={"Authorization": f"Bearer {token}"},
+                headers=headers,
                 json={"inputs": text_clean, "options": {"wait_for_model": True}},
                 timeout=45,
             )
@@ -93,12 +96,10 @@ def semantic_search(db, query_text: str, token: str,
         return []
 
     try:
-        from pgvector.sqlalchemy import cosine_distance
-
         q = (
             db.query(
                 Mention,
-                cosine_distance(Mention.embedding, query_emb).label("distance"),
+                Mention.embedding.cosine_distance(query_emb).label("distance"),
             )
             .filter(Mention.embedding.isnot(None))
         )

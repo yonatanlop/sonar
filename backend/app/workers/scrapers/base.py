@@ -122,7 +122,8 @@ def save_mention(
     country_code: Optional[str] = None,
     reach: int = 0,
     matched_keywords: Optional[list] = None,
-    media_urls: Optional[str] = None,   # JSON array de URLs de imágenes (módulo 7)
+    media_urls: Optional[str] = None,        # JSON array de URLs de imágenes (módulo 7)
+    conversation_id: Optional[str] = None,   # ID del hilo/conversación en Twitter
 ) -> Optional[Mention]:
     """
     Guarda una mención nueva. Retorna None si ya existe (duplicado).
@@ -153,6 +154,7 @@ def save_mention(
         reach=reach,
         processed=False,
         media_urls=media_urls,
+        conversation_id=conversation_id,
     )
     db.add(mention)
 

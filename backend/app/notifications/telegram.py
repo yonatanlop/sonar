@@ -78,3 +78,35 @@ def send_telegram(chat_id: str, alert_data: dict) -> bool:
 def send_telegram_bulk(chat_ids: list[str], alert_data: dict) -> int:
     """Envía a múltiples destinatarios. Retorna cantidad de envíos exitosos."""
     return sum(1 for cid in chat_ids if send_telegram(cid, alert_data))
+
+
+def send_admin_message(text: str) -> bool:
+    """
+    Envía un mensaje de texto libre al chat del administrador del sistema.
+    Usado para alertas internas (ej: cookies de Twitter expiradas, fallos del scraper).
+    Retorna True si fue enviado correctamente.
+    """
+    if not settings.TELEGRAM_BOT_TOKEN:
+        logger.debug("TELEGRAM_BOT_TOKEN no configurado, omitiendo mensaje admin.")
+        return False
+    if not settings.ADMIN_TELEGRAM_CHAT_ID:
+        logger.debug("ADMIN_TELEGRAM_CHAT_ID no configurado, omitiendo mensaje admin.")
+        return False
+
+    url     = f"https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/sendMessage"
+    payload = {
+        "chat_id":    settings.ADMIN_TELEGRAM_CHAT_ID,
+        "text":       text,
+        "parse_mode": "Markdown",
+    }
+
+    try:
+        resp = httpx.post(url, json=payload, timeout=10.0)
+        if resp.status_code == 200:
+            logger.info(f"[Admin] Telegram admin enviado → {settings.ADMIN_TELEGRAM_CHAT_ID}")
+            return True
+        logger.warning(f"[Admin] Telegram error {resp.status_code}: {resp.text[:200]}")
+        return False
+    except Exception as e:
+        logger.error(f"[Admin] Error enviando Telegram admin: {e}")
+        return False

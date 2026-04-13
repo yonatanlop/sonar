@@ -12,7 +12,10 @@ import Reports      from './pages/Reports'
 import Users        from './pages/Users'
 import Profile      from './pages/Profile'
 import Chat         from './pages/Chat'
-import Platforms    from './pages/Platforms'
+import Platforms       from './pages/Platforms'
+import TwitterExplorer from './pages/TwitterExplorer'
+import GeoMap          from './pages/GeoMap'
+import Compare         from './pages/Compare'
 
 export default function App() {
   return (
@@ -31,7 +34,10 @@ export default function App() {
             <Route path="/alerts"            element={<Alerts />} />
             <Route path="/reports"           element={<Reports />} />
             <Route path="/chat"              element={<Chat />} />
-            <Route path="/platforms"        element={<Platforms />} />
+            <Route path="/platforms"          element={<Platforms />} />
+            <Route path="/twitter-explorer"  element={<TwitterExplorer />} />
+            <Route path="/geo"               element={<GeoMap />} />
+            <Route path="/compare"           element={<Compare />} />
             <Route path="/profile"           element={<Profile />} />
 
             {/* Solo analyst/admin */}

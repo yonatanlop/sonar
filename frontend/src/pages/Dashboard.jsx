@@ -1,13 +1,28 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import ReactECharts from 'echarts-for-react'
-import { TrendingUp, TrendingDown, MessageSquare, AlertTriangle, Bot, Building2 } from 'lucide-react'
+import { TrendingUp, TrendingDown, MessageSquare, AlertTriangle, Bot, Building2, Minus } from 'lucide-react'
 import client from '../api/client'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 
 const fetchDashboard = () => client.get('/dashboard').then(r => r.data)
+const fetchSOV       = (days) => client.get('/dashboard/share-of-voice', { params: { days } }).then(r => r.data)
 
-function StatCard({ icon: Icon, label, value, sub, color = 'primary' }) {
+function DeltaBadge({ delta }) {
+  if (!delta) return null
+  const { delta_pct, trend } = delta
+  if (trend === 'stable') return <span className="text-xs text-gray-400 flex items-center gap-0.5"><Minus className="w-3 h-3" /> sin cambio</span>
+  const up = trend === 'up'
+  return (
+    <span className={`text-xs flex items-center gap-0.5 font-medium ${up ? 'text-red-500' : 'text-green-600'}`}>
+      {up ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+      {up ? '+' : ''}{delta_pct}% vs ayer
+    </span>
+  )
+}
+
+function StatCard({ icon: Icon, label, value, delta, sub, color = 'primary' }) {
   const colors = {
     primary: 'bg-primary-50 text-primary-600',
     red:     'bg-red-50 text-red-600',
@@ -22,14 +37,19 @@ function StatCard({ icon: Icon, label, value, sub, color = 'primary' }) {
       <div>
         <p className="text-2xl font-bold text-gray-900">{value ?? '—'}</p>
         <p className="text-sm font-medium text-gray-700">{label}</p>
-        {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
+        {delta && <DeltaBadge delta={delta} />}
+        {sub && !delta && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
       </div>
     </div>
   )
 }
 
+const SOV_COLORS = ['#6366f1','#f59e0b','#10b981','#ef4444','#3b82f6','#8b5cf6','#ec4899','#14b8a6']
+
 export default function Dashboard() {
-  const { data, isLoading } = useQuery({ queryKey: ['dashboard'], queryFn: fetchDashboard })
+  const [sovDays, setSovDays] = useState(7)
+  const { data, isLoading }   = useQuery({ queryKey: ['dashboard'], queryFn: fetchDashboard })
+  const { data: sovData }     = useQuery({ queryKey: ['sov', sovDays], queryFn: () => fetchSOV(sovDays) })
 
   // Gráfica: menciones por día (últimos 14 días)
   const timelineOption = {
@@ -123,12 +143,24 @@ export default function Dashboard() {
         </p>
       </div>
 
-      {/* Tarjetas de métricas */}
+      {/* Tarjetas de métricas con deltas */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <StatCard icon={MessageSquare} label="Menciones hoy"      value={data?.stats?.today_mentions}    sub="últimas 24h"          color="primary" />
-        <StatCard icon={TrendingDown}  label="Menciones negativas" value={data?.stats?.negative_pct + '%'} sub="del total de hoy"    color="red"     />
-        <StatCard icon={Bot}           label="Bots detectados"     value={data?.stats?.bots_today}        sub="cuentas automatizadas" color="yellow"  />
-        <StatCard icon={Building2}     label="Entidades activas"   value={data?.stats?.active_entities}   sub="monitoreadas"         color="green"   />
+        <StatCard icon={MessageSquare} label="Menciones hoy"
+          value={data?.stats?.today_mentions?.value}
+          delta={data?.stats?.today_mentions}
+          color="primary" />
+        <StatCard icon={TrendingDown} label="Menciones negativas"
+          value={data?.stats?.negative_pct?.value != null ? data.stats.negative_pct.value + '%' : '—'}
+          delta={data?.stats?.negative_pct}
+          color="red" />
+        <StatCard icon={Bot} label="Bots detectados"
+          value={data?.stats?.bots_today?.value}
+          delta={data?.stats?.bots_today}
+          color="yellow" />
+        <StatCard icon={Building2} label="Entidades activas"
+          value={data?.stats?.active_entities}
+          sub="monitoreadas"
+          color="green" />
       </div>
 
       {/* Alertas recientes */}
@@ -168,6 +200,52 @@ export default function Dashboard() {
           <h2 className="font-semibold text-gray-800 mb-4">Distribución de sentimiento</h2>
           <ReactECharts option={sentimentOption} style={{ height: 240 }} />
         </div>
+      </div>
+
+      {/* Share of Voice */}
+      <div className="card">
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <div>
+            <h2 className="font-semibold text-gray-800">Share of Voice</h2>
+            <p className="text-xs text-gray-400">% de menciones por entidad sobre el total del período</p>
+          </div>
+          <select className="input w-auto text-sm" value={sovDays} onChange={e => setSovDays(Number(e.target.value))}>
+            <option value={7}>Últimos 7 días</option>
+            <option value={14}>Últimos 14 días</option>
+            <option value={30}>Últimos 30 días</option>
+          </select>
+        </div>
+        {sovData?.items?.length > 0 ? (
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-center">
+            <ReactECharts
+              option={{
+                tooltip: { trigger: 'item', formatter: '{b}: {c}% ({d}% del total)' },
+                series: [{
+                  type: 'pie', radius: ['40%', '70%'],
+                  label: { fontSize: 11 },
+                  data: sovData.items.map((item, i) => ({
+                    name:  item.entity_name,
+                    value: item.pct,
+                    itemStyle: { color: SOV_COLORS[i % SOV_COLORS.length] },
+                  })),
+                }],
+              }}
+              style={{ height: 200 }}
+            />
+            <div className="space-y-2">
+              {sovData.items.map((item, i) => (
+                <div key={item.entity_id} className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: SOV_COLORS[i % SOV_COLORS.length] }} />
+                  <span className="text-sm text-gray-700 flex-1 truncate" title={item.entity_name}>{item.entity_name}</span>
+                  <span className="text-sm font-semibold text-gray-900">{item.pct}%</span>
+                  <span className="text-xs text-gray-400">{item.mention_count.toLocaleString()}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-gray-400 text-center py-6">Sin datos en el período seleccionado</p>
+        )}
       </div>
 
       {/* Fila inferior: bots por plataforma + top entidades */}

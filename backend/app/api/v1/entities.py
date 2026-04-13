@@ -681,6 +681,90 @@ def add_face_reference(
     return {"entity_id": str(entity_id), "person_name": data.person_name, "status": "added"}
 
 
+# ── Ranking de Influencers (v3) ───────────────────────────────
+
+@router.get("/{entity_id}/influencers")
+def get_entity_influencers(
+    entity_id: uuid.UUID,
+    days:  int = Query(7,  ge=1, le=90),
+    limit: int = Query(10, ge=1, le=50),
+    db: Session = Depends(get_db),
+    _=Depends(get_current_user),
+):
+    """
+    Top cuentas que más mencionaron la entidad en el período,
+    ordenadas por seguidores (mayor influencia primero).
+    Incluye clasificación de bot y sentimiento promedio.
+    """
+    from app.models.bot import AccountProfile, BotAnalysis
+    from sqlalchemy import distinct
+
+    entity = db.query(Entity).filter(Entity.id == entity_id).first()
+    if not entity:
+        raise HTTPException(status_code=404, detail="Entidad no encontrada")
+
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+
+    # Autores únicos con sus estadísticas en el período
+    rows = (
+        db.query(
+            Mention.author_username,
+            Mention.author_ext_id,
+            func.count(Mention.id).label("mention_count"),
+            func.avg(Mention.sentiment_score).label("avg_sentiment"),
+        )
+        .filter(
+            Mention.entity_id    == entity_id,
+            Mention.collected_at >= since,
+            Mention.author_ext_id.isnot(None),
+        )
+        .group_by(Mention.author_username, Mention.author_ext_id)
+        .order_by(func.count(Mention.id).desc())
+        .limit(limit * 3)   # traemos más para luego ordenar por followers
+        .all()
+    )
+
+    result = []
+    for row in rows:
+        profile = db.query(AccountProfile).filter(
+            AccountProfile.external_user_id == row.author_ext_id,
+        ).first()
+
+        bot_label = None
+        bot_score = None
+        if profile:
+            latest = (
+                db.query(BotAnalysis)
+                .filter(BotAnalysis.account_profile_id == profile.id)
+                .order_by(BotAnalysis.analyzed_at.desc())
+                .first()
+            )
+            if latest:
+                bot_label = latest.classification
+                bot_score = float(latest.bot_score)
+
+        result.append({
+            "username":       row.author_username,
+            "followers_count": profile.followers_count if profile else None,
+            "mention_count":  row.mention_count,
+            "avg_sentiment":  round(float(row.avg_sentiment), 3) if row.avg_sentiment else None,
+            "bot_label":      bot_label,
+            "bot_score":      bot_score,
+            "profile_url":    f"https://x.com/{row.author_username}" if row.author_username else None,
+        })
+
+    # Ordenar por followers DESC (None al final)
+    result.sort(key=lambda x: x["followers_count"] or 0, reverse=True)
+
+    return {
+        "entity_id":   str(entity_id),
+        "entity_name": entity.name,
+        "days":        days,
+        "total":       len(result[:limit]),
+        "items":       result[:limit],
+    }
+
+
 @router.delete("/{entity_id}/face-references/{person_name}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_face_reference(
     entity_id: uuid.UUID,

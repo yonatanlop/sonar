@@ -96,3 +96,35 @@ def send_whatsapp_bulk(recipients: list[dict], alert_data: dict) -> int:
         if send_whatsapp(r.get("phone", ""), r.get("api_key", ""), alert_data):
             count += 1
     return count
+
+
+def send_admin_whatsapp(text: str) -> bool:
+    """
+    Envía un mensaje de texto libre al número de admin del sistema.
+    Usado para alertas internas: cookies expiradas, fallos del scraper, etc.
+    Requiere WHATSAPP_PHONE y CALLMEBOT_APIKEY en .env.
+    """
+    from app.core.config import settings
+
+    if not settings.WHATSAPP_PHONE or not settings.CALLMEBOT_APIKEY:
+        logger.debug("WHATSAPP_PHONE o CALLMEBOT_APIKEY no configurados, omitiendo.")
+        return False
+
+    try:
+        resp = httpx.get(
+            CALLMEBOT_URL,
+            params={
+                "phone":  settings.WHATSAPP_PHONE,
+                "text":   text,
+                "apikey": settings.CALLMEBOT_APIKEY,
+            },
+            timeout=15.0,
+        )
+        if resp.status_code == 200 and "queued" in resp.text.lower():
+            logger.info(f"[WhatsApp Admin] Mensaje enviado → {settings.WHATSAPP_PHONE[:6]}***")
+            return True
+        logger.warning(f"[WhatsApp Admin] Error {resp.status_code}: {resp.text[:200]}")
+        return False
+    except Exception as e:
+        logger.error(f"[WhatsApp Admin] Error: {e}")
+        return False

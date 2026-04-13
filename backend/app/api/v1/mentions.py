@@ -22,13 +22,18 @@ def _mention_dict(m: Mention, db: Session) -> dict:
         AccountProfile.external_user_id == m.author_ext_id,
     ).first()
 
-    is_bot = False
+    bot_label = None
+    bot_score = None
     if account:
         latest = (db.query(BotAnalysis)
                   .filter(BotAnalysis.account_profile_id == account.id)
                   .order_by(BotAnalysis.analyzed_at.desc())
                   .first())
-        is_bot = latest.classification == "bot" if latest else False
+        if latest:
+            bot_label = latest.classification
+            bot_score = float(latest.bot_score)
+
+    is_bot = bot_label == "bot"
 
     platform = db.query(SocialPlatform).filter(SocialPlatform.id == m.platform_id).first()
     entity   = db.query(Entity).filter(Entity.id == m.entity_id).first()
@@ -54,6 +59,11 @@ def _mention_dict(m: Mention, db: Session) -> dict:
         "reach":           m.reach,
         "urgency_score":      float(m.urgency_score) if m.urgency_score is not None else 0.0,
         "is_bot":             is_bot,
+        "bot_label":          bot_label,                                        # real|anonymous|suspicious|bot
+        "bot_score":          bot_score,                                        # 0.0 - 1.0
+        "author_followers":   account.followers_count if account else None,
+        "author_location":    account.location_text if account else None,
+        "conversation_id":    m.conversation_id,
         "is_duplicate":       m.is_duplicate,
         "media_urls":         m.media_urls,
         "visual_match":       m.visual_match,
@@ -71,6 +81,8 @@ def list_mentions(
     min_urgency:       Optional[float]  = Query(None, ge=0, le=100, description="Filtrar menciones con urgency_score >= valor (0-100)"),
     exclude_duplicates: bool            = Query(False, description="Excluir menciones marcadas como duplicados semánticos"),
     visual_only:        bool            = Query(False, description="Solo menciones con coincidencia visual detectada"),
+    bot_filter:        Optional[str]   = Query(None, description="Filtrar por clasificación de bot: bot|suspicious|real|anonymous"),
+    country:           Optional[str]   = Query(None, description="Filtrar por país ISO-2 (ej: CO, MX, US)"),
     date_from:         Optional[str]   = Query(None),
     date_to:           Optional[str]   = Query(None),
     page:              int             = Query(1, ge=1),
@@ -104,6 +116,25 @@ def list_mentions(
 
     if min_urgency is not None:
         query = query.filter(Mention.urgency_score >= min_urgency)
+
+    if country:
+        query = query.filter(Mention.country_code == country.upper()[:2])
+
+    if bot_filter:
+        from app.models.bot import AccountProfile, BotAnalysis
+        from sqlalchemy import exists, and_
+        bot_subq = (
+            db.query(BotAnalysis.account_profile_id)
+            .join(AccountProfile, BotAnalysis.account_profile_id == AccountProfile.id)
+            .filter(
+                AccountProfile.platform_id == Mention.platform_id,
+                AccountProfile.external_user_id == Mention.author_ext_id,
+                BotAnalysis.classification == bot_filter,
+            )
+            .correlate(Mention)
+            .exists()
+        )
+        query = query.filter(bot_subq)
 
     if date_from:
         query = query.filter(Mention.collected_at >= date_from)

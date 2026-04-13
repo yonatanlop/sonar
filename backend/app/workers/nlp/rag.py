@@ -113,6 +113,69 @@ def _call_groq(messages: list[dict]) -> str:
     return response.choices[0].message.content.strip()
 
 
+# ── Fallback: búsqueda por texto cuando no hay embeddings ─────────────────
+
+def _keyword_search(db: Session, query_text: str, entity_id=None, limit: int = 15) -> list[dict]:
+    """
+    Búsqueda por palabras clave cuando semantic_search no retorna resultados.
+    Filtra por contenido (ILIKE) y ordena por urgencia + fecha reciente.
+    """
+    import re
+    from sqlalchemy import or_
+    from app.models.mention import Mention, SocialPlatform
+    from app.models.entity import Entity
+
+    # Extraer palabras significativas (> 3 caracteres)
+    words = [w for w in re.split(r'\W+', query_text.lower()) if len(w) > 3]
+    stopwords = {"para", "como", "este", "esta", "estos", "estas", "donde",
+                 "cual", "cuales", "from", "that", "with", "this", "what",
+                 "sobre", "entre", "tiene", "tienen", "están", "cuántos",
+                 "cuántas", "hubo", "sido", "semana", "últimas", "últimos"}
+    words = [w for w in words if w not in stopwords][:6]
+
+    q = db.query(Mention).filter(Mention.processed == True)
+    if entity_id:
+        q = q.filter(Mention.entity_id == entity_id)
+    if words:
+        q = q.filter(or_(*[Mention.content.ilike(f"%{w}%") for w in words]))
+
+    mentions_db = (
+        q.order_by(Mention.urgency_score.desc(), Mention.published_at.desc())
+        .limit(limit)
+        .all()
+    )
+
+    # Si no hay resultados con palabras clave, retornar las más urgentes/recientes
+    if not mentions_db:
+        q2 = db.query(Mention).filter(Mention.processed == True)
+        if entity_id:
+            q2 = q2.filter(Mention.entity_id == entity_id)
+        mentions_db = (
+            q2.order_by(Mention.urgency_score.desc(), Mention.published_at.desc())
+            .limit(limit)
+            .all()
+        )
+
+    items = []
+    for m in mentions_db:
+        platform = db.query(SocialPlatform).filter(SocialPlatform.id == m.platform_id).first()
+        entity   = db.query(Entity).filter(Entity.id == m.entity_id).first()
+        items.append({
+            "id":              str(m.id),
+            "entity_name":     entity.name if entity else "—",
+            "platform_code":   platform.code if platform else None,
+            "platform_name":   platform.name if platform else None,
+            "content":         m.content,
+            "author_username": m.author_username,
+            "url":             m.url,
+            "published_at":    m.published_at.isoformat() if m.published_at else None,
+            "sentiment_label": m.sentiment_label,
+            "urgency_score":   float(m.urgency_score) if m.urgency_score is not None else 0,
+            "similarity":      None,
+        })
+    return items
+
+
 # ── Punto de entrada principal ─────────────────────────────────────────────
 
 def build_rag_answer(
@@ -155,7 +218,7 @@ def build_rag_answer(
             "error":    "no_hf_token",
         }
 
-    # ── 1. Búsqueda semántica de menciones relevantes ──────────────────────
+    # ── 1. Búsqueda de menciones relevantes ───────────────────────────────────
     from app.workers.nlp.embeddings import semantic_search
 
     try:
@@ -167,6 +230,11 @@ def build_rag_answer(
     except Exception as exc:
         logger.error(f"[RAG] Error en búsqueda semántica: {exc}")
         mentions = []
+
+    # Fallback: si no hay embeddings disponibles, usar búsqueda por palabras clave
+    if not mentions:
+        logger.info("[RAG] Sin resultados semánticos — usando búsqueda por palabras clave")
+        mentions = _keyword_search(db, question, entity_id=entity_id, limit=MAX_CONTEXT_MENTIONS)
 
     # ── 2. Construir mensajes para el LLM ──────────────────────────────────
     use_history = (

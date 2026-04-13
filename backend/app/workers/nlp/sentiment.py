@@ -31,7 +31,7 @@ MODEL_ES   = "pysentimiento/robertuito-sentiment-analysis"
 MODEL_EN   = "cardiffnlp/twitter-roberta-base-sentiment-latest"
 MODEL_MULTI = "nlptown/bert-base-multilingual-uncased-sentiment"
 
-HF_API_BASE = "https://api-inference.huggingface.co/models"
+HF_API_BASE = "https://router.huggingface.co/hf-inference/models"
 
 # Truncar texto a este límite antes de enviar al modelo
 MAX_TOKENS = 512

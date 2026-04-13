@@ -5,7 +5,7 @@ from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.responses import FileResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
@@ -28,6 +28,11 @@ class ReportCreate(BaseModel):
     country_code: Optional[str]       = None
     date_from:    date
     date_to:      date
+
+    @field_validator("country_code", mode="before")
+    @classmethod
+    def empty_str_to_none(cls, v):
+        return v if v else None
 
 
 # ── Helper ────────────────────────────────────────────────────

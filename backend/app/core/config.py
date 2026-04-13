@@ -21,6 +21,7 @@ class Settings(BaseSettings):
 
     # Notificaciones
     TELEGRAM_BOT_TOKEN: str = ""
+    ADMIN_TELEGRAM_CHAT_ID: str = ""   # chat_id del admin para alertas del sistema (ej: cookies expiradas)
     GMAIL_USER: str = ""
     GMAIL_APP_PASSWORD: str = ""
 
@@ -64,7 +65,22 @@ class Settings(BaseSettings):
     # Módulo 13 — Chat Asistente RAG
     # false → Fase simple: cada pregunta es independiente (default)
     # true  → Fase avanzada: historial multi-turno incluido en el contexto
-    CHAT_ADVANCED_MODE: bool = False
+    CHAT_ADVANCED_MODE: bool = True
+
+    # WhatsApp (Callmebot — gratuito)
+    WHATSAPP_PHONE: str = ""      # número con código de país sin +  (ej: 573001234567)
+    CALLMEBOT_APIKEY: str = ""    # apikey que envía Callmebot por WhatsApp
+
+    # Instagram (pool de cuentas descartables — al menos 1 requerida para scraping)
+    IG_ACCOUNT_1_USERNAME: str = ""
+    IG_ACCOUNT_1_PASSWORD: str = ""
+    IG_ACCOUNT_2_USERNAME: str = ""
+    IG_ACCOUNT_2_PASSWORD: str = ""
+    IG_LOOKBACK_DAYS: int = 3        # días hacia atrás para filtrar posts recientes
+
+    # Facebook (cookies de sesión exportadas con Cookie-Editor desde facebook.com)
+    FB_COOKIES_FILE: str = "/app/storage/fb_cookies.json"
+    FB_LOOKBACK_DAYS: int = 3        # días hacia atrás para filtrar posts recientes
 
     # Módulo 7 — Reconocimiento Visual
     FACE_RECOGNITION_ENABLED: bool = False  # activar en .env cuando haya fotos de referencia

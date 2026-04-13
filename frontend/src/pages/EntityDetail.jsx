@@ -22,6 +22,7 @@ const fetchForecast        = (id) => client.get(`/entities/${id}/forecast`,  { p
 const fetchRelatedEntities = (id) => client.get(`/entities/${id}/related-entities`,   { params: { days: 30, limit: 20 } }).then(r => r.data)
 const fetchKwSuggestions   = (id) => client.get(`/entities/${id}/keyword-suggestions`, { params: { days: 30 } }).then(r => r.data)
 const fetchFaceRefs        = (id) => client.get(`/entities/${id}/face-references`).then(r => r.data)
+const fetchInfluencers     = (id, days) => client.get(`/entities/${id}/influencers`, { params: { days, limit: 10 } }).then(r => r.data)
 
 // ── Constantes ────────────────────────────────────────────────
 const WEIGHT_LABEL = { 1: 'Normal', 2: 'Importante', 3: 'Crítico' }
@@ -49,7 +50,8 @@ export default function EntityDetail() {
   const qc        = useQueryClient()
   const isAnalyst = useAuthStore(s => s.isAnalyst())
 
-  const [tab, setTab] = useState('overview')  // overview | keywords | aliases | rules | faces
+  const [tab, setTab]           = useState('overview')  // overview | keywords | aliases | rules | faces | influencers
+  const [influDays, setInfluDays] = useState(7)
 
   // ── Formularios ──
   const [kwForm,    setKwForm]    = useState({ keyword: '', language: 'es', weight: 1 })
@@ -180,6 +182,12 @@ export default function EntityDetail() {
     queryKey: ['face-refs', id],
     queryFn: () => fetchFaceRefs(id),
     enabled: tab === 'faces',
+  })
+
+  const { data: influencersData, isLoading: influLoading } = useQuery({
+    queryKey: ['influencers', id, influDays],
+    queryFn: () => fetchInfluencers(id, influDays),
+    enabled: tab === 'influencers',
   })
   const addFaceRef = useMutation({
     mutationFn: () => client.post(`/entities/${id}/face-references`, faceForm),
@@ -331,11 +339,12 @@ export default function EntityDetail() {
   })() : null
 
   const TABS = [
-    { key: 'overview',  label: 'Resumen' },
-    { key: 'keywords',  label: `Keywords (${entity.keywords?.length ?? 0})` },
-    { key: 'aliases',   label: `Aliases (${entity.aliases?.length ?? 0})` },
-    { key: 'rules',     label: 'Reglas de alerta' },
-    { key: 'faces',     label: '📸 Reconocimiento visual' },
+    { key: 'overview',     label: 'Resumen' },
+    { key: 'keywords',     label: `Keywords (${entity.keywords?.length ?? 0})` },
+    { key: 'aliases',      label: `Aliases (${entity.aliases?.length ?? 0})` },
+    { key: 'rules',        label: 'Reglas de alerta' },
+    { key: 'influencers',  label: '⭐ Influencers' },
+    { key: 'faces',        label: '📸 Reconocimiento visual' },
   ]
 
   return (
@@ -911,6 +920,82 @@ export default function EntityDetail() {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* ── Influencers ── */}
+      {tab === 'influencers' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <h3 className="font-semibold text-gray-800">Top Influencers</h3>
+              <p className="text-xs text-gray-400">Cuentas con mayor alcance que mencionaron esta entidad</p>
+            </div>
+            <select className="input w-auto text-sm" value={influDays} onChange={e => setInfluDays(Number(e.target.value))}>
+              <option value={7}>Últimos 7 días</option>
+              <option value={14}>Últimos 14 días</option>
+              <option value={30}>Últimos 30 días</option>
+            </select>
+          </div>
+
+          {influLoading ? (
+            <div className="text-center text-gray-400 py-8">Cargando influencers...</div>
+          ) : influencersData?.items?.length > 0 ? (
+            <div className="card overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-xs text-gray-500 border-b">
+                    <th className="text-left pb-2 font-medium">#</th>
+                    <th className="text-left pb-2 font-medium">Usuario</th>
+                    <th className="text-right pb-2 font-medium">Seguidores</th>
+                    <th className="text-right pb-2 font-medium">Menciones</th>
+                    <th className="text-center pb-2 font-medium">Sentimiento</th>
+                    <th className="text-center pb-2 font-medium">Bot</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {influencersData.items.map((inf, i) => {
+                    const sentColor = inf.avg_sentiment == null ? 'text-gray-400'
+                      : inf.avg_sentiment < -0.2 ? 'text-red-600'
+                      : inf.avg_sentiment > 0.2 ? 'text-green-600'
+                      : 'text-gray-500'
+                    const botCls = inf.bot_label === 'bot' ? 'bg-red-100 text-red-700'
+                      : inf.bot_label === 'suspicious' ? 'bg-yellow-100 text-yellow-700'
+                      : inf.bot_label === 'real' ? 'bg-green-100 text-green-700'
+                      : 'bg-gray-100 text-gray-500'
+                    return (
+                      <tr key={inf.username} className="hover:bg-gray-50">
+                        <td className="py-2 text-gray-400">{i + 1}</td>
+                        <td className="py-2">
+                          <a href={inf.profile_url} target="_blank" rel="noopener noreferrer"
+                            className="text-primary-600 hover:underline font-medium">
+                            @{inf.username}
+                          </a>
+                        </td>
+                        <td className="py-2 text-right text-gray-700">{inf.followers_count?.toLocaleString() ?? '—'}</td>
+                        <td className="py-2 text-right text-gray-700">{inf.mention_count}</td>
+                        <td className={`py-2 text-center font-medium ${sentColor}`}>
+                          {inf.avg_sentiment != null ? (inf.avg_sentiment > 0 ? '+' : '') + inf.avg_sentiment.toFixed(2) : '—'}
+                        </td>
+                        <td className="py-2 text-center">
+                          {inf.bot_label ? (
+                            <span className={`badge ${botCls} text-xs`}>
+                              {inf.bot_label === 'bot' ? 'Bot' : inf.bot_label === 'suspicious' ? 'Sospechoso' : inf.bot_label === 'real' ? 'Real' : 'Anónimo'}
+                              {inf.bot_score != null ? ` ${Math.round(inf.bot_score * 100)}%` : ''}
+                            </span>
+                          ) : '—'}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="text-center text-gray-400 py-10 text-sm">
+              Sin influencers con datos de seguidores en este período
+            </div>
+          )}
         </div>
       )}
 

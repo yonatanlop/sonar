@@ -164,7 +164,8 @@ def acknowledge_alert(
 # ── Reglas de alerta ──────────────────────────────────────────
 
 VALID_RULE_TYPES = {"volume_spike", "negative_threshold", "bot_activity",
-                    "keyword_critical", "campaign_detected", "hate_speech"}
+                    "keyword_critical", "campaign_detected", "hate_speech",
+                    "anomaly_detected"}
 VALID_SEVERITIES = {"low", "medium", "high", "critical"}
 
 

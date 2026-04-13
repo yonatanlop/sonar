@@ -57,6 +57,8 @@ class Mention(Base):
     topic_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     topic_label: Mapped[str | None] = mapped_column(String(120), nullable=True)
     processed: Mapped[bool] = mapped_column(Boolean, default=False)
+    # ID del hilo/conversación en Twitter (permite agrupar tweets del mismo thread)
+    conversation_id: Mapped[str | None] = mapped_column(String(50), nullable=True, index=True)
     # v2 módulo 6.2: deduplicación inteligente por coseno de embeddings
     is_duplicate: Mapped[bool] = mapped_column(Boolean, default=False)
     # módulo 7: reconocimiento visual

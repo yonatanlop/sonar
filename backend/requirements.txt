@@ -37,6 +37,7 @@ wordcloud==1.9.3
 
 # ─── Reportes PDF ────────────────────────────────────────────
 weasyprint==62.3
+pydyf==0.11.0           # pydyf 0.12+ rompe WeasyPrint 62.x (incompatible API)
 jinja2==3.1.4
 matplotlib==3.9.0
 
@@ -47,8 +48,13 @@ python-dotenv==1.0.1
 sse-starlette==2.1.0
 pillow==10.3.0
 
+# ─── Facebook / Instagram (scraping autenticado) ─────────────
+instagrapi>=2.0.0         # Instagram scraping con cuenta propia (sin API oficial)
+facebook-scraper>=0.2.59  # Facebook búsqueda por keyword con cookies de sesión
+
 # ─── Phase 2 ─────────────────────────────────────────────────
 twscrape>=0.14.6          # Scraper Twitter/X (sin API key oficial)
+xclienttransaction>=1.0.2  # Genera x-client-transaction-id requerido por Twitter GraphQL
 # playwright>=1.44.0      ← Scraping avanzado (Phase 3)
 
 # ─── v2: IA / Agentes ────────────────────────────────────────
@@ -57,10 +63,11 @@ scikit-learn>=1.4.0       # Topic modeling (TF-IDF + KMeans) y clasificación bo
 statsmodels>=0.14.0       # Suavizado exponencial Holt-Winters para pronóstico de tendencias (Módulo 4.2)
 spacy>=3.7.0,<4.0.0       # NER: extracción de entidades nombradas PER/ORG/LOC (Módulo 1.2)
 pgvector>=0.3.0           # Tipo vector + operadores coseno en SQLAlchemy/PostgreSQL (Módulo 6.1)
+geopy>=2.4.0              # Geocodificación texto → country_code con Nominatim (gratuito, sin API key)
 
 # ─── Módulo 7: Reconocimiento Visual ────────────────────────────────────────
 # Desactivado en producción (FACE_RECOGNITION_ENABLED=false).
 # Para activar: descomentar, agregar cmake/libopenblas-dev al Dockerfile.prod y rebuildar.
-# dlib>=19.24.0
-# face-recognition>=1.3.0
+dlib>=19.24.0
+face-recognition>=1.3.0
 requests>=2.32.0          # Descarga de imágenes desde URLs de menciones

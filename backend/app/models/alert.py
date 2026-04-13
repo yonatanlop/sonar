@@ -17,6 +17,7 @@ class AlertRule(Base):
     rule_type: Mapped[str] = mapped_column(
         Enum("volume_spike", "negative_threshold", "bot_activity",
              "keyword_critical", "campaign_detected", "hate_speech",
+             "anomaly_detected",
              name="alert_rule_type"),
         nullable=False
     )
