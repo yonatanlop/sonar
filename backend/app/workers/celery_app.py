@@ -45,6 +45,30 @@ celery_app.conf.beat_schedule = {
         "task": "app.workers.tasks.scraping.scrape_twitter",
         "schedule": crontab(minute="*/20"),  # cada 20 min
     },
+    # ── Facebook e Instagram ──────────────────────────────────────
+    "scrape-instagram": {
+        "task": "app.workers.tasks.scraping.scrape_instagram",
+        "schedule": crontab(minute="*/30"),  # cada 30 min
+    },
+    "scrape-facebook": {
+        "task": "app.workers.tasks.scraping.scrape_facebook",
+        "schedule": crontab(minute=0),       # cada hora en punto
+    },
+    # Twitter Explorer: feeds de @usuarios, #hashtags y keywords
+    "scrape-twitter-feeds": {
+        "task": "app.workers.tasks.scraping.scrape_twitter_feeds",
+        "schedule": crontab(minute="*/20"),  # cada 20 min (desfasado del scraper principal)
+    },
+    # Re-login preventivo cada 3 horas para renovar sesión de twscrape
+    "relogin-twitter": {
+        "task": "app.workers.tasks.scraping.relogin_twitter_accounts",
+        "schedule": crontab(minute=0, hour="*/3"),  # cada 3 horas en punto
+    },
+    # Health check cada hora: si 0 cuentas activas → alerta Telegram al admin
+    "check-twitter-health": {
+        "task": "app.workers.tasks.scraping.check_twitter_health",
+        "schedule": crontab(minute=30),  # cada hora en el minuto 30
+    },
     "process-pending-mentions": {
         "task": "app.workers.tasks.nlp.process_pending_mentions",
         "schedule": crontab(minute="*/5"),   # cada 5 min
@@ -87,6 +111,10 @@ celery_app.conf.beat_schedule = {
     "classify-bots": {
         "task": "app.workers.tasks.analytics.classify_bots",
         "schedule": crontab(minute=0, hour="*/6"),  # cada 6 horas
+    },
+    "geocode-mentions": {
+        "task": "app.workers.tasks.analytics.geocode_mentions",
+        "schedule": crontab(minute="*/30"),  # cada 30 min
     },
     "compute-trends": {
         "task": "app.workers.tasks.analytics.compute_trends",

@@ -117,6 +117,98 @@ def classify_bots(self):
 
 
 @celery_app.task(
+    name="app.workers.tasks.analytics.geocode_mentions",
+    bind=True,
+    max_retries=1,
+    default_retry_delay=300,
+)
+def geocode_mentions(self):
+    """
+    Geocodifica la ubicación texto de los autores (user.location) a country_code ISO-2.
+    Usa Nominatim (OpenStreetMap, gratuito, sin API key).
+    Actualiza mentions.country_code para todas las menciones de cada autor.
+    Rate limit: 1 req/s (respetado con sleep). Procesa máx 200 autores únicos por ciclo.
+    """
+    import time as _time
+
+    db = SessionLocal()
+    try:
+        from app.models.mention import Mention
+        from app.models.bot import AccountProfile
+        from sqlalchemy import distinct, func
+
+        # Autores únicos con menciones sin country_code y con location_text en su perfil
+        subq = (
+            db.query(Mention.author_ext_id)
+            .filter(Mention.country_code.is_(None), Mention.author_ext_id.isnot(None))
+            .distinct()
+            .subquery()
+        )
+        profiles = (
+            db.query(AccountProfile)
+            .filter(
+                AccountProfile.external_user_id.in_(db.query(subq)),
+                AccountProfile.location_text.isnot(None),
+                AccountProfile.location_text != "",
+            )
+            .limit(200)
+            .all()
+        )
+
+        if not profiles:
+            return {"status": "ok", "geocoded": 0, "skipped": 0}
+
+        try:
+            from geopy.geocoders import Nominatim
+            from geopy.exc import GeocoderTimedOut, GeocoderUnavailable
+        except ImportError:
+            return {"status": "skipped", "reason": "geopy no instalado"}
+
+        geolocator = Nominatim(user_agent="sonar_monitor/1.0")
+        geocoded = 0
+        skipped  = 0
+
+        for profile in profiles:
+            try:
+                location = geolocator.geocode(
+                    profile.location_text,
+                    exactly_one=True,
+                    timeout=5,
+                    language="en",
+                    addressdetails=True,
+                )
+                if location and location.raw.get("address", {}).get("country_code"):
+                    cc = location.raw["address"]["country_code"].upper()[:2]
+                    # Actualizar todas las menciones de este autor sin country_code
+                    db.query(Mention).filter(
+                        Mention.author_ext_id == profile.external_user_id,
+                        Mention.country_code.is_(None),
+                    ).update({"country_code": cc}, synchronize_session=False)
+                    db.commit()
+                    geocoded += 1
+                else:
+                    skipped += 1
+
+            except (GeocoderTimedOut, GeocoderUnavailable):
+                skipped += 1
+            except Exception as e:
+                _cc = cc if 'cc' in locals() else 'N/A'
+                logger.warning(f"[Geocode] Error en '{profile.location_text}' (cc={_cc}): {e}")
+                skipped += 1
+
+            _time.sleep(1.1)   # Nominatim: máx 1 req/s
+
+        logger.info(f"[Geocode] Completado — geocoded: {geocoded}, skipped: {skipped}")
+        return {"status": "ok", "geocoded": geocoded, "skipped": skipped}
+
+    except Exception as exc:
+        logger.error(f"[Geocode] Error: {exc}", exc_info=True)
+        raise self.retry(exc=exc)
+    finally:
+        db.close()
+
+
+@celery_app.task(
     name="app.workers.tasks.analytics.compute_trends",
     bind=True,
     max_retries=1,
