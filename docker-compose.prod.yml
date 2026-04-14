@@ -16,34 +16,51 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      # Limitar memoria de PostgreSQL en servidor de 1GB
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+    command: >
+      postgres
+      -c shared_buffers=64MB
+      -c work_mem=4MB
+      -c maintenance_work_mem=32MB
+      -c max_connections=20
+      -c wal_buffers=4MB
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    # En producción NO exponer el puerto 5432 al exterior
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 10s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 150M
 
   # ── Redis (broker Celery) ────────────────────────────────────
   redis:
     image: redis:7-alpine
     container_name: sonar_redis
     restart: unless-stopped
-    # En producción NO exponer el puerto 6379 al exterior
+    command: redis-server --maxmemory 50mb --maxmemory-policy allkeys-lru
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 60M
 
   # ── Backend FastAPI ──────────────────────────────────────────
-  # Imagen pre-compilada en GitHub Actions → ghcr.io (sin compilar en Oracle)
   backend:
     image: ghcr.io/yonatanlop/sonar-backend:latest
     container_name: sonar_backend
     restart: unless-stopped
     env_file: .env
+    environment:
+      FACE_RECOGNITION_ENABLED: "false"
     volumes:
       - storage_data:/app/storage
     expose:
@@ -53,6 +70,10 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 200M
 
   # ── Celery Worker ────────────────────────────────────────────
   worker:
@@ -60,6 +81,8 @@ services:
     container_name: sonar_worker
     restart: unless-stopped
     env_file: .env
+    environment:
+      FACE_RECOGNITION_ENABLED: "false"
     volumes:
       - storage_data:/app/storage
     depends_on:
@@ -67,7 +90,11 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: celery -A app.workers.celery_app worker --loglevel=info --concurrency=2
+    command: celery -A app.workers.celery_app worker --loglevel=warning --concurrency=1 --max-memory-per-child=200000
+    deploy:
+      resources:
+        limits:
+          memory: 350M
 
   # ── Celery Beat (scheduler) ──────────────────────────────────
   beat:
@@ -75,12 +102,18 @@ services:
     container_name: sonar_beat
     restart: unless-stopped
     env_file: .env
+    environment:
+      FACE_RECOGNITION_ENABLED: "false"
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: celery -A app.workers.celery_app beat --loglevel=info
+    command: celery -A app.workers.celery_app beat --loglevel=warning
+    deploy:
+      resources:
+        limits:
+          memory: 100M
 
   # ── Frontend (Nginx + React build) ──────────────────────────
   frontend:
