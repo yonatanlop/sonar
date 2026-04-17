@@ -271,8 +271,12 @@ def scrape_twitter_feeds(self):
         db = SessionLocal()
         try:
             result = _asyncio.run(scrape_feeds(db))
+            db.commit()
             logger.info(f"[TwitterFeeds] Completado: {result}")
             return {"status": "ok", **result}
+        except Exception:
+            db.rollback()
+            raise
         finally:
             db.close()
     except RuntimeError as exc:

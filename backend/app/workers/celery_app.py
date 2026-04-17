@@ -39,11 +39,11 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(minute="*/20"),  # cada 20 min
     },
     # ── Phase 2: Twitter/X ────────────────────────────────────
-    # Corre cada 20 min. Si no hay cuentas configuradas, la tarea
-    # se saltea sin error (status: skipped).
+    # Corre cada 40 min para dejar ventana libre al Twitter Explorer.
+    # Con 2 cuentas, reducir frecuencia evita agotar el rate limit de SearchTimeline.
     "scrape-twitter": {
         "task": "app.workers.tasks.scraping.scrape_twitter",
-        "schedule": crontab(minute="*/20"),  # cada 20 min
+        "schedule": crontab(minute="0,40"),  # minutos 0 y 40
     },
     # ── Facebook e Instagram ──────────────────────────────────────
     "scrape-instagram": {
@@ -55,11 +55,11 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(minute=0),       # cada hora en punto
     },
     # Twitter Explorer: feeds de @usuarios, #hashtags y keywords
-    # Corre en minutos 10, 30, 50 — desfasado 10 min de scrape_twitter (0, 20, 40)
-    # para evitar que ambas tareas compitan por el rate limit de SearchTimeline.
+    # Corre en minutos 20 — justo en la mitad entre scrape_twitter (0 y 40)
+    # para maximizar la ventana de rate limit disponible.
     "scrape-twitter-feeds": {
         "task": "app.workers.tasks.scraping.scrape_twitter_feeds",
-        "schedule": crontab(minute="10,30,50"),
+        "schedule": crontab(minute="20"),  # minuto 20 de cada hora
     },
     # Re-login preventivo cada 3 horas para renovar sesión de twscrape
     "relogin-twitter": {
