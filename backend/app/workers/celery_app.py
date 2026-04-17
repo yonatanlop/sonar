@@ -55,9 +55,11 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(minute=0),       # cada hora en punto
     },
     # Twitter Explorer: feeds de @usuarios, #hashtags y keywords
+    # Corre en minutos 10, 30, 50 — desfasado 10 min de scrape_twitter (0, 20, 40)
+    # para evitar que ambas tareas compitan por el rate limit de SearchTimeline.
     "scrape-twitter-feeds": {
         "task": "app.workers.tasks.scraping.scrape_twitter_feeds",
-        "schedule": crontab(minute="*/20"),  # cada 20 min (desfasado del scraper principal)
+        "schedule": crontab(minute="10,30,50"),
     },
     # Re-login preventivo cada 3 horas para renovar sesión de twscrape
     "relogin-twitter": {

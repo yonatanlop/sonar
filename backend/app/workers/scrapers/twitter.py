@@ -214,6 +214,31 @@ async def scrape_feeds(db) -> dict:
     api = TwitterScraper.__new__(TwitterScraper)
     api.db = db
 
+    # Verificar disponibilidad de cuentas ANTES del loop para evitar timeouts
+    tw_api = api._build_api()
+    all_accounts = await tw_api.pool.get_all()
+    active_accounts = [a for a in all_accounts if getattr(a, "active", True)]
+    if not active_accounts:
+        logger.warning("[TwitterExplorer] Sin cuentas activas — saltando")
+        return {"feeds": len(feeds), "saved": 0, "skipped": "no_accounts"}
+
+    # Detectar rate limit activo en SearchTimeline
+    now = datetime.now(timezone.utc)
+    rate_limited = True
+    for acc in active_accounts:
+        locks = getattr(acc, "locks", {}) or {}
+        lock_until = locks.get("SearchTimeline")
+        if lock_until is None or lock_until <= now:
+            rate_limited = False
+            break
+    if rate_limited:
+        earliest = min(
+            (getattr(acc, "locks", {}).get("SearchTimeline") for acc in active_accounts),
+            default=None,
+        )
+        logger.warning(f"[TwitterExplorer] Rate limit activo hasta {earliest} — saltando")
+        return {"feeds": len(feeds), "saved": 0, "skipped": "rate_limit", "available_at": str(earliest)}
+
     total_saved = 0
 
     for feed in feeds:
@@ -229,13 +254,6 @@ async def scrape_feeds(db) -> dict:
             query = f'"{term}" (lang:es OR lang:en) -is:retweet since:{since}'
 
         try:
-            tw_api = api._build_api()
-            accounts = await tw_api.pool.get_all()
-            active = [a for a in accounts if getattr(a, "active", True)]
-            if not active:
-                logger.warning("[TwitterExplorer] Sin cuentas activas")
-                break
-
             saved = await asyncio.wait_for(
                 _scrape_feed_query(tw_api, query, platform.id, feed.entity_id, db),
                 timeout=TWSCRAPE_TIMEOUT,
