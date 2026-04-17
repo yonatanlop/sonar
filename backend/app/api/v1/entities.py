@@ -29,6 +29,14 @@ class EntityCreate(BaseModel):
     description: Optional[str] = None
     photo_url: Optional[str] = None
 
+    def model_dump(self, **kwargs):
+        d = super().model_dump(**kwargs)
+        # Convertir strings vacíos a None para evitar FK violations
+        for field in ("country_code", "description", "photo_url"):
+            if d.get(field) == "":
+                d[field] = None
+        return d
+
 
 class EntityPatch(BaseModel):
     name: Optional[str] = None
