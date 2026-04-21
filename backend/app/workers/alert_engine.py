@@ -26,7 +26,7 @@ from app.core.config import settings
 from app.database import SessionLocal
 from app.models.alert import Alert, AlertRule
 from app.models.bot import AccountProfile, BotAnalysis
-from app.models.entity import Entity, Keyword
+from app.models.entity import Entity, EntityType, Keyword
 from app.models.mention import Mention
 from app.models.user import User
 
@@ -444,6 +444,16 @@ def run_alert_engine() -> dict:
             .filter(AlertRule.active == True)
             .all()
         )
+
+        # Excluir reglas cuya entidad es un feed del Twitter Explorer
+        feed_entity_ids = {
+            row[0] for row in
+            db.query(Entity.id)
+            .join(EntityType, Entity.entity_type_id == EntityType.id)
+            .filter(EntityType.name == "Monitor Twitter")
+            .all()
+        }
+        rules = [r for r in rules if r.entity_id not in feed_entity_ids]
 
         logger.info(f"Motor de alertas: evaluando {len(rules)} reglas activas.")
 

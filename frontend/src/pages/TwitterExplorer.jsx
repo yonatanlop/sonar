@@ -10,31 +10,6 @@ import {
 } from 'lucide-react'
 import api from '../api/client'
 
-// ── Badges ────────────────────────────────────────────────────────────────────
-
-const SENTIMENT_BADGE = {
-  positive:      'bg-green-100 text-green-700',
-  neutral:       'bg-gray-100 text-gray-600',
-  negative:      'bg-red-100 text-red-700',
-  very_negative: 'bg-red-200 text-red-800',
-}
-
-const SENTIMENT_LABEL = {
-  positive:      'Positivo',
-  neutral:       'Neutral',
-  negative:      'Negativo',
-  very_negative: 'Muy negativo',
-}
-
-function SentimentBadge({ label }) {
-  if (!label) return null
-  return (
-    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${SENTIMENT_BADGE[label] || 'bg-gray-100 text-gray-500'}`}>
-      {SENTIMENT_LABEL[label] || label}
-    </span>
-  )
-}
-
 // ── Tweet Card ────────────────────────────────────────────────────────────────
 
 function TweetCard({ mention }) {
@@ -44,10 +19,6 @@ function TweetCard({ mention }) {
         hour: '2-digit', minute: '2-digit',
       })
     : '—'
-
-  const urgencyColor =
-    mention.urgency_score >= 0.7 ? 'text-red-600 font-semibold' :
-    mention.urgency_score >= 0.4 ? 'text-yellow-600' : 'text-gray-400'
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-shadow">
@@ -61,20 +32,17 @@ function TweetCard({ mention }) {
             {mention.author_username ? `@${mention.author_username}` : 'Desconocido'}
           </span>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <SentimentBadge label={mention.sentiment_label} />
-          {mention.url && (
-            <a
-              href={mention.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-gray-400 hover:text-sky-500 transition-colors"
-              title="Ver tweet original"
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-            </a>
-          )}
-        </div>
+        {mention.url && (
+          <a
+            href={mention.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-gray-400 hover:text-sky-500 transition-colors shrink-0"
+            title="Ver tweet original"
+          >
+            <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+        )}
       </div>
 
       {/* Contenido */}
@@ -88,11 +56,6 @@ function TweetCard({ mention }) {
         <div className="flex items-center gap-3">
           {mention.reach > 0 && (
             <span>❤️ {mention.reach.toLocaleString()}</span>
-          )}
-          {mention.urgency_score > 0 && (
-            <span className={urgencyColor}>
-              ⚡ {(mention.urgency_score * 100).toFixed(0)}%
-            </span>
           )}
           {mention.language && (
             <span className="uppercase font-mono">{mention.language}</span>
@@ -245,7 +208,6 @@ export default function TwitterExplorer() {
   const [showModal, setShowModal]     = useState(false)
 
   // Filtros
-  const [sentiment, setSentiment]     = useState('')
   const [dateFrom, setDateFrom]       = useState('')
   const [dateTo, setDateTo]           = useState('')
 
@@ -273,9 +235,8 @@ export default function TwitterExplorer() {
     setLoadingMentions(true)
     try {
       const params = { page: pg }
-      if (sentiment) params.sentiment = sentiment
-      if (dateFrom)  params.date_from  = dateFrom
-      if (dateTo)    params.date_to    = dateTo
+      if (dateFrom) params.date_from = dateFrom
+      if (dateTo)   params.date_to   = dateTo
       const { data } = await api.get(`/twitter-feeds/${feedId}/mentions`, { params })
       setMentions(data.mentions)
       setTotal(data.total)
@@ -284,11 +245,11 @@ export default function TwitterExplorer() {
     } finally {
       setLoadingMentions(false)
     }
-  }, [sentiment, dateFrom, dateTo])
+  }, [dateFrom, dateTo])
 
   useEffect(() => {
     if (selectedFeed) loadMentions(selectedFeed.id, 1)
-  }, [selectedFeed, sentiment, dateFrom, dateTo, loadMentions])
+  }, [selectedFeed, dateFrom, dateTo, loadMentions])
 
   // ── Handlers ──────────────────────────────────────────────────
   function handleSelectFeed(feed) {
@@ -313,7 +274,6 @@ export default function TwitterExplorer() {
   }
 
   function resetFilters() {
-    setSentiment('')
     setDateFrom('')
     setDateTo('')
   }
@@ -435,17 +395,6 @@ export default function TwitterExplorer() {
                 </div>
                 <div className="ml-auto flex flex-wrap items-center gap-2">
                   <Filter className="w-3.5 h-3.5 text-gray-400" />
-                  <select
-                    value={sentiment}
-                    onChange={(e) => setSentiment(e.target.value)}
-                    className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-sky-300"
-                  >
-                    <option value="">Todos los sentimientos</option>
-                    <option value="positive">Positivo</option>
-                    <option value="neutral">Neutral</option>
-                    <option value="negative">Negativo</option>
-                    <option value="very_negative">Muy negativo</option>
-                  </select>
                   <input
                     type="date"
                     value={dateFrom}
@@ -460,7 +409,7 @@ export default function TwitterExplorer() {
                     className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-sky-300"
                     placeholder="Hasta"
                   />
-                  {(sentiment || dateFrom || dateTo) && (
+                  {(dateFrom || dateTo) && (
                     <button
                       onClick={resetFilters}
                       className="text-xs text-sky-500 hover:underline"

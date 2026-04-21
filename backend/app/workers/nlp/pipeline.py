@@ -25,6 +25,7 @@ from app.workers.nlp.sentiment import analyze_sentiment
 from app.workers.nlp.hate_speech import analyze_hate_speech
 from app.workers.nlp.urgency import compute_urgency_score
 from app.models.mention import Mention
+from app.models.entity import Entity, EntityType
 
 _COSINE_THRESHOLD = 0.92   # similitud mínima para considerarlo duplicado
 
@@ -128,6 +129,19 @@ def process_mention(mention: Mention) -> bool:
         return False
 
 
+def _feed_entity_ids(db: Session, entity_ids: set) -> set:
+    """Retorna el subconjunto de entity_ids que pertenecen al tipo 'Monitor Twitter'."""
+    if not entity_ids:
+        return set()
+    rows = (
+        db.query(Entity.id)
+        .join(EntityType, Entity.entity_type_id == EntityType.id)
+        .filter(EntityType.name == "Monitor Twitter", Entity.id.in_(entity_ids))
+        .all()
+    )
+    return {r[0] for r in rows}
+
+
 def process_batch(db: Session, mention_ids: list[str]) -> dict:
     """
     Procesa un lote de menciones por sus IDs.
@@ -135,15 +149,28 @@ def process_batch(db: Session, mention_ids: list[str]) -> dict:
     """
     stats = {"processed": 0, "failed": 0, "not_found": 0}
 
-    for mention_id in mention_ids:
-        try:
-            mention = db.query(Mention).filter(
-                Mention.id == mention_id,
-                Mention.processed == False,
-            ).first()
+    # Cargar menciones del lote
+    mentions = (
+        db.query(Mention)
+        .filter(Mention.id.in_(mention_ids), Mention.processed == False)
+        .all()
+    )
+    found_ids = {str(m.id) for m in mentions}
+    stats["not_found"] += len(mention_ids) - len(found_ids)
 
-            if not mention:
-                stats["not_found"] += 1
+    # Identificar cuáles son de feeds (no requieren sentimiento)
+    entity_ids = {m.entity_id for m in mentions}
+    feed_ids   = _feed_entity_ids(db, entity_ids)
+
+    for mention in mentions:
+        try:
+            if mention.entity_id in feed_ids:
+                # Feed del Explorer: solo detectar idioma, no analizar sentimiento
+                text = mention.content_clean or mention.content
+                if text and not mention.language:
+                    mention.language = detect_language(text)
+                mention.processed = True
+                stats["processed"] += 1
                 continue
 
             success = process_mention(mention)
@@ -153,7 +180,7 @@ def process_batch(db: Session, mention_ids: list[str]) -> dict:
                 stats["failed"] += 1
 
         except Exception as e:
-            logger.error(f"Error inesperado en mención {mention_id}: {e}")
+            logger.error(f"Error inesperado en mención {mention.id}: {e}")
             stats["failed"] += 1
 
     try:
@@ -224,8 +251,17 @@ def _process_orphan_mentions(db: Session, stats: dict, limit: int = 100):
         return
 
     logger.info(f"[NLP] Procesando {len(orphans)} menciones huérfanas")
+    entity_ids = {m.entity_id for m in orphans}
+    feed_ids   = _feed_entity_ids(db, entity_ids)
+
     for mention in orphans:
-        process_mention(mention)
+        if mention.entity_id in feed_ids:
+            text = mention.content_clean or mention.content
+            if text and not mention.language:
+                mention.language = detect_language(text)
+            mention.processed = True
+        else:
+            process_mention(mention)
 
     try:
         db.commit()
