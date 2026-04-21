@@ -54,9 +54,24 @@ class InstagramScraper(BaseScraper):
             )
 
     def _load_accounts(self) -> list[dict]:
+        # Primero intentar leer desde la base de datos
+        try:
+            from app.database import SessionLocal
+            from app.models.mention import InstagramAccount
+            db = SessionLocal()
+            try:
+                rows = db.query(InstagramAccount).filter(InstagramAccount.active == True).all()
+                if rows:
+                    return [{"username": a.username, "password": a.password} for a in rows]
+            finally:
+                db.close()
+        except Exception as exc:
+            logger.warning(f"[Instagram] No se pudo leer cuentas desde DB, usando .env: {exc}")
+
+        # Fallback a variables de entorno
         from app.core.config import settings
         accounts = []
-        for i in range(1, 4):   # soporta hasta 3 cuentas
+        for i in range(1, 4):
             user = getattr(settings, f"IG_ACCOUNT_{i}_USERNAME", "")
             pwd  = getattr(settings, f"IG_ACCOUNT_{i}_PASSWORD", "")
             if user and pwd:

@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user, require_admin
 from app.core.config import settings
 from app.database import get_db
-from app.models.mention import Mention, SocialPlatform
+from app.models.mention import InstagramAccount, Mention, SocialPlatform
 
 router = APIRouter(prefix="/platforms", tags=["Plataformas"])
 
@@ -102,6 +102,40 @@ def _health_status(configured: bool, mentions_24h: int, last_mention_at: str | N
     return "warning"
 
 
+def _instagram_status(db: Session) -> dict:
+    """Verifica cuentas activas en la tabla instagram_accounts."""
+    accounts = db.query(InstagramAccount).all()
+    active   = [a for a in accounts if a.active]
+    configured = len(accounts) > 0
+    if not configured:
+        needs_action = "Agrega al menos una cuenta de Instagram con usuario y contraseña."
+    elif not active:
+        needs_action = f"Hay {len(accounts)} cuenta(s) pero ninguna está activa."
+    else:
+        needs_action = None
+    return {
+        "configured":      configured,
+        "accounts_total":  len(accounts),
+        "accounts_active": len(active),
+        "needs_action":    needs_action,
+    }
+
+
+def _facebook_status() -> dict:
+    """Verifica si el archivo de cookies de Facebook existe."""
+    path = settings.FB_COOKIES_FILE
+    configured = os.path.exists(path)
+    updated_at = None
+    if configured:
+        mtime = os.path.getmtime(path)
+        updated_at = datetime.fromtimestamp(mtime, tz=timezone.utc).isoformat()
+    return {
+        "configured":  configured,
+        "updated_at":  updated_at,
+        "needs_action": None if configured else "Pega el JSON de cookies de Facebook en la sección de configuración.",
+    }
+
+
 # ── Endpoints ──────────────────────────────────────────────────────────────
 
 @router.get("")
@@ -163,19 +197,37 @@ def platforms_status(db: Session = Depends(get_db), _=Depends(get_current_user))
         **yt_stats,
     })
 
-    # ── Reddit ────────────────────────────────────────────────────────────
-    rd_configured = bool(settings.REDDIT_CLIENT_ID and settings.REDDIT_CLIENT_SECRET)
-    rd_stats      = _platform_stats(db, "reddit")
+    # ── Instagram ────────────────────────────────────────────────────────
+    ig     = _instagram_status(db)
+    ig_stats = _platform_stats(db, "instagram")
     result.append({
-        "code":         "reddit",
-        "name":         "Reddit",
-        "icon":         "🤖",
-        "frequency":    "cada 15 min",
-        "configured":   rd_configured,
-        "status":       _health_status(rd_configured, rd_stats["mentions_24h"], rd_stats["last_mention_at"]),
-        "needs_action": None if rd_configured else "Configura REDDIT_CLIENT_ID y REDDIT_CLIENT_SECRET en .env (reddit.com/prefs/apps)",
-        "setup_hint":   "Crea una app tipo 'script' en reddit.com/prefs/apps — completamente gratuito",
-        **rd_stats,
+        "code":            "instagram",
+        "name":            "Instagram",
+        "icon":            "📸",
+        "frequency":       "cada 30 min",
+        "configured":      ig["configured"],
+        "status":          _health_status(ig["configured"], ig_stats["mentions_24h"], ig_stats["last_mention_at"]),
+        "accounts_total":  ig["accounts_total"],
+        "accounts_active": ig["accounts_active"],
+        "needs_action":    ig["needs_action"],
+        "setup_hint":      "Agrega cuentas de Instagram para buscar posts por hashtag.",
+        **ig_stats,
+    })
+
+    # ── Facebook ─────────────────────────────────────────────────────────
+    fb       = _facebook_status()
+    fb_stats = _platform_stats(db, "facebook")
+    result.append({
+        "code":         "facebook",
+        "name":         "Facebook",
+        "icon":         "📘",
+        "frequency":    "cada hora",
+        "configured":   fb["configured"],
+        "status":       _health_status(fb["configured"], fb_stats["mentions_24h"], fb_stats["last_mention_at"]),
+        "cookies_updated_at": fb["updated_at"],
+        "needs_action": fb["needs_action"],
+        "setup_hint":   "Exporta las cookies de facebook.com con Cookie-Editor → Export → JSON y pégalas aquí.",
+        **fb_stats,
     })
 
     # ── RSS / Noticias ────────────────────────────────────────────────────
@@ -381,3 +433,93 @@ def delete_twitter_account(username: str, _=Depends(require_admin)):
     if affected == 0:
         raise HTTPException(status_code=404, detail=f"Cuenta @{username} no encontrada.")
     return {"ok": True, "accounts": _sqlite_accounts()}
+
+
+# ── Gestión de cuentas Instagram ───────────────────────────────────────────
+
+class InstagramAccountIn(BaseModel):
+    username: str
+    password: str
+
+
+def _ig_accounts_list(db: Session) -> list[dict]:
+    accounts = db.query(InstagramAccount).order_by(InstagramAccount.created_at).all()
+    return [{"username": a.username, "active": a.active, "created_at": a.created_at.isoformat()} for a in accounts]
+
+
+@router.get("/instagram/accounts")
+def list_instagram_accounts(db: Session = Depends(get_db), _=Depends(require_admin)):
+    return _ig_accounts_list(db)
+
+
+@router.post("/instagram/accounts", status_code=201)
+def add_instagram_account(body: InstagramAccountIn, db: Session = Depends(get_db), _=Depends(require_admin)):
+    username = body.username.lstrip("@").strip()
+    existing = db.query(InstagramAccount).filter(InstagramAccount.username == username).first()
+    if existing:
+        raise HTTPException(status_code=409, detail=f"La cuenta @{username} ya existe.")
+    account = InstagramAccount(username=username, password=body.password, active=True)
+    db.add(account)
+    db.commit()
+    return {"ok": True, "accounts": _ig_accounts_list(db)}
+
+
+@router.post("/instagram/accounts/{username}/toggle")
+def toggle_instagram_account(username: str, db: Session = Depends(get_db), _=Depends(require_admin)):
+    account = db.query(InstagramAccount).filter(InstagramAccount.username == username).first()
+    if not account:
+        raise HTTPException(status_code=404, detail=f"Cuenta @{username} no encontrada.")
+    account.active = not account.active
+    db.commit()
+    return {"ok": True, "accounts": _ig_accounts_list(db)}
+
+
+@router.delete("/instagram/accounts/{username}")
+def delete_instagram_account(username: str, db: Session = Depends(get_db), _=Depends(require_admin)):
+    account = db.query(InstagramAccount).filter(InstagramAccount.username == username).first()
+    if not account:
+        raise HTTPException(status_code=404, detail=f"Cuenta @{username} no encontrada.")
+    db.delete(account)
+    db.commit()
+    return {"ok": True, "accounts": _ig_accounts_list(db)}
+
+
+# ── Gestión de cookies Facebook ────────────────────────────────────────────
+
+class FacebookCookiesIn(BaseModel):
+    cookies_json: str
+
+
+@router.get("/facebook/cookies")
+def get_facebook_cookies(_=Depends(require_admin)):
+    fb = _facebook_status()
+    return {"configured": fb["configured"], "updated_at": fb["updated_at"]}
+
+
+@router.post("/facebook/cookies")
+def save_facebook_cookies(body: FacebookCookiesIn, _=Depends(require_admin)):
+    try:
+        parsed = json.loads(body.cookies_json)
+        if not isinstance(parsed, (list, dict)):
+            raise ValueError("El JSON debe ser un array u objeto de cookies.")
+    except (json.JSONDecodeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=f"JSON de cookies inválido: {exc}")
+
+    path = settings.FB_COOKIES_FILE
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(parsed, f, ensure_ascii=False, indent=2)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"No se pudo guardar el archivo: {exc}")
+
+    return {"ok": True, **_facebook_status()}
+
+
+@router.delete("/facebook/cookies")
+def delete_facebook_cookies(_=Depends(require_admin)):
+    path = settings.FB_COOKIES_FILE
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="No hay cookies configuradas.")
+    os.remove(path)
+    return {"ok": True, "configured": False}

@@ -16,6 +16,14 @@ const updateTwAccount = ({ username, ...body }) => client.put(`/platforms/twitte
 const activateTwAcc   = (username) => client.post(`/platforms/twitter/accounts/${username}/activate`).then(r => r.data)
 const deleteTwAcc     = (username) => client.delete(`/platforms/twitter/accounts/${username}`).then(r => r.data)
 
+const fetchIgAccounts = () => client.get('/platforms/instagram/accounts').then(r => r.data)
+const addIgAccount    = (body) => client.post('/platforms/instagram/accounts', body).then(r => r.data)
+const toggleIgAcc     = (username) => client.post(`/platforms/instagram/accounts/${username}/toggle`).then(r => r.data)
+const deleteIgAcc     = (username) => client.delete(`/platforms/instagram/accounts/${username}`).then(r => r.data)
+
+const saveFbCookies   = (body) => client.post('/platforms/facebook/cookies', body).then(r => r.data)
+const deleteFbCookies = () => client.delete('/platforms/facebook/cookies').then(r => r.data)
+
 // ── Subcomponentes ─────────────────────────────────────────────────────────
 
 function StatusBadge({ status }) {
@@ -297,6 +305,161 @@ function TwitterAccountsPanel() {
   )
 }
 
+// ── Panel de gestión de cuentas Instagram ─────────────────────────────────
+
+function InstagramAccountsPanel() {
+  const qc = useQueryClient()
+  const [open, setOpen]     = useState(false)
+  const [showAdd, setShowAdd] = useState(false)
+  const [form, setForm]     = useState({ username: '', password: '' })
+  const [error, setError]   = useState('')
+
+  const { data: accounts = [], isLoading } = useQuery({
+    queryKey: ['ig-accounts'],
+    queryFn:  fetchIgAccounts,
+    enabled:  open,
+  })
+
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ['ig-accounts'] })
+    qc.invalidateQueries({ queryKey: ['platforms-status'] })
+  }
+
+  const addMut    = useMutation({ mutationFn: addIgAccount,  onSuccess: () => { setShowAdd(false); setForm({ username: '', password: '' }); setError(''); invalidate() }, onError: (e) => setError(e.response?.data?.detail || 'Error al agregar') })
+  const toggleMut = useMutation({ mutationFn: toggleIgAcc,   onSuccess: invalidate })
+  const deleteMut = useMutation({ mutationFn: deleteIgAcc,   onSuccess: invalidate })
+
+  const handleAdd = (e) => {
+    e.preventDefault()
+    if (!form.username || !form.password) { setError('Usuario y contraseña son obligatorios.'); return }
+    addMut.mutate(form)
+  }
+
+  return (
+    <div className="border-t border-gray-100 mt-3 pt-3">
+      <button onClick={() => setOpen(v => !v)}
+        className="flex items-center gap-2 text-xs text-gray-500 hover:text-gray-700 transition-colors w-full">
+        <Users className="w-3.5 h-3.5" />
+        <span className="flex-1 text-left">Gestionar cuentas</span>
+        {open ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+      </button>
+
+      {open && (
+        <div className="mt-3 space-y-3">
+          {isLoading && <p className="text-xs text-gray-400">Cargando...</p>}
+          {!isLoading && accounts.length === 0 && (
+            <p className="text-xs text-gray-400 text-center py-2">No hay cuentas configuradas.</p>
+          )}
+
+          {accounts.map(acc => (
+            <div key={acc.username} className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2 text-xs">
+              <span className={`w-2 h-2 rounded-full shrink-0 ${acc.active ? 'bg-green-500' : 'bg-red-400'}`} />
+              <p className="flex-1 font-medium text-gray-700 truncate">@{acc.username}</p>
+              <button onClick={() => toggleMut.mutate(acc.username)} disabled={toggleMut.isPending}
+                className={`px-2 py-0.5 rounded border text-xs transition-colors ${acc.active ? 'border-yellow-200 text-yellow-700 hover:bg-yellow-50' : 'border-green-200 text-green-700 hover:bg-green-50'}`}>
+                {acc.active ? 'Desactivar' : 'Activar'}
+              </button>
+              <button onClick={() => { if (window.confirm(`¿Eliminar @${acc.username}?`)) deleteMut.mutate(acc.username) }}
+                disabled={deleteMut.isPending}
+                className="p-1 rounded text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors">
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ))}
+
+          {!showAdd && (
+            <button onClick={() => setShowAdd(true)}
+              className="flex items-center gap-1.5 text-xs text-primary-600 hover:text-primary-800 transition-colors">
+              <Plus className="w-3.5 h-3.5" /> Agregar cuenta
+            </button>
+          )}
+
+          {showAdd && (
+            <form onSubmit={handleAdd} className="space-y-2 bg-gray-50 rounded-lg p-3 border border-gray-200">
+              <p className="text-xs font-semibold text-gray-700">Nueva cuenta Instagram</p>
+              <input className="input text-xs w-full" placeholder="Usuario (sin @)"
+                value={form.username} onChange={e => setForm(f => ({ ...f, username: e.target.value }))} />
+              <input className="input text-xs w-full" placeholder="Contraseña" type="password"
+                value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} />
+              {error && <p className="text-xs text-red-600">{error}</p>}
+              <div className="flex gap-2 pt-1">
+                <button type="submit" disabled={addMut.isPending} className="btn-primary text-xs py-1.5 flex-1">
+                  {addMut.isPending ? 'Agregando...' : 'Agregar'}
+                </button>
+                <button type="button" onClick={() => { setShowAdd(false); setError('') }} className="btn-secondary text-xs py-1.5 flex-1">Cancelar</button>
+              </div>
+            </form>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Panel de cookies Facebook ──────────────────────────────────────────────
+
+function FacebookCookiesPanel({ configured, updatedAt }) {
+  const qc = useQueryClient()
+  const [open, setOpen]       = useState(false)
+  const [cookies, setCookies] = useState('')
+  const [error, setError]     = useState('')
+
+  const invalidate = () => qc.invalidateQueries({ queryKey: ['platforms-status'] })
+
+  const saveMut   = useMutation({
+    mutationFn: saveFbCookies,
+    onSuccess: () => { setCookies(''); setError(''); setOpen(false); invalidate() },
+    onError: (e) => setError(e.response?.data?.detail || 'Error al guardar cookies'),
+  })
+  const deleteMut = useMutation({ mutationFn: deleteFbCookies, onSuccess: invalidate })
+
+  const handleSave = (e) => {
+    e.preventDefault()
+    if (!cookies.trim()) { setError('Pega el JSON de cookies.'); return }
+    saveMut.mutate({ cookies_json: cookies })
+  }
+
+  return (
+    <div className="border-t border-gray-100 mt-3 pt-3">
+      <button onClick={() => setOpen(v => !v)}
+        className="flex items-center gap-2 text-xs text-gray-500 hover:text-gray-700 transition-colors w-full">
+        <Users className="w-3.5 h-3.5" />
+        <span className="flex-1 text-left">Gestionar cookies</span>
+        {open ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+      </button>
+
+      {open && (
+        <div className="mt-3 space-y-3">
+          {configured && (
+            <div className="flex items-center justify-between bg-green-50 rounded-lg px-3 py-2 text-xs">
+              <span className="text-green-700 font-medium">✓ Cookies configuradas</span>
+              {updatedAt && <span className="text-gray-400">{formatDistanceToNow(new Date(updatedAt), { addSuffix: true, locale: es })}</span>}
+              <button onClick={() => { if (window.confirm('¿Eliminar las cookies de Facebook?')) deleteMut.mutate() }}
+                disabled={deleteMut.isPending}
+                className="p-1 rounded text-red-400 hover:text-red-600 hover:bg-red-50">
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
+          <form onSubmit={handleSave} className="space-y-2">
+            <textarea className="input text-xs w-full font-mono resize-none" rows={4}
+              placeholder={'Pega aquí el JSON de cookies\n(Cookie-Editor → Export as JSON desde facebook.com)'}
+              value={cookies} onChange={e => setCookies(e.target.value)} />
+            {error && <p className="text-xs text-red-600">{error}</p>}
+            <div className="flex gap-2">
+              <button type="submit" disabled={saveMut.isPending} className="btn-primary text-xs py-1.5 flex-1">
+                {saveMut.isPending ? 'Guardando...' : configured ? 'Actualizar cookies' : 'Guardar cookies'}
+              </button>
+              <button type="button" onClick={() => { setOpen(false); setError('') }} className="btn-secondary text-xs py-1.5 flex-1">Cancelar</button>
+            </div>
+          </form>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Tarjeta de plataforma ──────────────────────────────────────────────────
 
 function PlatformCard({ platform, isAdmin }) {
@@ -369,6 +532,19 @@ function PlatformCard({ platform, isAdmin }) {
           </div>
         )}
 
+        {/* Instagram accounts count */}
+        {platform.code === 'instagram' && (
+          <div className="flex items-center gap-2 text-sm text-gray-600 bg-gray-50 rounded-lg px-3 py-2">
+            <Users className="w-4 h-4 shrink-0 text-gray-400" />
+            <span className="flex-1">
+              <strong>{platform.accounts_active ?? 0}</strong> cuenta{platform.accounts_active !== 1 ? 's' : ''} activa{platform.accounts_active !== 1 ? 's' : ''}
+              {platform.accounts_total > 0 && platform.accounts_total !== platform.accounts_active &&
+                <span className="text-gray-400"> / {platform.accounts_total} total</span>
+              }
+            </span>
+          </div>
+        )}
+
         {/* Needs action */}
         {platform.needs_action && (
           <div className="flex items-start gap-2 bg-red-50 border border-red-100 rounded-lg px-3 py-2.5 text-xs text-red-700">
@@ -384,8 +560,14 @@ function PlatformCard({ platform, isAdmin }) {
         </div>
 
         {/* Twitter account manager (admin only) */}
-        {platform.code === 'twitter' && isAdmin && (
-          <TwitterAccountsPanel />
+        {platform.code === 'twitter' && isAdmin && <TwitterAccountsPanel />}
+
+        {/* Instagram account manager (admin only) */}
+        {platform.code === 'instagram' && isAdmin && <InstagramAccountsPanel />}
+
+        {/* Facebook cookies manager (admin only) */}
+        {platform.code === 'facebook' && isAdmin && (
+          <FacebookCookiesPanel configured={platform.configured} updatedAt={platform.cookies_updated_at} />
         )}
       </div>
     </div>

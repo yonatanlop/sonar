@@ -29,6 +29,16 @@ class SocialPlatform(Base):
     mentions: Mapped[list["Mention"]] = relationship("Mention", back_populates="platform")
 
 
+class InstagramAccount(Base):
+    __tablename__ = "instagram_accounts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    username: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
+    password: Mapped[str] = mapped_column(String(255), nullable=False)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class Mention(Base):
     __tablename__ = "mentions"
 
