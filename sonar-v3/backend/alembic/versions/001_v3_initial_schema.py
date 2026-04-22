@@ -219,6 +219,41 @@ def upgrade() -> None:
         sa.Column('generated_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
 
+    # ── alerting ─────────────────────────────────────────────────
+    op.create_table(
+        'alert_rules',
+        sa.Column('id', sa.String(36), primary_key=True),
+        sa.Column('entity_id', sa.String(36), sa.ForeignKey('entities.id'), nullable=True),
+        sa.Column('name', sa.String(150), nullable=False),
+        sa.Column('rule_type', sa.Enum('volume_spike', 'negative_threshold', 'bot_activity',
+                                        'keyword_critical', 'campaign_detected', 'hate_speech',
+                                        'anomaly_detected', name='alert_rule_type'), nullable=False),
+        sa.Column('threshold', sa.Integer(), nullable=False),
+        sa.Column('window_minutes', sa.Integer(), nullable=False, server_default='60'),
+        sa.Column('severity', sa.Enum('low', 'medium', 'high', 'critical', name='alert_severity'),
+                  nullable=False, server_default='medium'),
+        sa.Column('active', sa.Boolean(), nullable=False, server_default='true'),
+        sa.Column('notify_users', sa.JSON(), nullable=True, server_default='[]'),
+        sa.Column('created_by', sa.String(36), sa.ForeignKey('users.id'), nullable=False),
+        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
+    )
+    op.create_table(
+        'alerts',
+        sa.Column('id', sa.String(36), primary_key=True),
+        sa.Column('rule_id', sa.String(36), sa.ForeignKey('alert_rules.id'), nullable=False),
+        sa.Column('entity_id', sa.String(36), sa.ForeignKey('entities.id'), nullable=False),
+        sa.Column('triggered_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column('message', sa.Text(), nullable=False),
+        sa.Column('severity', sa.Enum('low', 'medium', 'high', 'critical', name='alert_severity_val'),
+                  nullable=False),
+        sa.Column('acknowledged', sa.Boolean(), nullable=False, server_default='false'),
+        sa.Column('acknowledged_by', sa.String(36), sa.ForeignKey('users.id'), nullable=True),
+        sa.Column('acknowledged_at', sa.DateTime(timezone=True), nullable=True),
+        sa.Column('action_taken', sa.String(30), nullable=True),
+        sa.Column('action_notes', sa.Text(), nullable=True),
+        sa.Column('anomaly_id', sa.String(36), sa.ForeignKey('anomalies.id', ondelete='SET NULL'), nullable=True),
+    )
+
     # Seed entity types
     op.execute("""
         INSERT INTO entity_types (name) VALUES
