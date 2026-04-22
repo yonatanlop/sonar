@@ -184,6 +184,41 @@ def upgrade() -> None:
         ('Facebook', 'facebook', true)
     """)
 
+    # ── intelligence ──────────────────────────────────────────────
+    op.create_table(
+        'anomalies',
+        sa.Column('id', sa.String(36), primary_key=True),
+        sa.Column('entity_id', sa.String(36), sa.ForeignKey('entities.id'), nullable=False),
+        sa.Column('detected_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column('metric', sa.String(30), nullable=False),
+        sa.Column('z_score', sa.Float(), nullable=False),
+        sa.Column('value', sa.Float(), nullable=False),
+        sa.Column('baseline', sa.Float(), nullable=False),
+        sa.Column('std_dev', sa.Float(), nullable=False),
+        sa.Column('context_explanation', sa.Text(), nullable=True),
+    )
+    op.create_table(
+        'trend_forecasts',
+        sa.Column('id', sa.String(36), primary_key=True),
+        sa.Column('entity_id', sa.String(36), sa.ForeignKey('entities.id', ondelete='CASCADE'), nullable=False),
+        sa.Column('forecast_date', sa.Date(), nullable=False),
+        sa.Column('predicted_count', sa.Float(), nullable=False),
+        sa.Column('confidence_low', sa.Float(), nullable=False),
+        sa.Column('confidence_high', sa.Float(), nullable=False),
+        sa.Column('model_used', sa.String(50), nullable=False, server_default='holt_damped'),
+        sa.Column('generated_at', sa.DateTime(timezone=True), nullable=False),
+    )
+    op.create_table(
+        'daily_summaries',
+        sa.Column('id', sa.String(36), primary_key=True),
+        sa.Column('entity_id', sa.String(36), sa.ForeignKey('entities.id'), nullable=False),
+        sa.Column('summary_date', sa.Date(), nullable=False),
+        sa.Column('summary_text', sa.Text(), nullable=False),
+        sa.Column('model_used', sa.String(80), nullable=False),
+        sa.Column('mention_count', sa.Integer(), nullable=False, server_default='0'),
+        sa.Column('generated_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
+    )
+
     # Seed entity types
     op.execute("""
         INSERT INTO entity_types (name) VALUES
