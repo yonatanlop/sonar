@@ -1,0 +1,92 @@
+services:
+
+  db-v3:
+    image: pgvector/pgvector:pg16
+    container_name: sonar_v3_db
+    environment:
+      POSTGRES_USER: sonar
+      POSTGRES_PASSWORD: sonar
+      POSTGRES_DB: sonar_v3
+    volumes:
+      - postgres_v3_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sonar -d sonar_v3"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis-v3:
+    image: redis:7-alpine
+    container_name: sonar_v3_redis
+    ports:
+      - "6380:6379"
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sonar_v3_backend
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://sonar:sonar@db-v3:5432/sonar_v3
+      REDIS_URL: redis://redis-v3:6379/0
+    volumes:
+      - ./backend:/app
+      - v3_storage:/app/storage
+    ports:
+      - "8001:8000"
+    depends_on:
+      db-v3:
+        condition: service_healthy
+      redis-v3:
+        condition: service_started
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sonar_v3_worker
+    command: celery -A app.shared.celery_app worker --loglevel=info --concurrency=2
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://sonar:sonar@db-v3:5432/sonar_v3
+      REDIS_URL: redis://redis-v3:6379/0
+    volumes:
+      - ./backend:/app
+      - v3_storage:/app/storage
+    depends_on:
+      - backend
+      - redis-v3
+
+  beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sonar_v3_beat
+    command: celery -A app.shared.celery_app beat --loglevel=info
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://sonar:sonar@db-v3:5432/sonar_v3
+      REDIS_URL: redis://redis-v3:6379/0
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - redis-v3
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: sonar_v3_frontend
+    environment:
+      VITE_API_URL: http://localhost:8001
+    ports:
+      - "3001:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_v3_data:
+  v3_storage:
