@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, require_admin
+from app.api.deps import get_current_user, require_admin, require_analyst
 from app.core.security import hash_password
 from app.database import get_db
 from app.models.user import User
@@ -86,6 +86,20 @@ def change_password(data: PasswordChange,
                             detail="Contraseña actual incorrecta")
     current_user.password_hash = hash_password(data.new_password)
     db.commit()
+
+
+# ── Endpoint para analistas: lista simplificada de usuarios activos ──
+
+@router.get("/active", dependencies=[Depends(require_analyst)])
+def list_active_users(db: Session = Depends(get_db)):
+    """Lista usuarios activos (admin + analyst) — accesible por analistas para configurar destinatarios."""
+    users = (
+        db.query(User)
+        .filter(User.active == True, User.role.in_(["admin", "analyst"]))
+        .order_by(User.full_name)
+        .all()
+    )
+    return [{"id": str(u.id), "username": u.username, "full_name": u.full_name, "role": u.role} for u in users]
 
 
 # ── Admin endpoints ──────────────────────────────────────────

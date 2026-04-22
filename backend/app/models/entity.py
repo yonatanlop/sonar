@@ -27,6 +27,7 @@ class Entity(Base):
     description: Mapped[str | None] = mapped_column(Text)
     photo_url: Mapped[str | None] = mapped_column(String(500))
     active: Mapped[bool] = mapped_column(Boolean, default=True)
+    monitoring_type: Mapped[str | None] = mapped_column(String(20), nullable=True)
     created_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

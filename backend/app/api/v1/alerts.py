@@ -30,6 +30,12 @@ class AlertRuleCreate(BaseModel):
     threshold:      int
     window_minutes: int = 60
     severity:       str = "medium"
+    notify_users:   list[str] = []
+
+
+class AlertAcknowledgeIn(BaseModel):
+    action: str   # reported_platform | escalated_mira | escalated_church | opportunity | dismissed
+    notes:  str = ""
 
 
 # ── Helpers ───────────────────────────────────────────────────
@@ -60,8 +66,10 @@ def _alert_dict(a: Alert, db: Session) -> dict:
         "acknowledged":         a.acknowledged,
         "acknowledged_by_name": ack_user,
         "acknowledged_at":      a.acknowledged_at.isoformat() if a.acknowledged_at else None,
+        "action_taken":         a.action_taken,
+        "action_notes":         a.action_notes,
         "triggered_at":         a.triggered_at.isoformat(),
-        "context_explanation":  context_explanation,   # v2: explicación IA (solo en anomalías)
+        "context_explanation":  context_explanation,
     }
 
 
@@ -75,6 +83,7 @@ def _rule_dict(r: AlertRule) -> dict:
         "window_minutes": r.window_minutes,
         "severity":       r.severity,
         "active":         r.active,
+        "notify_users":   r.notify_users or [],
         "created_at":     r.created_at.isoformat(),
     }
 
@@ -142,9 +151,13 @@ def list_alerts(
     }
 
 
+VALID_ACTIONS = {"reported_platform", "escalated_mira", "escalated_church", "opportunity", "dismissed"}
+
+
 @router.post("/{alert_id}/acknowledge", status_code=status.HTTP_200_OK)
 def acknowledge_alert(
     alert_id: uuid.UUID,
+    body: AlertAcknowledgeIn,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -153,10 +166,14 @@ def acknowledge_alert(
         raise HTTPException(status_code=404, detail="Alerta no encontrada")
     if alert.acknowledged:
         raise HTTPException(status_code=400, detail="La alerta ya fue atendida")
+    if body.action not in VALID_ACTIONS:
+        raise HTTPException(status_code=400, detail=f"Acción inválida: {body.action}")
 
     alert.acknowledged    = True
     alert.acknowledged_by = current_user.id
     alert.acknowledged_at = datetime.now(timezone.utc)
+    alert.action_taken    = body.action
+    alert.action_notes    = body.notes or None
     db.commit()
     return _alert_dict(alert, db)
 

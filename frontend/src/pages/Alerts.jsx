@@ -1,12 +1,28 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Bell, Check, ChevronDown, ChevronUp, Sparkles } from 'lucide-react'
+import { Bell, Check, ChevronDown, ChevronUp, Sparkles, X } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import toast from 'react-hot-toast'
 import client from '../api/client'
 
 const SEVERITY_ICON = { low: 'ℹ️', medium: '⚠️', high: '🔴', critical: '🚨' }
+
+const ACTION_OPTIONS = [
+  { value: 'reported_platform',  label: '📣 Reportado a plataforma' },
+  { value: 'escalated_mira',     label: '⚖️ Escalado a jurídico MIRA' },
+  { value: 'escalated_church',   label: '⛪ Escalado a jurídico iglesia' },
+  { value: 'opportunity',        label: '💡 Oportunidad del partido' },
+  { value: 'dismissed',          label: '🗑️ Descartado' },
+]
+
+const ACTION_BADGE = {
+  reported_platform: 'bg-blue-100 text-blue-700',
+  escalated_mira:    'bg-purple-100 text-purple-700',
+  escalated_church:  'bg-indigo-100 text-indigo-700',
+  opportunity:       'bg-green-100 text-green-700',
+  dismissed:         'bg-gray-100 text-gray-500',
+}
 
 const fetchAlerts = (p) => {
   const params = Object.fromEntries(Object.entries(p).filter(([, v]) => v !== '' && v !== null && v !== undefined))
@@ -18,7 +34,9 @@ export default function Alerts() {
   const [filters, setFilters] = useState({
     severity: '', entity_id: '', acknowledged: '', page: 1,
   })
-  const [expandedCtx, setExpandedCtx] = useState(null)  // id de alerta con contexto expandido
+  const [expandedCtx, setExpandedCtx]     = useState(null)
+  const [expandedForm, setExpandedForm]   = useState(null)  // id de alerta con formulario abierto
+  const [actionForm, setActionForm]       = useState({ action: '', notes: '' })
 
   const { data, isLoading } = useQuery({
     queryKey: ['alerts', filters],
@@ -26,14 +44,23 @@ export default function Alerts() {
   })
 
   const acknowledge = useMutation({
-    mutationFn: (id) => client.post(`/alerts/${id}/acknowledge`),
+    mutationFn: ({ id, action, notes }) =>
+      client.post(`/alerts/${id}/acknowledge`, { action, notes }),
     onSuccess: () => {
-      toast.success('Alerta marcada como atendida')
+      toast.success('Alerta atendida')
       qc.invalidateQueries({ queryKey: ['alerts'] })
+      setExpandedForm(null)
+      setActionForm({ action: '', notes: '' })
     },
+    onError: (err) => toast.error(err?.response?.data?.detail ?? 'Error al atender alerta'),
   })
 
   const setFilter = (key, val) => setFilters(f => ({ ...f, [key]: val, page: 1 }))
+
+  const openForm = (alertId) => {
+    setExpandedForm(alertId)
+    setActionForm({ action: '', notes: '' })
+  }
 
   return (
     <div className="space-y-6">
@@ -91,9 +118,14 @@ export default function Alerts() {
                   </span>
                   <span className="font-semibold text-gray-800 text-sm">{alert.entity_name}</span>
                   <span className="text-gray-400 text-xs">·</span>
-                  <span className="text-gray-500 text-xs">{alert.rule_type.replace('_', ' ')}</span>
+                  <span className="text-gray-500 text-xs">{alert.rule_type?.replace(/_/g, ' ')}</span>
                   {!alert.acknowledged && (
                     <span className="badge bg-blue-100 text-blue-700">● Sin atender</span>
+                  )}
+                  {alert.acknowledged && alert.action_taken && (
+                    <span className={`badge ${ACTION_BADGE[alert.action_taken] ?? 'bg-gray-100 text-gray-500'}`}>
+                      {ACTION_OPTIONS.find(o => o.value === alert.action_taken)?.label ?? alert.action_taken}
+                    </span>
                   )}
                 </div>
                 <p className="text-sm text-gray-700 mt-1">{alert.message}</p>
@@ -103,6 +135,48 @@ export default function Alerts() {
                     <> · Atendida por <strong>{alert.acknowledged_by_name}</strong></>
                   )}
                 </p>
+                {alert.acknowledged && alert.action_notes && (
+                  <p className="text-xs text-gray-500 mt-1 italic">"{alert.action_notes}"</p>
+                )}
+
+                {/* Formulario inline para atender */}
+                {expandedForm === alert.id && (
+                  <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200 space-y-3">
+                    <div>
+                      <label className="label text-xs">Acción tomada *</label>
+                      <select className="input text-sm" value={actionForm.action}
+                        onChange={e => setActionForm(f => ({ ...f, action: e.target.value }))}>
+                        <option value="">Seleccionar acción...</option>
+                        {ACTION_OPTIONS.map(o => (
+                          <option key={o.value} value={o.value}>{o.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="label text-xs">Notas <span className="font-normal text-gray-400">(opcional)</span></label>
+                      <textarea
+                        className="input text-sm resize-none"
+                        rows={2}
+                        maxLength={200}
+                        placeholder="Descripción breve de la acción tomada..."
+                        value={actionForm.notes}
+                        onChange={e => setActionForm(f => ({ ...f, notes: e.target.value }))}
+                      />
+                      <p className="text-xs text-gray-400 text-right">{actionForm.notes.length}/200</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => acknowledge.mutate({ id: alert.id, ...actionForm })}
+                        disabled={acknowledge.isPending || !actionForm.action}
+                        className="btn-primary text-xs py-1.5">
+                        {acknowledge.isPending ? 'Guardando...' : <><Check className="w-3.5 h-3.5" /> Confirmar</>}
+                      </button>
+                      <button onClick={() => setExpandedForm(null)} className="btn-secondary text-xs py-1.5">
+                        <X className="w-3.5 h-3.5" /> Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 {/* Contexto IA — solo en alertas de anomalía */}
                 {alert.rule_type === 'anomaly_detected' && (
@@ -139,10 +213,9 @@ export default function Alerts() {
               </div>
 
               <div className="flex gap-2 shrink-0">
-                {!alert.acknowledged && (
+                {!alert.acknowledged && expandedForm !== alert.id && (
                   <button
-                    onClick={() => acknowledge.mutate(alert.id)}
-                    disabled={acknowledge.isPending}
+                    onClick={() => openForm(alert.id)}
                     className="btn-secondary text-xs py-1.5"
                   >
                     <Check className="w-3.5 h-3.5" /> Atender

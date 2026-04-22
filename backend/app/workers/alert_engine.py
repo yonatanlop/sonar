@@ -393,14 +393,25 @@ def _dispatch_notifications(
     alert_data = _build_alert_data(alert, rule, entity_name)
 
     # Usuarios que deben recibir notificaciones (admins y analistas activos)
-    users: list[User] = (
-        db.query(User)
-        .filter(
-            User.active == True,
-            User.role.in_(["admin", "analyst"]),
+    # Si la regla tiene destinatarios específicos, solo notificar a esos
+    if rule.notify_users:
+        users: list[User] = (
+            db.query(User)
+            .filter(
+                User.active == True,
+                User.id.in_(rule.notify_users),
+            )
+            .all()
         )
-        .all()
-    )
+    else:
+        users: list[User] = (
+            db.query(User)
+            .filter(
+                User.active == True,
+                User.role.in_(["admin", "analyst"]),
+            )
+            .all()
+        )
 
     for user in users:
         # Siempre push al dashboard SSE

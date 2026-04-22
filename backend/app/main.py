@@ -7,7 +7,7 @@ from app.core.config import settings
 app = FastAPI(
     title="SONAR — Monitoreo Reputacional",
     description="Sistema de Observación y Navegación en Ambientes de Redes",
-    version="2.1.0",
+    version="2.2.0",
     docs_url="/docs",
     redoc_url="/redoc",
 )

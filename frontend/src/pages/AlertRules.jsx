@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Trash2, ToggleLeft, ToggleRight, Settings2 } from 'lucide-react'
+import { Plus, Trash2, ToggleLeft, ToggleRight, Settings2, Users } from 'lucide-react'
 import toast from 'react-hot-toast'
 import client from '../api/client'
 import { useAuthStore } from '../store/authStore'
@@ -10,6 +10,8 @@ const fetchRules    = (entityId) =>
   client.get('/alerts/rules', { params: entityId ? { entity_id: entityId } : {} }).then(r => r.data)
 const fetchEntities = () =>
   client.get('/entities', { params: { active_only: false } }).then(r => r.data)
+const fetchUsers    = () =>
+  client.get('/users/active').then(r => r.data)
 
 // ── Constantes ────────────────────────────────────────────────
 const RULE_LABEL = {
@@ -44,6 +46,7 @@ const EMPTY_FORM = {
   threshold:      3,
   window_minutes: 60,
   severity:       'medium',
+  notify_users:   [],
 }
 
 export default function AlertRules() {
@@ -63,6 +66,11 @@ export default function AlertRules() {
   const { data: entities = [] } = useQuery({
     queryKey: ['entities-all'],
     queryFn: fetchEntities,
+  })
+
+  const { data: users = [] } = useQuery({
+    queryKey: ['users-list'],
+    queryFn: fetchUsers,
   })
 
   // ── Mutations ──
@@ -97,6 +105,16 @@ export default function AlertRules() {
 
   // Mapa rápido entity_id → nombre
   const entityMap = Object.fromEntries(entities.map(e => [e.id, e.name]))
+  const userMap   = Object.fromEntries(users.map(u => [u.id, u.full_name || u.username]))
+
+  const toggleNotifyUser = (userId) => {
+    setForm(f => ({
+      ...f,
+      notify_users: f.notify_users.includes(userId)
+        ? f.notify_users.filter(id => id !== userId)
+        : [...f.notify_users, userId],
+    }))
+  }
 
   return (
     <div className="space-y-6">
@@ -175,6 +193,33 @@ export default function AlertRules() {
             </div>
           </div>
 
+          {/* Destinatarios específicos */}
+          <div>
+            <label className="label flex items-center gap-1.5">
+              <Users className="w-3.5 h-3.5" />
+              Destinatarios <span className="font-normal text-gray-400">(dejar vacío para notificar a todos)</span>
+            </label>
+            <div className="flex flex-wrap gap-2 mt-1">
+              {users.map(u => (
+                <button
+                  key={u.id}
+                  type="button"
+                  onClick={() => toggleNotifyUser(u.id)}
+                  className={`px-3 py-1 rounded-full text-xs border transition-colors ${
+                    form.notify_users.includes(u.id)
+                      ? 'bg-primary-600 text-white border-primary-600'
+                      : 'bg-white text-gray-600 border-gray-300 hover:border-primary-400'
+                  }`}
+                >
+                  {u.full_name || u.username}
+                </button>
+              ))}
+            </div>
+            {form.notify_users.length === 0 && (
+              <p className="text-xs text-gray-400 mt-1">Todos los admin y analistas recibirán esta alerta</p>
+            )}
+          </div>
+
           <div className="flex gap-2">
             <button
               onClick={() => createRule.mutate()}
@@ -247,6 +292,12 @@ export default function AlertRules() {
                 </div>
 
                 <p className="text-xs text-gray-400 mt-1">{RULE_HINT[rule.rule_type]}</p>
+                {rule.notify_users?.length > 0 && (
+                  <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
+                    <Users className="w-3 h-3" />
+                    {rule.notify_users.map(id => userMap[id] ?? id.slice(0,8)).join(', ')}
+                  </p>
+                )}
               </div>
 
               {isAnalyst && (

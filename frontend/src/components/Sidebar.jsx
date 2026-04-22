@@ -8,27 +8,47 @@ import { clsx } from 'clsx'
 import { useAuthStore } from '../store/authStore'
 import { useAlertStore } from '../store/alertStore'
 
-const navItem = (to, icon, label, badge) => ({ to, icon, label, badge })
+const NAV_SECTIONS = (isAdmin, isAnalyst, unread) => [
+  {
+    label: 'MONITOREO',
+    items: [
+      { to: '/',        icon: LayoutDashboard,  label: 'Dashboard' },
+      { to: '/entities', icon: Building2,        label: 'Entidades' },
+      { to: '/mentions', icon: MessageSquare,    label: 'Menciones' },
+      { to: '/geo',      icon: MapPin,           label: 'Mapa Geográfico' },
+      { to: '/compare',  icon: GitCompareArrows, label: 'Comparar Entidades' },
+    ],
+  },
+  {
+    label: 'ALERTAS',
+    items: [
+      { to: '/alerts', icon: Bell,     label: 'Alertas', badge: unread },
+      ...(isAnalyst ? [{ to: '/settings/rules', icon: Settings2, label: 'Reglas de alerta' }] : []),
+    ],
+  },
+  {
+    label: 'HERRAMIENTAS',
+    items: [
+      { to: '/reports',          icon: FileText,  label: 'Reportes' },
+      { to: '/chat',             icon: Sparkles,  label: 'Asistente IA' },
+      { to: '/twitter-explorer', icon: Twitter,   label: 'Twitter Explorer' },
+      { to: '/platforms',        icon: Activity,  label: 'Plataformas' },
+    ],
+  },
+  ...(isAdmin ? [{
+    label: 'ADMINISTRACIÓN',
+    items: [
+      { to: '/admin/users', icon: Users, label: 'Usuarios' },
+    ],
+  }] : []),
+]
 
 export default function Sidebar({ open, onClose }) {
   const isAdmin   = useAuthStore((s) => s.isAdmin())
   const isAnalyst = useAuthStore((s) => s.isAnalyst())
   const unread    = useAlertStore((s) => s.unreadCount)
 
-  const items = [
-    navItem('/',               LayoutDashboard, 'Dashboard'),
-    navItem('/entities',       Building2,       'Entidades'),
-    navItem('/mentions',       MessageSquare,   'Menciones'),
-    navItem('/alerts',         Bell,            'Alertas', unread),
-    navItem('/reports',        FileText,        'Reportes'),
-    navItem('/chat',           Sparkles,        'Asistente IA'),
-    navItem('/platforms',         Activity,            'Plataformas'),
-    navItem('/twitter-explorer', Twitter,             'Twitter Explorer'),
-    navItem('/geo',              MapPin,              'Mapa Geográfico'),
-    navItem('/compare',          GitCompareArrows,    'Comparar Entidades'),
-    ...(isAnalyst ? [navItem('/settings/rules', Settings2, 'Reglas de alerta')] : []),
-    ...(isAdmin   ? [navItem('/admin/users',    Users,     'Usuarios')] : []),
-  ]
+  const sections = NAV_SECTIONS(isAdmin, isAnalyst, unread)
 
   return (
     <>
@@ -55,29 +75,38 @@ export default function Sidebar({ open, onClose }) {
           </div>
         </div>
 
-        {/* Navegación */}
-        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-          {items.map(({ to, icon: Icon, label, badge }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={to === '/'}
-              onClick={onClose}
-              className={({ isActive }) => clsx(
-                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
-                isActive
-                  ? 'bg-primary-600 text-white'
-                  : 'text-primary-200 hover:bg-primary-800 hover:text-white'
-              )}
-            >
-              <Icon className="w-4 h-4 shrink-0" />
-              <span className="flex-1">{label}</span>
-              {badge > 0 && (
-                <span className="bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center">
-                  {badge > 99 ? '99+' : badge}
-                </span>
-              )}
-            </NavLink>
+        {/* Navegación por secciones */}
+        <nav className="flex-1 px-3 py-4 overflow-y-auto space-y-4">
+          {sections.map(({ label, items }) => (
+            <div key={label}>
+              <p className="text-primary-500 text-[10px] font-semibold tracking-widest px-3 mb-1">
+                {label}
+              </p>
+              <div className="space-y-0.5">
+                {items.map(({ to, icon: Icon, label: itemLabel, badge }) => (
+                  <NavLink
+                    key={to}
+                    to={to}
+                    end={to === '/'}
+                    onClick={onClose}
+                    className={({ isActive }) => clsx(
+                      'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                      isActive
+                        ? 'bg-primary-600 text-white'
+                        : 'text-primary-200 hover:bg-primary-800 hover:text-white'
+                    )}
+                  >
+                    <Icon className="w-4 h-4 shrink-0" />
+                    <span className="flex-1">{itemLabel}</span>
+                    {badge > 0 && (
+                      <span className="bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center">
+                        {badge > 99 ? '99+' : badge}
+                      </span>
+                    )}
+                  </NavLink>
+                ))}
+              </div>
+            </div>
           ))}
         </nav>
 

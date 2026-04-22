@@ -1,28 +1,57 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Search, Building2, ChevronRight, ToggleLeft, ToggleRight } from 'lucide-react'
+import { Plus, Search, Building2, ChevronRight, ToggleLeft, ToggleRight, EyeOff } from 'lucide-react'
 import toast from 'react-hot-toast'
 import client from '../api/client'
 import { useAuthStore } from '../store/authStore'
 
-const fetchEntities = (q) => client.get('/entities', { params: { q } }).then(r => r.data)
-const fetchTypes    = ()  => client.get('/entities/types').then(r => r.data)
+const fetchEntities = (q, activeOnly) =>
+  client.get('/entities', { params: { q, active_only: activeOnly } }).then(r => r.data)
+const fetchTypes = () => client.get('/entities/types').then(r => r.data)
 
 const RISK_COLOR = { alto: 'text-red-600', medio: 'text-yellow-600', bajo: 'text-green-600' }
+
+const MONITORING_TYPE_OPTIONS = [
+  { value: '',            label: 'Sin clasificar' },
+  { value: 'reputation',  label: '🛡️ Vigilancia reputacional' },
+  { value: 'political',   label: '🏛️ Seguimiento político' },
+  { value: 'opportunity', label: '💡 Oportunidad del partido' },
+]
+
+const MONITORING_BADGE = {
+  reputation:  { text: '🛡️ Reputacional', cls: 'bg-orange-100 text-orange-700 border-orange-200' },
+  political:   { text: '🏛️ Político',     cls: 'bg-blue-100 text-blue-700 border-blue-200' },
+  opportunity: { text: '💡 Oportunidad',  cls: 'bg-green-100 text-green-700 border-green-200' },
+}
+
+const MONITORING_BORDER = {
+  reputation:  'border-t-2 border-t-orange-300',
+  political:   'border-t-2 border-t-blue-400',
+  opportunity: 'border-t-2 border-t-green-400',
+}
+
+const EMPTY_FORM = { name: '', entity_type_id: '', country_code: '', description: '', photo_url: '', monitoring_type: '' }
 
 export default function Entities() {
   const qc        = useQueryClient()
   const isAnalyst = useAuthStore(s => s.isAnalyst())
-  const [search, setSearch]     = useState('')
-  const [showForm, setShowForm] = useState(false)
-  const [form, setForm]         = useState({ name: '', entity_type_id: '', country_code: '', description: '', photo_url: '' })
+  const [search, setSearch]         = useState('')
+  const [showInactive, setShowInactive] = useState(false)
+  const [filterMonitoring, setFilterMonitoring] = useState('')
+  const [showForm, setShowForm]     = useState(false)
+  const [form, setForm]             = useState(EMPTY_FORM)
 
-  const { data: entities = [], isLoading } = useQuery({
-    queryKey: ['entities', search],
-    queryFn: () => fetchEntities(search),
+  const { data: allEntities = [], isLoading } = useQuery({
+    queryKey: ['entities', search, showInactive],
+    queryFn: () => fetchEntities(search, !showInactive),
   })
   const { data: types = [] } = useQuery({ queryKey: ['entity-types'], queryFn: fetchTypes })
+
+  // Filtro cliente por monitoring_type
+  const entities = filterMonitoring
+    ? allEntities.filter(e => e.monitoring_type === filterMonitoring)
+    : allEntities
 
   const create = useMutation({
     mutationFn: (body) => client.post('/entities', body),
@@ -30,13 +59,16 @@ export default function Entities() {
       toast.success('Entidad creada')
       qc.invalidateQueries({ queryKey: ['entities'] })
       setShowForm(false)
-      setForm({ name: '', entity_type_id: '', country_code: '', description: '', photo_url: '' })
+      setForm(EMPTY_FORM)
     },
   })
 
   const toggle = useMutation({
     mutationFn: ({ id, active }) => client.patch(`/entities/${id}`, { active: !active }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['entities'] }),
+    onSuccess: (_, { active }) => {
+      toast.success(active ? 'Entidad desactivada' : 'Entidad reactivada')
+      qc.invalidateQueries({ queryKey: ['entities'] })
+    },
   })
 
   return (
@@ -72,6 +104,15 @@ export default function Entities() {
               </select>
             </div>
             <div>
+              <label className="label">Tipo de monitoreo</label>
+              <select className="input" value={form.monitoring_type}
+                onChange={e => setForm(f => ({ ...f, monitoring_type: e.target.value }))}>
+                {MONITORING_TYPE_OPTIONS.map(o => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
               <label className="label">País</label>
               <input className="input" placeholder="CO, MX, US..."
                 value={form.country_code} onChange={e => setForm(f => ({ ...f, country_code: e.target.value }))} />
@@ -97,11 +138,45 @@ export default function Entities() {
         </div>
       )}
 
-      {/* Búsqueda */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-        <input className="input pl-9" placeholder="Buscar entidad..."
-          value={search} onChange={e => setSearch(e.target.value)} />
+      {/* Barra de búsqueda + filtros */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input className="input pl-9" placeholder="Buscar entidad..."
+            value={search} onChange={e => setSearch(e.target.value)} />
+        </div>
+
+        {/* Filtro por tipo de monitoreo */}
+        <div className="flex gap-1 flex-wrap">
+          {[{ value: '', label: 'Todos' }, ...MONITORING_TYPE_OPTIONS.slice(1)].map(o => (
+            <button
+              key={o.value}
+              onClick={() => setFilterMonitoring(o.value)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                filterMonitoring === o.value
+                  ? 'bg-primary-600 text-white border-primary-600'
+                  : 'bg-white text-gray-600 border-gray-300 hover:border-primary-400'
+              }`}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Toggle inactivas */}
+        {isAnalyst && (
+          <button
+            onClick={() => setShowInactive(v => !v)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+              showInactive
+                ? 'bg-gray-700 text-white border-gray-700'
+                : 'bg-white text-gray-500 border-gray-300 hover:border-gray-500'
+            }`}
+          >
+            <EyeOff className="w-3.5 h-3.5" />
+            Mostrar inactivas
+          </button>
+        )}
       </div>
 
       {/* Listado */}
@@ -109,45 +184,67 @@ export default function Entities() {
         <div className="text-center text-gray-400 py-12">Cargando entidades...</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {entities.map(entity => (
-            <div key={entity.id} className={`card hover:shadow-md transition-shadow ${!entity.active ? 'opacity-60' : ''}`}>
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center shrink-0 overflow-hidden">
-                    {entity.photo_url
-                      ? <img src={entity.photo_url} alt={entity.name} className="w-10 h-10 rounded-full object-cover" />
-                      : <Building2 className="w-5 h-5 text-primary-600" />}
+          {entities.map(entity => {
+            const monBadge  = MONITORING_BADGE[entity.monitoring_type]
+            const monBorder = MONITORING_BORDER[entity.monitoring_type] ?? ''
+            return (
+              <div
+                key={entity.id}
+                className={`card hover:shadow-md transition-shadow ${monBorder} ${
+                  !entity.active ? 'opacity-50 bg-gray-50' : ''
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center shrink-0 overflow-hidden">
+                      {entity.photo_url
+                        ? <img src={entity.photo_url} alt={entity.name} className="w-10 h-10 rounded-full object-cover" />
+                        : <Building2 className="w-5 h-5 text-primary-600" />}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-gray-900 truncate">{entity.name}</p>
+                      <p className="text-xs text-gray-500">{entity.type_name} · {entity.country_code ?? '—'}</p>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <p className="font-semibold text-gray-900 truncate">{entity.name}</p>
-                    <p className="text-xs text-gray-500">{entity.type_name} · {entity.country_code ?? '—'}</p>
-                  </div>
+                  {isAnalyst && (
+                    <button onClick={() => toggle.mutate({ id: entity.id, active: entity.active })}
+                      className="text-gray-400 hover:text-primary-600 shrink-0">
+                      {entity.active
+                        ? <ToggleRight className="w-5 h-5 text-green-500" />
+                        : <ToggleLeft className="w-5 h-5" />}
+                    </button>
+                  )}
                 </div>
-                {isAnalyst && (
-                  <button onClick={() => toggle.mutate({ id: entity.id, active: entity.active })}
-                    className="text-gray-400 hover:text-primary-600 shrink-0">
-                    {entity.active
-                      ? <ToggleRight className="w-5 h-5 text-green-500" />
-                      : <ToggleLeft className="w-5 h-5" />}
-                  </button>
-                )}
-              </div>
 
-              <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
-                <span>{entity.mention_count ?? 0} menciones hoy</span>
-                {entity.risk_level && (
-                  <span className={`font-semibold ${RISK_COLOR[entity.risk_level]}`}>
-                    ● {entity.risk_level.toUpperCase()}
-                  </span>
-                )}
-              </div>
+                <div className="mt-2 flex items-center gap-2 flex-wrap">
+                  {monBadge && (
+                    <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${monBadge.cls}`}>
+                      {monBadge.text}
+                    </span>
+                  )}
+                  {!entity.active && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-gray-200 text-gray-500 font-medium">
+                      Inactiva
+                    </span>
+                  )}
+                </div>
 
-              <Link to={`/entities/${entity.id}`}
-                className="mt-3 flex items-center gap-1 text-xs text-primary-600 hover:underline">
-                Ver detalle <ChevronRight className="w-3.5 h-3.5" />
-              </Link>
-            </div>
-          ))}
+                <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
+                  <span>{entity.mention_count ?? 0} menciones hoy</span>
+                  {entity.risk_level && (
+                    <span className={`font-semibold ${RISK_COLOR[entity.risk_level]}`}>
+                      ● {entity.risk_level.toUpperCase()}
+                    </span>
+                  )}
+                </div>
+
+                <Link to={`/entities/${entity.id}`}
+                  className="mt-3 flex items-center gap-1 text-xs text-primary-600 hover:underline">
+                  Ver detalle <ChevronRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+            )
+          })}
         </div>
       )}
     </div>

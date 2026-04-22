@@ -28,10 +28,10 @@ class EntityCreate(BaseModel):
     country_code: Optional[str] = None
     description: Optional[str] = None
     photo_url: Optional[str] = None
+    monitoring_type: Optional[str] = None
 
     def model_dump(self, **kwargs):
         d = super().model_dump(**kwargs)
-        # Convertir strings vacíos a None para evitar FK violations
         for field in ("country_code", "description", "photo_url"):
             if d.get(field) == "":
                 d[field] = None
@@ -43,6 +43,7 @@ class EntityPatch(BaseModel):
     active: Optional[bool] = None
     description: Optional[str] = None
     photo_url: Optional[str] = None
+    monitoring_type: Optional[str] = None
 
 
 class AliasCreate(BaseModel):
@@ -87,10 +88,11 @@ def _entity_dict(entity: Entity, db: Session) -> dict:
         "country_code": entity.country_code,
         "description":  entity.description,
         "photo_url":    entity.photo_url,
-        "active":       entity.active,
-        "mention_count": mention_count,
-        "risk_level":   risk_level,
-        "created_at":   entity.created_at.isoformat(),
+        "active":          entity.active,
+        "monitoring_type": entity.monitoring_type,
+        "mention_count":   mention_count,
+        "risk_level":      risk_level,
+        "created_at":      entity.created_at.isoformat(),
     }
 
 

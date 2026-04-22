@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, String, Text, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -28,6 +28,7 @@ class AlertRule(Base):
         nullable=False, default="medium"
     )
     active: Mapped[bool] = mapped_column(Boolean, default=True)
+    notify_users: Mapped[list] = mapped_column(JSONB, default=list, server_default='[]')
     created_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
@@ -50,6 +51,8 @@ class Alert(Base):
     acknowledged: Mapped[bool] = mapped_column(Boolean, default=False)
     acknowledged_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
     acknowledged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    action_taken: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    action_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     anomaly_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("anomalies.id", ondelete="SET NULL"), nullable=True
     )  # v2: vínculo directo a la anomalía que originó esta alerta
