@@ -271,6 +271,82 @@ def upgrade() -> None:
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
 
+    # ── legal ─────────────────────────────────────────────────────
+    op.create_table(
+        'legal_cases',
+        sa.Column('id', sa.String(36), primary_key=True),
+        sa.Column('mention_id', sa.String(36), sa.ForeignKey('mentions.id', ondelete='SET NULL'), nullable=True),
+        sa.Column('entity_id', sa.String(36), sa.ForeignKey('entities.id', ondelete='SET NULL'), nullable=True),
+        sa.Column('title', sa.String(300), nullable=False),
+        sa.Column('description', sa.Text(), nullable=True),
+        sa.Column('level', sa.Enum('platform', 'mira_legal', 'church_legal', name='legal_case_level'),
+                  nullable=False, server_default='platform'),
+        sa.Column('status', sa.Enum('open', 'in_review', 'escalated', 'resolved', 'closed',
+                                     name='legal_case_status'), nullable=False, server_default='open'),
+        sa.Column('assigned_to', sa.String(36), sa.ForeignKey('users.id', ondelete='SET NULL'), nullable=True),
+        sa.Column('created_by', sa.String(36), sa.ForeignKey('users.id'), nullable=False),
+        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
+    )
+    op.create_table(
+        'legal_events',
+        sa.Column('id', sa.String(36), primary_key=True),
+        sa.Column('case_id', sa.String(36), sa.ForeignKey('legal_cases.id', ondelete='CASCADE'), nullable=False),
+        sa.Column('event_type', sa.String(50), nullable=False),
+        sa.Column('description', sa.Text(), nullable=True),
+        sa.Column('from_level', sa.String(30), nullable=True),
+        sa.Column('to_level', sa.String(30), nullable=True),
+        sa.Column('created_by', sa.String(36), sa.ForeignKey('users.id'), nullable=False),
+        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
+    )
+    op.create_table(
+        'legal_documents',
+        sa.Column('id', sa.String(36), primary_key=True),
+        sa.Column('case_id', sa.String(36), sa.ForeignKey('legal_cases.id', ondelete='CASCADE'), nullable=False),
+        sa.Column('file_name', sa.String(300), nullable=False),
+        sa.Column('file_path', sa.String(500), nullable=False),
+        sa.Column('file_type', sa.String(100), nullable=False),
+        sa.Column('uploaded_by', sa.String(36), sa.ForeignKey('users.id'), nullable=False),
+        sa.Column('uploaded_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
+    )
+
+    # ── actor_map ─────────────────────────────────────────────────
+    op.create_table(
+        'actor_groups',
+        sa.Column('id', sa.String(36), primary_key=True),
+        sa.Column('name', sa.String(100), nullable=False),
+        sa.Column('group_type', sa.String(50), nullable=False),
+        sa.Column('color', sa.String(7), nullable=False, server_default='#6366f1'),
+    )
+    op.create_table(
+        'actors',
+        sa.Column('id', sa.String(36), primary_key=True),
+        sa.Column('name', sa.String(200), nullable=False),
+        sa.Column('actor_type', sa.Enum('politician', 'organization', 'media', 'influencer',
+                                         name='actor_type'), nullable=False),
+        sa.Column('party', sa.String(100), nullable=True),
+        sa.Column('position', sa.String(200), nullable=True),
+        sa.Column('country_code', sa.String(2), sa.ForeignKey('countries.code'), nullable=True),
+        sa.Column('entity_id', sa.String(36), sa.ForeignKey('entities.id', ondelete='SET NULL'), nullable=True),
+        sa.Column('active', sa.Boolean(), nullable=False, server_default='true'),
+    )
+    op.create_table(
+        'actor_relations',
+        sa.Column('id', sa.String(36), primary_key=True),
+        sa.Column('source_id', sa.String(36), sa.ForeignKey('actors.id', ondelete='CASCADE'), nullable=False),
+        sa.Column('target_id', sa.String(36), sa.ForeignKey('actors.id', ondelete='CASCADE'), nullable=False),
+        sa.Column('relation_type', sa.Enum('ally', 'opponent', 'financed_by', 'member_of',
+                                            name='relation_type'), nullable=False),
+        sa.Column('strength', sa.SmallInteger(), nullable=False, server_default='1'),
+        sa.UniqueConstraint('source_id', 'target_id', 'relation_type', name='uq_actor_relation'),
+    )
+    op.create_table(
+        'actor_group_members',
+        sa.Column('actor_id', sa.String(36), sa.ForeignKey('actors.id', ondelete='CASCADE'), primary_key=True),
+        sa.Column('group_id', sa.String(36), sa.ForeignKey('actor_groups.id', ondelete='CASCADE'), primary_key=True),
+        sa.Column('role', sa.String(50), nullable=True),
+    )
+
     # Seed entity types
     op.execute("""
         INSERT INTO entity_types (name) VALUES
@@ -282,6 +358,19 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    op.drop_table('actor_group_members')
+    op.drop_table('actor_relations')
+    op.drop_table('actors')
+    op.drop_table('actor_groups')
+    op.drop_table('legal_documents')
+    op.drop_table('legal_events')
+    op.drop_table('legal_cases')
+    op.drop_table('reports')
+    op.drop_table('alerts')
+    op.drop_table('alert_rules')
+    op.drop_table('daily_summaries')
+    op.drop_table('trend_forecasts')
+    op.drop_table('anomalies')
     op.drop_table('bot_analysis')
     op.drop_table('account_profiles')
     op.drop_table('mention_keywords')
@@ -295,5 +384,9 @@ def downgrade() -> None:
     op.drop_table('entity_types')
     op.drop_table('countries')
     op.drop_table('users')
+    op.execute("DROP TYPE IF EXISTS actor_type")
+    op.execute("DROP TYPE IF EXISTS relation_type")
+    op.execute("DROP TYPE IF EXISTS legal_case_level")
+    op.execute("DROP TYPE IF EXISTS legal_case_status")
     op.execute("DROP TYPE IF EXISTS sentiment_label")
     op.execute("DROP TYPE IF EXISTS bot_classification")

@@ -29,6 +29,8 @@ from app.modules.collection.api.mentions_router import router as mentions_router
 from app.modules.intelligence.api.intelligence_router import router as intelligence_router
 from app.modules.alerting.api.alerts_router import router as alerts_router
 from app.modules.reporting.api.reports_router import router as reports_router
+from app.modules.legal.api.legal_router import router as legal_router
+from app.modules.actor_map.api.actor_map_router import router as actor_map_router
 
 app.include_router(auth_router, prefix="/api/v3")
 app.include_router(users_router, prefix="/api/v3")
@@ -39,6 +41,8 @@ app.include_router(mentions_router, prefix="/api/v3")
 app.include_router(intelligence_router, prefix="/api/v3")
 app.include_router(alerts_router, prefix="/api/v3")
 app.include_router(reports_router, prefix="/api/v3")
+app.include_router(legal_router, prefix="/api/v3")
+app.include_router(actor_map_router, prefix="/api/v3")
 
 
 @app.get("/health", tags=["Sistema"])

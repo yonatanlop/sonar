@@ -21,12 +21,8 @@ import app.modules.collection.infrastructure.orm       # noqa
 import app.modules.intelligence.infrastructure.orm     # noqa
 import app.modules.alerting.infrastructure.orm         # noqa
 import app.modules.reporting.infrastructure.orm        # noqa
-# Uncomment as each module is implemented:
-# import app.modules.intelligence.infrastructure.orm   # noqa
-# import app.modules.alerting.infrastructure.orm       # noqa
-# import app.modules.reporting.infrastructure.orm      # noqa
-# import app.modules.legal.infrastructure.orm          # noqa
-# import app.modules.actor_map.infrastructure.orm      # noqa
+import app.modules.legal.infrastructure.orm            # noqa
+import app.modules.actor_map.infrastructure.orm        # noqa
 
 from app.shared.database import Base
 target_metadata = Base.metadata
