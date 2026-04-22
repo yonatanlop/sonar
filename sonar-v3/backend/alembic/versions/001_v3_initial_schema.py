@@ -254,6 +254,23 @@ def upgrade() -> None:
         sa.Column('anomaly_id', sa.String(36), sa.ForeignKey('anomalies.id', ondelete='SET NULL'), nullable=True),
     )
 
+    # ── reporting ─────────────────────────────────────────────────
+    op.create_table(
+        'reports',
+        sa.Column('id', sa.String(36), primary_key=True),
+        sa.Column('name', sa.String(200), nullable=False),
+        sa.Column('report_type', sa.Enum('entity', 'country', 'bots', 'alerts', 'campaign',
+                                          name='report_type'), nullable=False),
+        sa.Column('entity_id', sa.String(36), sa.ForeignKey('entities.id'), nullable=True),
+        sa.Column('country_code', sa.String(2), sa.ForeignKey('countries.code'), nullable=True),
+        sa.Column('date_from', sa.Date(), nullable=False),
+        sa.Column('date_to', sa.Date(), nullable=False),
+        sa.Column('parameters', sa.JSON(), nullable=True),
+        sa.Column('file_path', sa.String(500), nullable=True),
+        sa.Column('created_by', sa.String(36), sa.ForeignKey('users.id'), nullable=False),
+        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
+    )
+
     # Seed entity types
     op.execute("""
         INSERT INTO entity_types (name) VALUES

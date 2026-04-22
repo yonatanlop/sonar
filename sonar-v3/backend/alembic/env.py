@@ -20,6 +20,7 @@ import app.modules.monitoring.infrastructure.orm       # noqa
 import app.modules.collection.infrastructure.orm       # noqa
 import app.modules.intelligence.infrastructure.orm     # noqa
 import app.modules.alerting.infrastructure.orm         # noqa
+import app.modules.reporting.infrastructure.orm        # noqa
 # Uncomment as each module is implemented:
 # import app.modules.intelligence.infrastructure.orm   # noqa
 # import app.modules.alerting.infrastructure.orm       # noqa
