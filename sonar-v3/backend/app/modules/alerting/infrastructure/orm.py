@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import datetime, timezone
 from uuid import uuid4
 
@@ -12,8 +14,8 @@ from app.modules.alerting.domain.alert import Alert, AlertRule
 class AlertRuleORM(Base):
     __tablename__ = "alert_rules"
 
-    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid4()))
-    entity_id: Mapped[str | None] = mapped_column(UUID(as_uuid=False), ForeignKey("entities.id"), nullable=True)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    entity_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("entities.id"), nullable=True)
     name: Mapped[str] = mapped_column(String(150), nullable=False)
     rule_type: Mapped[str] = mapped_column(
         Enum("volume_spike", "negative_threshold", "bot_activity",
@@ -29,7 +31,7 @@ class AlertRuleORM(Base):
     )
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     notify_users: Mapped[list] = mapped_column(JSONB, default=list, server_default='[]')
-    created_by: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("users.id"), nullable=False)
+    created_by: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     alerts: Mapped[list["AlertORM"]] = relationship("AlertORM", back_populates="rule")
@@ -47,9 +49,9 @@ class AlertRuleORM(Base):
 class AlertORM(Base):
     __tablename__ = "alerts"
 
-    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid4()))
-    rule_id: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("alert_rules.id"), nullable=False)
-    entity_id: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("entities.id"), nullable=False)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    rule_id: Mapped[str] = mapped_column(String(36), ForeignKey("alert_rules.id"), nullable=False)
+    entity_id: Mapped[str] = mapped_column(String(36), ForeignKey("entities.id"), nullable=False)
     triggered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     message: Mapped[str] = mapped_column(Text, nullable=False)
     severity: Mapped[str] = mapped_column(
@@ -57,12 +59,12 @@ class AlertORM(Base):
         nullable=False,
     )
     acknowledged: Mapped[bool] = mapped_column(Boolean, default=False)
-    acknowledged_by: Mapped[str | None] = mapped_column(UUID(as_uuid=False), ForeignKey("users.id"), nullable=True)
+    acknowledged_by: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"), nullable=True)
     acknowledged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     action_taken: Mapped[str | None] = mapped_column(String(30), nullable=True)
     action_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     anomaly_id: Mapped[str | None] = mapped_column(
-        UUID(as_uuid=False), ForeignKey("anomalies.id", ondelete="SET NULL"), nullable=True
+        String(36), ForeignKey("anomalies.id", ondelete="SET NULL"), nullable=True
     )
 
     rule: Mapped["AlertRuleORM"] = relationship("AlertRuleORM", back_populates="alerts")

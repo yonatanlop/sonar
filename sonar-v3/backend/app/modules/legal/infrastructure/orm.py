@@ -1,8 +1,9 @@
+from __future__ import annotations
+
 from datetime import datetime, timezone
 from uuid import uuid4
 
 from sqlalchemy import DateTime, Enum, ForeignKey, String, Text
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.shared.database import Base
@@ -12,9 +13,9 @@ from app.modules.legal.domain.legal_case import LegalCase, LegalEvent, LegalDocu
 class LegalCaseORM(Base):
     __tablename__ = "legal_cases"
 
-    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid4()))
-    mention_id: Mapped[str | None] = mapped_column(UUID(as_uuid=False), ForeignKey("mentions.id"), nullable=True)
-    entity_id: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("entities.id"), nullable=False)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    mention_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("mentions.id"), nullable=True)
+    entity_id: Mapped[str] = mapped_column(String(36), ForeignKey("entities.id"), nullable=False)
     title: Mapped[str] = mapped_column(String(300), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
     level: Mapped[str] = mapped_column(
@@ -25,8 +26,8 @@ class LegalCaseORM(Base):
         Enum("open", "in_progress", "closed", "escalated", name="legal_case_status"),
         nullable=False, default="open",
     )
-    assigned_to: Mapped[str | None] = mapped_column(UUID(as_uuid=False), ForeignKey("users.id"), nullable=True)
-    created_by: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("users.id"), nullable=False)
+    assigned_to: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
@@ -48,13 +49,13 @@ class LegalCaseORM(Base):
 class LegalEventORM(Base):
     __tablename__ = "legal_events"
 
-    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid4()))
-    case_id: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("legal_cases.id"), nullable=False)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    case_id: Mapped[str] = mapped_column(String(36), ForeignKey("legal_cases.id"), nullable=False)
     event_type: Mapped[str] = mapped_column(String(50), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
     from_level: Mapped[str | None] = mapped_column(String(20), nullable=True)
     to_level: Mapped[str | None] = mapped_column(String(20), nullable=True)
-    created_by: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("users.id"), nullable=False)
+    created_by: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     case: Mapped["LegalCaseORM"] = relationship("LegalCaseORM", back_populates="events")
@@ -70,12 +71,12 @@ class LegalEventORM(Base):
 class LegalDocumentORM(Base):
     __tablename__ = "legal_documents"
 
-    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid4()))
-    case_id: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("legal_cases.id"), nullable=False)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    case_id: Mapped[str] = mapped_column(String(36), ForeignKey("legal_cases.id"), nullable=False)
     file_name: Mapped[str] = mapped_column(String(255), nullable=False)
     file_path: Mapped[str] = mapped_column(String(500), nullable=False)
     file_type: Mapped[str] = mapped_column(String(50), nullable=False)
-    uploaded_by: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("users.id"), nullable=False)
+    uploaded_by: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), nullable=False)
     uploaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     case: Mapped["LegalCaseORM"] = relationship("LegalCaseORM", back_populates="documents")

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import datetime, timezone
 from uuid import uuid4
 
@@ -12,19 +14,19 @@ from app.modules.reporting.domain.report import Report
 class ReportORM(Base):
     __tablename__ = "reports"
 
-    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid4()))
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     report_type: Mapped[str] = mapped_column(
         Enum("entity", "country", "bots", "alerts", "campaign", name="report_type"),
         nullable=False,
     )
-    entity_id: Mapped[str | None] = mapped_column(UUID(as_uuid=False), ForeignKey("entities.id"), nullable=True)
+    entity_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("entities.id"), nullable=True)
     country_code: Mapped[str | None] = mapped_column(String(2), ForeignKey("countries.code"), nullable=True)
     date_from: Mapped[str] = mapped_column(Date, nullable=False)
     date_to: Mapped[str] = mapped_column(Date, nullable=False)
     parameters: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     file_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    created_by: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("users.id"), nullable=False)
+    created_by: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     def to_domain(self) -> Report:

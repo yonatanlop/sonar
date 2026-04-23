@@ -1,8 +1,9 @@
+from __future__ import annotations
+
 from datetime import date, datetime, timezone
 from uuid import uuid4
 
 from sqlalchemy import Date, DateTime, Float, ForeignKey, Integer, String, Text
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.shared.database import Base
@@ -12,8 +13,8 @@ from app.modules.intelligence.domain.analysis import Anomaly, TrendForecast, Dai
 class AnomalyORM(Base):
     __tablename__ = "anomalies"
 
-    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid4()))
-    entity_id: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("entities.id"), nullable=False)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    entity_id: Mapped[str] = mapped_column(String(36), ForeignKey("entities.id"), nullable=False)
     detected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     metric: Mapped[str] = mapped_column(String(30), nullable=False)
     z_score: Mapped[float] = mapped_column(Float, nullable=False)
@@ -34,8 +35,8 @@ class AnomalyORM(Base):
 class TrendForecastORM(Base):
     __tablename__ = "trend_forecasts"
 
-    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid4()))
-    entity_id: Mapped[str] = mapped_column(UUID(as_uuid=False),
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    entity_id: Mapped[str] = mapped_column(String(36),
                                             ForeignKey("entities.id", ondelete="CASCADE"), nullable=False)
     forecast_date: Mapped[date] = mapped_column(Date, nullable=False)
     predicted_count: Mapped[float] = mapped_column(Float, nullable=False)
@@ -56,8 +57,8 @@ class TrendForecastORM(Base):
 class DailySummaryORM(Base):
     __tablename__ = "daily_summaries"
 
-    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid4()))
-    entity_id: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("entities.id"), nullable=False)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    entity_id: Mapped[str] = mapped_column(String(36), ForeignKey("entities.id"), nullable=False)
     summary_date: Mapped[date] = mapped_column(Date, nullable=False)
     summary_text: Mapped[str] = mapped_column(Text, nullable=False)
     model_used: Mapped[str] = mapped_column(String(80), nullable=False)

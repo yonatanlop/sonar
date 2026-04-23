@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import redis
 
 from app.shared.config import settings

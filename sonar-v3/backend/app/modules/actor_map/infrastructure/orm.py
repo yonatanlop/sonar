@@ -1,7 +1,8 @@
+from __future__ import annotations
+
 from uuid import uuid4
 
 from sqlalchemy import Boolean, Column, Enum, ForeignKey, Integer, SmallInteger, String, Table, UniqueConstraint
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.shared.database import Base
@@ -19,7 +20,7 @@ actor_group_members = Table(
 class ActorORM(Base):
     __tablename__ = "actors"
 
-    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid4()))
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     actor_type: Mapped[str] = mapped_column(
         Enum("politician", "organization", "media", "influencer", name="actor_type"),
@@ -28,7 +29,7 @@ class ActorORM(Base):
     party: Mapped[str | None] = mapped_column(String(100), nullable=True)
     position: Mapped[str | None] = mapped_column(String(200), nullable=True)
     country_code: Mapped[str | None] = mapped_column(String(2), ForeignKey("countries.code"), nullable=True)
-    entity_id: Mapped[str | None] = mapped_column(UUID(as_uuid=False), ForeignKey("entities.id"), nullable=True)
+    entity_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("entities.id"), nullable=True)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
 
     groups: Mapped[list["ActorGroupORM"]] = relationship("ActorGroupORM", secondary=actor_group_members)
@@ -47,9 +48,9 @@ class ActorRelationORM(Base):
         UniqueConstraint("source_id", "target_id", "relation_type", name="uq_actor_relation"),
     )
 
-    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid4()))
-    source_id: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("actors.id"), nullable=False)
-    target_id: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("actors.id"), nullable=False)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    source_id: Mapped[str] = mapped_column(String(36), ForeignKey("actors.id"), nullable=False)
+    target_id: Mapped[str] = mapped_column(String(36), ForeignKey("actors.id"), nullable=False)
     relation_type: Mapped[str] = mapped_column(
         Enum("ally", "opponent", "financed_by", "member_of", name="relation_type"),
         nullable=False,
@@ -66,7 +67,7 @@ class ActorRelationORM(Base):
 class ActorGroupORM(Base):
     __tablename__ = "actor_groups"
 
-    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid4()))
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     group_type: Mapped[str] = mapped_column(String(50), nullable=False)
     color: Mapped[str] = mapped_column(String(7), nullable=False, default="#6366f1")

@@ -1,8 +1,9 @@
+from __future__ import annotations
+
 from datetime import datetime, timezone
 from uuid import uuid4
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, SmallInteger, String, Text
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.shared.database import Base
@@ -36,10 +37,10 @@ class EntityTypeORM(Base):
 class EntityAliasORM(Base):
     __tablename__ = "entity_aliases"
 
-    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid4()))
-    entity_id: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("entities.id"), nullable=False)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    entity_id: Mapped[str] = mapped_column(String(36), ForeignKey("entities.id"), nullable=False)
     alias: Mapped[str] = mapped_column(String(200), nullable=False)
-    created_by: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("users.id"), nullable=False)
+    created_by: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     entity: Mapped["EntityORM"] = relationship("EntityORM", back_populates="aliases")
@@ -54,13 +55,13 @@ class EntityAliasORM(Base):
 class KeywordORM(Base):
     __tablename__ = "keywords"
 
-    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid4()))
-    entity_id: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("entities.id"), nullable=False)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    entity_id: Mapped[str] = mapped_column(String(36), ForeignKey("entities.id"), nullable=False)
     keyword: Mapped[str] = mapped_column(String(200), nullable=False)
     language: Mapped[str] = mapped_column(String(2), nullable=False, default="es")
     weight: Mapped[int] = mapped_column(SmallInteger, default=1)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_by: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("users.id"), nullable=False)
+    created_by: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     entity: Mapped["EntityORM"] = relationship("EntityORM", back_populates="keywords")
@@ -76,7 +77,7 @@ class KeywordORM(Base):
 class EntityORM(Base):
     __tablename__ = "entities"
 
-    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid4()))
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     entity_type_id: Mapped[int] = mapped_column(Integer, ForeignKey("entity_types.id"), nullable=False)
     country_code: Mapped[str | None] = mapped_column(String(2), ForeignKey("countries.code"), nullable=True)
@@ -84,7 +85,7 @@ class EntityORM(Base):
     photo_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     monitoring_type: Mapped[str | None] = mapped_column(String(20), nullable=True)
-    created_by: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("users.id"), nullable=False)
+    created_by: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     entity_type: Mapped["EntityTypeORM"] = relationship("EntityTypeORM", back_populates="entities")
@@ -140,13 +141,13 @@ class SocialPlatformORM(Base):
 class TwitterFeedORM(Base):
     __tablename__ = "twitter_feeds"
 
-    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid4()))
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     feed_type: Mapped[str] = mapped_column(String(20), nullable=False)
     term: Mapped[str] = mapped_column(String(200), nullable=False)
     display_name: Mapped[str] = mapped_column(String(200), nullable=False)
-    entity_id: Mapped[str | None] = mapped_column(UUID(as_uuid=False), ForeignKey("entities.id", ondelete="SET NULL"), nullable=True)
+    entity_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("entities.id", ondelete="SET NULL"), nullable=True)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_by: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    created_by: Mapped[str] = mapped_column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     def to_domain(self) -> TwitterFeed:

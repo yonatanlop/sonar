@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import datetime, timezone
 from uuid import uuid4
 
@@ -29,8 +31,8 @@ class MentionORM(Base):
         UniqueConstraint("platform_id", "external_id", name="uq_platform_external_id"),
     )
 
-    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid4()))
-    entity_id: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("entities.id"), nullable=False)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    entity_id: Mapped[str] = mapped_column(String(36), ForeignKey("entities.id"), nullable=False)
     platform_id: Mapped[int] = mapped_column(Integer, ForeignKey("social_platforms.id"), nullable=False)
     external_id: Mapped[str] = mapped_column(String(200), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
@@ -90,7 +92,7 @@ class AccountProfileORM(Base):
         UniqueConstraint("platform_id", "external_user_id", name="uq_platform_user"),
     )
 
-    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid4()))
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     platform_id: Mapped[int] = mapped_column(Integer, ForeignKey("social_platforms.id"), nullable=False)
     username: Mapped[str] = mapped_column(String(150), nullable=False)
     external_user_id: Mapped[str | None] = mapped_column(String(150), nullable=True)
@@ -125,8 +127,8 @@ class AccountProfileORM(Base):
 class BotAnalysisORM(Base):
     __tablename__ = "bot_analysis"
 
-    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid4()))
-    account_profile_id: Mapped[str] = mapped_column(UUID(as_uuid=False),
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    account_profile_id: Mapped[str] = mapped_column(String(36),
                                                       ForeignKey("account_profiles.id"), nullable=False)
     analyzed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     bot_score: Mapped[float] = mapped_column(Numeric(4, 3), nullable=False)
