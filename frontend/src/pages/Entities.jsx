@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Search, Building2, ChevronRight, ToggleLeft, ToggleRight, EyeOff } from 'lucide-react'
+import { Plus, Search, Building2, ChevronRight, ToggleLeft, ToggleRight, EyeOff, RefreshCw } from 'lucide-react'
 import toast from 'react-hot-toast'
 import client from '../api/client'
 import { useAuthStore } from '../store/authStore'
 
-const fetchEntities = (q, activeOnly) =>
-  client.get('/entities', { params: { q, active_only: activeOnly } }).then(r => r.data)
+const fetchEntities = (q) =>
+  client.get('/entities', { params: { q, active_only: false } }).then(r => r.data)
 const fetchTypes = () => client.get('/entities/types').then(r => r.data)
 
 const RISK_COLOR = { alto: 'text-red-600', medio: 'text-yellow-600', bajo: 'text-green-600' }
@@ -43,15 +43,17 @@ export default function Entities() {
   const [form, setForm]             = useState(EMPTY_FORM)
 
   const { data: allEntities = [], isLoading } = useQuery({
-    queryKey: ['entities', search, showInactive],
-    queryFn: () => fetchEntities(search, !showInactive),
+    queryKey: ['entities', search],
+    queryFn: () => fetchEntities(search),
   })
   const { data: types = [] } = useQuery({ queryKey: ['entity-types'], queryFn: fetchTypes })
 
-  // Filtro cliente por monitoring_type
-  const entities = filterMonitoring
-    ? allEntities.filter(e => e.monitoring_type === filterMonitoring)
-    : allEntities
+  const inactiveCount = allEntities.filter(e => !e.active).length
+
+  // Filtro cliente: activas/inactivas + tipo de monitoreo
+  const entities = allEntities
+    .filter(e => showInactive ? true : e.active)
+    .filter(e => filterMonitoring ? e.monitoring_type === filterMonitoring : true)
 
   const create = useMutation({
     mutationFn: (body) => client.post('/entities', body),
@@ -163,18 +165,18 @@ export default function Entities() {
           ))}
         </div>
 
-        {/* Toggle inactivas */}
-        {isAnalyst && (
+        {/* Toggle inactivas — visible a todos; siempre aparece si hay inactivas */}
+        {(inactiveCount > 0 || showInactive) && (
           <button
             onClick={() => setShowInactive(v => !v)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
               showInactive
                 ? 'bg-gray-700 text-white border-gray-700'
-                : 'bg-white text-gray-500 border-gray-300 hover:border-gray-500'
+                : 'bg-amber-50 text-amber-700 border-amber-400 hover:bg-amber-100'
             }`}
           >
             <EyeOff className="w-3.5 h-3.5" />
-            Mostrar inactivas
+            {showInactive ? 'Ocultar inactivas' : `Mostrar inactivas (${inactiveCount})`}
           </button>
         )}
       </div>
@@ -207,12 +209,24 @@ export default function Entities() {
                     </div>
                   </div>
                   {isAnalyst && (
-                    <button onClick={() => toggle.mutate({ id: entity.id, active: entity.active })}
-                      className="text-gray-400 hover:text-primary-600 shrink-0">
-                      {entity.active
-                        ? <ToggleRight className="w-5 h-5 text-green-500" />
-                        : <ToggleLeft className="w-5 h-5" />}
-                    </button>
+                    entity.active ? (
+                      <button
+                        onClick={() => toggle.mutate({ id: entity.id, active: entity.active })}
+                        title="Desactivar entidad"
+                        className="text-gray-400 hover:text-red-500 shrink-0 transition-colors"
+                      >
+                        <ToggleRight className="w-5 h-5 text-green-500" />
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => toggle.mutate({ id: entity.id, active: entity.active })}
+                        className="flex items-center gap-1 px-2 py-1 rounded-md bg-green-100 text-green-700 hover:bg-green-200 text-xs font-semibold shrink-0 transition-colors"
+                        title="Reactivar entidad"
+                      >
+                        <RefreshCw className="w-3 h-3" />
+                        Reactivar
+                      </button>
+                    )
                   )}
                 </div>
 
