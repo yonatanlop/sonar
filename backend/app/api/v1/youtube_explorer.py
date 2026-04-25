@@ -7,6 +7,7 @@ dentro de su contenido publicado usando palabras clave.
 import json
 import logging
 import re
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -33,7 +34,7 @@ router = APIRouter(prefix="/youtube-explorer", tags=["YouTube Explorer"])
 
 class ChannelCreate(BaseModel):
     handle: str
-    entity_id: Optional[int] = None
+    entity_id: Optional[uuid.UUID] = None
 
 
 class KeywordCreate(BaseModel):
@@ -43,7 +44,7 @@ class KeywordCreate(BaseModel):
 class SaveVideosRequest(BaseModel):
     video_ids: list[str]
     channel_id: int
-    entity_id: Optional[int] = None
+    entity_id: Optional[uuid.UUID] = None
 
 
 # ── Helpers ───────────────────────────────────────────────────────

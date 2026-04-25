@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, func
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -16,8 +17,8 @@ class YoutubeChannel(Base):
     channel_name  = Column(String(200), nullable=False)
     thumbnail_url = Column(String(500), nullable=True)
     active        = Column(Boolean, default=True, nullable=False)
-    entity_id     = Column(Integer, ForeignKey("entities.id", ondelete="SET NULL"), nullable=True)
-    created_by    = Column(Integer, ForeignKey("users.id"), nullable=False)
+    entity_id     = Column(UUID(as_uuid=True), ForeignKey("entities.id", ondelete="SET NULL"), nullable=True)
+    created_by    = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     created_at    = Column(DateTime(timezone=True), server_default=func.now())
 
     keywords = relationship(

@@ -6,6 +6,7 @@ Create Date: 2026-04-24
 """
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 
 revision = '019'
 down_revision = '018'
@@ -22,8 +23,8 @@ def upgrade():
         sa.Column('channel_name', sa.String(200), nullable=False),
         sa.Column('thumbnail_url', sa.String(500), nullable=True),
         sa.Column('active', sa.Boolean(), nullable=False, server_default=sa.text('true')),
-        sa.Column('entity_id', sa.Integer(), nullable=True),
-        sa.Column('created_by', sa.Integer(), nullable=False),
+        sa.Column('entity_id', PG_UUID(as_uuid=True), nullable=True),
+        sa.Column('created_by', PG_UUID(as_uuid=True), nullable=False),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()')),
         sa.ForeignKeyConstraint(['entity_id'], ['entities.id'], ondelete='SET NULL'),
         sa.ForeignKeyConstraint(['created_by'], ['users.id']),
