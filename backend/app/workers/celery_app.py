@@ -54,6 +54,11 @@ celery_app.conf.beat_schedule = {
         "task": "app.workers.tasks.scraping.scrape_facebook",
         "schedule": crontab(minute=0),       # cada hora en punto
     },
+    # YouTube Explorer: canales asignados con keywords
+    "scrape-youtube-channels": {
+        "task": "app.workers.tasks.scraping.scrape_youtube_channels",
+        "schedule": crontab(minute="*/30"),  # cada 30 min, offset de scrape-youtube
+    },
     # Twitter Explorer: feeds de @usuarios, #hashtags y keywords
     # Corre en minutos 20 — justo en la mitad entre scrape_twitter (0 y 40)
     # para maximizar la ventana de rate limit disponible.

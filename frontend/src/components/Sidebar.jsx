@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Building2, MessageSquare,
   Bell, FileText, Users, Settings2, Radio, UserCircle, Sparkles, Activity, Twitter,
-  MapPin, GitCompareArrows,
+  MapPin, GitCompareArrows, Youtube,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useAuthStore } from '../store/authStore'
@@ -32,6 +32,7 @@ const NAV_SECTIONS = (isAdmin, isAnalyst, unread) => [
       { to: '/reports',          icon: FileText,  label: 'Reportes' },
       { to: '/chat',             icon: Sparkles,  label: 'Asistente IA' },
       { to: '/twitter-explorer', icon: Twitter,   label: 'Twitter Explorer' },
+      { to: '/youtube-explorer', icon: Youtube,   label: 'YouTube Explorer' },
       { to: '/platforms',        icon: Activity,  label: 'Plataformas' },
     ],
   },

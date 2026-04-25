@@ -287,6 +287,42 @@ def scrape_twitter_feeds(self):
         raise self.retry(exc=exc)
 
 
+@celery_app.task(
+    name="app.workers.tasks.scraping.scrape_youtube_channels",
+    bind=True,
+    max_retries=1,
+    default_retry_delay=300,
+)
+def scrape_youtube_channels(self):
+    """
+    Scraping de los canales asignados en YouTube Explorer.
+    Para cada canal activo + sus keywords, busca videos de las últimas 48h.
+    """
+    from app.core.config import settings
+    if not settings.YOUTUBE_API_KEY:
+        logger.warning("[YTChannels] API key no configurada. Saltando tarea.")
+        return {"status": "skipped", "reason": "credentials_missing"}
+    try:
+        from app.workers.scrapers.youtube_channel import YoutubeChannelScraper
+        db = SessionLocal()
+        try:
+            scraper = YoutubeChannelScraper(db)
+            result = scraper.run()
+            logger.info(f"[YTChannels] Completado: {result}")
+            return {"status": "ok", **result}
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+    except RuntimeError as exc:
+        logger.warning(f"[YTChannels] {exc}")
+        return {"status": "skipped", "reason": str(exc)}
+    except Exception as exc:
+        logger.error(f"[YTChannels] Fallo, reintentando: {exc}", exc_info=True)
+        raise self.retry(exc=exc)
+
+
 @celery_app.task(name="app.workers.tasks.scraping.cleanup_old_mentions")
 def cleanup_old_mentions():
     """

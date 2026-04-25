@@ -13,7 +13,8 @@ import Users        from './pages/Users'
 import Profile      from './pages/Profile'
 import Chat         from './pages/Chat'
 import Platforms       from './pages/Platforms'
-import TwitterExplorer from './pages/TwitterExplorer'
+import TwitterExplorer  from './pages/TwitterExplorer'
+import YoutubeExplorer  from './pages/YoutubeExplorer'
 import GeoMap          from './pages/GeoMap'
 import Compare         from './pages/Compare'
 
@@ -36,6 +37,7 @@ export default function App() {
             <Route path="/chat"              element={<Chat />} />
             <Route path="/platforms"          element={<Platforms />} />
             <Route path="/twitter-explorer"  element={<TwitterExplorer />} />
+            <Route path="/youtube-explorer"  element={<YoutubeExplorer />} />
             <Route path="/geo"               element={<GeoMap />} />
             <Route path="/compare"           element={<Compare />} />
             <Route path="/profile"           element={<Profile />} />
