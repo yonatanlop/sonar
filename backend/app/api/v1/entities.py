@@ -44,6 +44,8 @@ class EntityPatch(BaseModel):
     description: Optional[str] = None
     photo_url: Optional[str] = None
     monitoring_type: Optional[str] = None
+    entity_type_id: Optional[int] = None
+    country_code: Optional[str] = None
 
 
 class AliasCreate(BaseModel):
@@ -192,6 +194,9 @@ def patch_entity(
     entity = db.query(Entity).filter(Entity.id == entity_id).first()
     if not entity:
         raise HTTPException(status_code=404, detail="Entidad no encontrada")
+    if data.entity_type_id is not None:
+        if not db.query(EntityType).filter(EntityType.id == data.entity_type_id).first():
+            raise HTTPException(status_code=400, detail="Tipo de entidad no existe")
     for field, value in data.model_dump(exclude_none=True).items():
         setattr(entity, field, value)
     db.commit()

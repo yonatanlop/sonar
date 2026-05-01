@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Search, Building2, ChevronRight, ToggleLeft, ToggleRight, EyeOff, RefreshCw } from 'lucide-react'
+import { Plus, Search, Building2, ChevronRight, ToggleLeft, ToggleRight, EyeOff, RefreshCw, Pencil, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import client from '../api/client'
 import { useAuthStore } from '../store/authStore'
@@ -41,6 +41,21 @@ export default function Entities() {
   const [filterMonitoring, setFilterMonitoring] = useState('')
   const [showForm, setShowForm]     = useState(false)
   const [form, setForm]             = useState(EMPTY_FORM)
+  const [editingEntity, setEditingEntity] = useState(null)
+  const [editForm, setEditForm]           = useState(EMPTY_FORM)
+
+  function openEdit(entity) {
+    setEditingEntity(entity)
+    setEditForm({
+      name:            entity.name            ?? '',
+      entity_type_id:  entity.entity_type_id  ?? '',
+      country_code:    entity.country_code    ?? '',
+      description:     entity.description     ?? '',
+      photo_url:       entity.photo_url       ?? '',
+      monitoring_type: entity.monitoring_type ?? '',
+    })
+    setShowForm(false)
+  }
 
   const { data: allEntities = [], isLoading } = useQuery({
     queryKey: ['entities', search],
@@ -70,6 +85,18 @@ export default function Entities() {
     onSuccess: (_, { active }) => {
       toast.success(active ? 'Entidad desactivada' : 'Entidad reactivada')
       qc.invalidateQueries({ queryKey: ['entities'] })
+    },
+  })
+
+  const editEntity = useMutation({
+    mutationFn: ({ id, body }) => client.patch(`/entities/${id}`, body),
+    onSuccess: () => {
+      toast.success('Entidad actualizada')
+      qc.invalidateQueries({ queryKey: ['entities'] })
+      setEditingEntity(null)
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.detail ?? 'Error al actualizar la entidad')
     },
   })
 
@@ -136,6 +163,81 @@ export default function Entities() {
               {create.isPending ? 'Guardando...' : 'Guardar'}
             </button>
             <button onClick={() => setShowForm(false)} className="btn-secondary">Cancelar</button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de edición de entidad */}
+      {editingEntity && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
+             onClick={() => setEditingEntity(null)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6"
+               onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold text-gray-900">Editar entidad</h2>
+              <button onClick={() => setEditingEntity(null)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="label">Nombre *</label>
+                <input className="input" placeholder="Nombre completo"
+                  value={editForm.name}
+                  onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} />
+              </div>
+              <div>
+                <label className="label">Tipo *</label>
+                <select className="input" value={editForm.entity_type_id}
+                  onChange={e => setEditForm(f => ({ ...f, entity_type_id: e.target.value }))}>
+                  <option value="">Seleccionar tipo</option>
+                  {types.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="label">Tipo de monitoreo</label>
+                <select className="input" value={editForm.monitoring_type}
+                  onChange={e => setEditForm(f => ({ ...f, monitoring_type: e.target.value }))}>
+                  {MONITORING_TYPE_OPTIONS.map(o => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="label">País</label>
+                <input className="input" placeholder="CO, MX, US..."
+                  value={editForm.country_code}
+                  onChange={e => setEditForm(f => ({ ...f, country_code: e.target.value }))} />
+              </div>
+              <div>
+                <label className="label">Descripción</label>
+                <input className="input" placeholder="Descripción breve"
+                  value={editForm.description}
+                  onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))} />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="label">URL de foto <span className="text-gray-400 font-normal">(opcional)</span></label>
+                <input className="input" placeholder="https://ejemplo.com/foto.jpg"
+                  value={editForm.photo_url}
+                  onChange={e => setEditForm(f => ({ ...f, photo_url: e.target.value }))} />
+              </div>
+            </div>
+            <div className="flex gap-2 mt-6">
+              <button
+                onClick={() => {
+                  const body = { ...editForm }
+                  if (!body.country_code)    body.country_code    = null
+                  if (!body.description)     body.description     = null
+                  if (!body.photo_url)       body.photo_url       = null
+                  if (!body.monitoring_type) body.monitoring_type = null
+                  editEntity.mutate({ id: editingEntity.id, body })
+                }}
+                disabled={editEntity.isPending || !editForm.name || !editForm.entity_type_id}
+                className="btn-primary flex-1">
+                {editEntity.isPending ? 'Guardando...' : 'Guardar cambios'}
+              </button>
+              <button onClick={() => setEditingEntity(null)} className="btn-secondary">Cancelar</button>
+            </div>
           </div>
         </div>
       )}
@@ -252,10 +354,20 @@ export default function Entities() {
                   )}
                 </div>
 
-                <Link to={`/entities/${entity.id}`}
-                  className="mt-3 flex items-center gap-1 text-xs text-primary-600 hover:underline">
-                  Ver detalle <ChevronRight className="w-3.5 h-3.5" />
-                </Link>
+                <div className="mt-3 flex items-center justify-between">
+                  <Link to={`/entities/${entity.id}`}
+                    className="flex items-center gap-1 text-xs text-primary-600 hover:underline">
+                    Ver detalle <ChevronRight className="w-3.5 h-3.5" />
+                  </Link>
+                  {isAnalyst && (
+                    <button
+                      onClick={() => openEdit(entity)}
+                      className="flex items-center gap-1 text-xs text-gray-400 hover:text-primary-600 transition-colors"
+                      title="Editar entidad">
+                      <Pencil className="w-3.5 h-3.5" /> Editar
+                    </button>
+                  )}
+                </div>
               </div>
             )
           })}
