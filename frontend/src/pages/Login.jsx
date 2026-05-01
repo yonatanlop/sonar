@@ -94,7 +94,7 @@ export default function Login() {
         </div>
 
         <p className="text-center text-primary-300 text-xs mt-6">
-          SONAR v2.2 · Monitoreo Reputacional Internacional
+          SONAR v2.5 · Monitoreo Reputacional Internacional
         </p>
       </div>
     </div>
