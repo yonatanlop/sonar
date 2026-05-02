@@ -10,6 +10,11 @@ fi
 echo "==> Esperando base de datos..."
 sleep 2
 
+# Restringir permisos de archivos sensibles en el volumen storage
+chmod 700 /app/storage 2>/dev/null || true
+find /app/storage -name "*.json" -exec chmod 600 {} \; 2>/dev/null || true
+find /app/storage -name "*.db"   -exec chmod 600 {} \; 2>/dev/null || true
+
 echo "==> Ejecutando migraciones Alembic..."
 alembic upgrade head
 

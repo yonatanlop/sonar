@@ -53,8 +53,11 @@ def get_token_exp(token: str) -> Optional[int]:
 
 # ── Blacklist de tokens (Redis) ────────────────────────────────
 
+_redis_pool = redis_lib.ConnectionPool.from_url(settings.REDIS_URL, decode_responses=True)
+
+
 def _redis() -> redis_lib.Redis:
-    return redis_lib.from_url(settings.REDIS_URL, decode_responses=True)
+    return redis_lib.Redis(connection_pool=_redis_pool)
 
 
 def _blacklist_key(token: str) -> str:

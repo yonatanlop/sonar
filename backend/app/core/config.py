@@ -1,3 +1,4 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -16,8 +17,15 @@ class Settings(BaseSettings):
     # Seguridad
     SECRET_KEY: str
     ALGORITHM: str = "HS256"
-    # Tiempo de sesión en minutos. Configurable en .env → SESSION_TIMEOUT_MINUTES=60
-    SESSION_TIMEOUT_MINUTES: int = 480
+    # Tiempo de sesión en minutos. Configurable en .env → SESSION_TIMEOUT_MINUTES=120
+    SESSION_TIMEOUT_MINUTES: int = 120
+
+    @field_validator("SECRET_KEY")
+    @classmethod
+    def secret_key_must_be_strong(cls, v: str) -> str:
+        if len(v) < 32:
+            raise ValueError("SECRET_KEY debe tener al menos 32 caracteres")
+        return v
 
     # Notificaciones
     TELEGRAM_BOT_TOKEN: str = ""
