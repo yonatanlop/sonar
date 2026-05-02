@@ -1,14 +1,14 @@
 import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Building2, MessageSquare,
-  Bell, FileText, Users, Settings2, Radio, UserCircle, Sparkles, Activity, Twitter,
+  Bell, Inbox, FileText, Users, Settings2, Radio, UserCircle, Sparkles, Activity, Twitter,
   MapPin, GitCompareArrows, Youtube,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useAuthStore } from '../store/authStore'
 import { useAlertStore } from '../store/alertStore'
 
-const NAV_SECTIONS = (isAdmin, isAnalyst, unread) => [
+const NAV_SECTIONS = (isAdmin, isAnalyst, unread, inbox) => [
   {
     label: 'MONITOREO',
     items: [
@@ -22,7 +22,8 @@ const NAV_SECTIONS = (isAdmin, isAnalyst, unread) => [
   {
     label: 'ALERTAS',
     items: [
-      { to: '/alerts', icon: Bell,     label: 'Alertas', badge: unread },
+      { to: '/alerts', icon: Bell,  label: 'Alertas',  badge: unread },
+      { to: '/inbox',  icon: Inbox, label: 'Bandeja',  badge: inbox  },
       ...(isAnalyst ? [{ to: '/settings/rules', icon: Settings2, label: 'Reglas de alerta' }] : []),
     ],
   },
@@ -48,8 +49,9 @@ export default function Sidebar({ open, onClose }) {
   const isAdmin   = useAuthStore((s) => s.isAdmin())
   const isAnalyst = useAuthStore((s) => s.isAnalyst())
   const unread    = useAlertStore((s) => s.unreadCount)
+  const inbox     = useAlertStore((s) => s.inboxCount)
 
-  const sections = NAV_SECTIONS(isAdmin, isAnalyst, unread)
+  const sections = NAV_SECTIONS(isAdmin, isAnalyst, unread, inbox)
 
   return (
     <>

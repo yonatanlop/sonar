@@ -17,6 +17,7 @@ import TwitterExplorer  from './pages/TwitterExplorer'
 import YoutubeExplorer  from './pages/YoutubeExplorer'
 import GeoMap          from './pages/GeoMap'
 import Compare         from './pages/Compare'
+import MentionInbox    from './pages/MentionInbox'
 
 export default function App() {
   return (
@@ -40,6 +41,7 @@ export default function App() {
             <Route path="/youtube-explorer"  element={<YoutubeExplorer />} />
             <Route path="/geo"               element={<GeoMap />} />
             <Route path="/compare"           element={<Compare />} />
+            <Route path="/inbox"             element={<MentionInbox />} />
             <Route path="/profile"           element={<Profile />} />
 
             {/* Solo analyst/admin */}

@@ -6,6 +6,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from sse_starlette.sse import EventSourceResponse
 
@@ -14,6 +15,7 @@ from app.core.security import decode_token
 from app.database import SessionLocal, get_db
 from app.models.alert import Alert, AlertRule
 from app.models.entity import Entity
+from app.models.mention import Mention
 from app.models.user import User
 
 router = APIRouter(prefix="/alerts", tags=["Alertas"])
@@ -182,7 +184,7 @@ def acknowledge_alert(
 
 VALID_RULE_TYPES = {"volume_spike", "negative_threshold", "bot_activity",
                     "keyword_critical", "campaign_detected", "hate_speech",
-                    "anomaly_detected"}
+                    "anomaly_detected", "negative_mention"}
 VALID_SEVERITIES = {"low", "medium", "high", "critical"}
 
 
@@ -241,3 +243,71 @@ def delete_rule(
         raise HTTPException(status_code=404, detail="Regla no encontrada")
     db.delete(rule)
     db.commit()
+
+
+# ── Bandeja de menciones negativas ────────────────────────────
+
+@router.get("/inbox/count")
+def get_inbox_count(
+    db: Session = Depends(get_db),
+    _=Depends(get_current_user),
+):
+    """Contador de alertas negative_mention pendientes (para badge del sidebar)."""
+    count = (
+        db.query(func.count(Alert.id))
+        .join(AlertRule, Alert.rule_id == AlertRule.id)
+        .filter(
+            AlertRule.rule_type == "negative_mention",
+            Alert.acknowledged  == False,
+        )
+        .scalar()
+    )
+    return {"count": count or 0}
+
+
+@router.get("/inbox")
+def get_inbox(
+    db: Session = Depends(get_db),
+    _=Depends(get_current_user),
+):
+    """
+    Alertas de tipo negative_mention no atendidas, con datos completos
+    de la mención asociada. Accesible a todos los roles.
+    """
+    rows = (
+        db.query(Alert)
+        .join(AlertRule, Alert.rule_id == AlertRule.id)
+        .filter(
+            AlertRule.rule_type == "negative_mention",
+            Alert.acknowledged  == False,
+        )
+        .order_by(Alert.triggered_at.desc())
+        .limit(100)
+        .all()
+    )
+
+    result = []
+    for a in rows:
+        entity = db.query(Entity).filter(Entity.id == a.entity_id).first()
+        m = db.query(Mention).filter(Mention.id == a.mention_id).first() if a.mention_id else None
+        result.append({
+            "id":           str(a.id),
+            "entity_id":    str(a.entity_id),
+            "entity_name":  entity.name if entity else "—",
+            "severity":     a.severity,
+            "message":      a.message,
+            "triggered_at": a.triggered_at.isoformat(),
+            "mention": {
+                "id":              str(m.id),
+                "content":         m.content,
+                "platform_code":   m.platform_code,
+                "author_username": m.author_username,
+                "sentiment_label": m.sentiment_label,
+                "sentiment_score": float(m.sentiment_score or 0),
+                "urgency_score":   m.urgency_score,
+                "is_hate_speech":  m.is_hate_speech,
+                "url":             m.url,
+                "collected_at":    m.collected_at.isoformat(),
+            } if m else None,
+        })
+    return result

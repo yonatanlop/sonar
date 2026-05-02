@@ -17,7 +17,7 @@ class AlertRule(Base):
     rule_type: Mapped[str] = mapped_column(
         Enum("volume_spike", "negative_threshold", "bot_activity",
              "keyword_critical", "campaign_detected", "hate_speech",
-             "anomaly_detected",
+             "anomaly_detected", "negative_mention",
              name="alert_rule_type"),
         nullable=False
     )
@@ -55,6 +55,9 @@ class Alert(Base):
     action_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     anomaly_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("anomalies.id", ondelete="SET NULL"), nullable=True
-    )  # v2: vínculo directo a la anomalía que originó esta alerta
+    )
+    mention_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("mentions.id", ondelete="SET NULL"), nullable=True
+    )
 
     rule: Mapped["AlertRule"] = relationship("AlertRule", back_populates="alerts")

@@ -8,8 +8,11 @@ Evaluadores implementados:
   - KEYWORD_CRITICAL   : menciones con keywords de peso 3
   - HATE_SPEECH        : menciones con is_hate_speech=True
   - CAMPAIGN_DETECTED  : textos similares de múltiples cuentas distintas
+  - NEGATIVE_MENTION   : una alerta por cada mención negativa/muy negativa
+                         (deduplicación por mention_id, sin cooldown temporal)
 
 Cooldown: no se dispara la misma regla dos veces en menos de COOLDOWN_MINUTES.
+Excepción: negative_mention usa deduplicación por mention_id, no por cooldown.
 """
 import json
 import logging
@@ -295,6 +298,53 @@ def _check_campaign_detected(db: Session, rule: AlertRule) -> Optional[str]:
     return None
 
 
+# ── Evaluador especial: negative_mention ──────────────────────
+
+def _check_negative_mention(db: Session, rule: AlertRule) -> list[tuple]:
+    """
+    Retorna una lista de (mention, message, severity) para cada mención
+    negativa/muy negativa sin alerta previa vinculada a esta regla.
+    rule.threshold = urgencia mínima (0 = todas las negativas).
+    Ventana de búsqueda: últimas 24 h.
+    """
+    min_urgency = rule.threshold or 0
+    since = datetime.now(timezone.utc) - timedelta(hours=24)
+
+    # IDs de menciones ya alertadas por esta regla
+    alerted_ids = db.query(Alert.mention_id).filter(
+        Alert.rule_id == rule.id,
+        Alert.mention_id.isnot(None),
+    ).subquery()
+
+    mentions = (
+        db.query(Mention)
+        .filter(
+            Mention.entity_id == rule.entity_id,
+            Mention.sentiment_label.in_(["negative", "very_negative"]),
+            Mention.processed == True,
+            Mention.collected_at >= since,
+            Mention.id.notin_(alerted_ids),
+            Mention.urgency_score >= min_urgency,
+        )
+        .order_by(Mention.collected_at.asc())
+        .limit(20)
+        .all()
+    )
+
+    results = []
+    for m in mentions:
+        sev      = "high" if m.sentiment_label == "very_negative" else "medium"
+        platform = m.platform_code or "desconocida"
+        author   = m.author_username or "anónimo"
+        snippet  = (m.content or "")[:120]
+        label    = "muy negativa" if m.sentiment_label == "very_negative" else "negativa"
+        msg = (
+            f"Mención {label} en {platform} por @{author}: \"{snippet}…\""
+        )
+        results.append((m, msg, sev))
+    return results
+
+
 # ── Mapa de evaluadores ───────────────────────────────────────
 
 EVALUATORS = {
@@ -470,14 +520,38 @@ def run_alert_engine() -> dict:
 
         for rule in rules:
             try:
+                entity = db.query(Entity).filter(Entity.id == rule.entity_id).first()
+                entity_name = entity.name if entity else str(rule.entity_id)
+
+                # ── Camino especial: negative_mention (una alerta por mención) ──
+                if rule.rule_type == "negative_mention":
+                    items = _check_negative_mention(db, rule)
+                    for mention, message, severity in items:
+                        alert = Alert(
+                            rule_id    = rule.id,
+                            entity_id  = rule.entity_id,
+                            message    = message,
+                            severity   = severity,
+                            mention_id = mention.id,
+                        )
+                        db.add(alert)
+                        db.flush()
+                        if r is not None:
+                            _dispatch_notifications(db, r, alert, rule, entity_name)
+                        fired += 1
+                        logger.info(
+                            f"Alerta mención negativa: regla={rule.name!r} "
+                            f"entidad={entity_name!r} mención={mention.id}"
+                        )
+                    if not items:
+                        skipped += 1
+                    continue
+
+                # ── Camino estándar con cooldown ──────────────────────────────
                 alert = evaluate_rule(db, rule)
                 if alert is None:
                     skipped += 1
                     continue
-
-                # Obtener nombre de entidad para mensajes
-                entity = db.query(Entity).filter(Entity.id == rule.entity_id).first()
-                entity_name = entity.name if entity else str(rule.entity_id)
 
                 if r is not None:
                     _dispatch_notifications(db, r, alert, rule, entity_name)
