@@ -1,8 +1,9 @@
+import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Building2, MessageSquare,
   Bell, Inbox, FileText, Users, Settings2, Radio, UserCircle, Sparkles, Activity, Twitter,
-  MapPin, GitCompareArrows, Youtube,
+  MapPin, GitCompareArrows, Youtube, ChevronDown,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useAuthStore } from '../store/authStore'
@@ -10,24 +11,27 @@ import { useAlertStore } from '../store/alertStore'
 
 const NAV_SECTIONS = (isAdmin, isAnalyst, unread, inbox) => [
   {
+    id:    'monitoreo',
     label: 'MONITOREO',
     items: [
-      { to: '/',        icon: LayoutDashboard,  label: 'Dashboard' },
-      { to: '/entities', icon: Building2,        label: 'Entidades' },
-      { to: '/mentions', icon: MessageSquare,    label: 'Menciones' },
-      { to: '/geo',      icon: MapPin,           label: 'Mapa Geográfico' },
-      { to: '/compare',  icon: GitCompareArrows, label: 'Comparar Entidades' },
+      { to: '/',         icon: LayoutDashboard,  label: 'Dashboard' },
+      { to: '/entities', icon: Building2,         label: 'Entidades' },
+      { to: '/mentions', icon: MessageSquare,     label: 'Menciones' },
+      { to: '/geo',      icon: MapPin,            label: 'Mapa Geográfico' },
+      { to: '/compare',  icon: GitCompareArrows,  label: 'Comparar Entidades' },
     ],
   },
   {
+    id:    'alertas',
     label: 'ALERTAS',
     items: [
-      { to: '/alerts', icon: Bell,  label: 'Alertas',  badge: unread },
-      { to: '/inbox',  icon: Inbox, label: 'Bandeja',  badge: inbox  },
+      { to: '/alerts', icon: Bell,     label: 'Alertas',  badge: unread },
+      { to: '/inbox',  icon: Inbox,    label: 'Bandeja',  badge: inbox  },
       ...(isAnalyst ? [{ to: '/settings/rules', icon: Settings2, label: 'Reglas de alerta' }] : []),
     ],
   },
   {
+    id:    'herramientas',
     label: 'HERRAMIENTAS',
     items: [
       { to: '/reports',          icon: FileText,  label: 'Reportes' },
@@ -38,6 +42,7 @@ const NAV_SECTIONS = (isAdmin, isAnalyst, unread, inbox) => [
     ],
   },
   ...(isAdmin ? [{
+    id:    'administracion',
     label: 'ADMINISTRACIÓN',
     items: [
       { to: '/admin/users', icon: Users, label: 'Usuarios' },
@@ -51,11 +56,23 @@ export default function Sidebar({ open, onClose }) {
   const unread    = useAlertStore((s) => s.unreadCount)
   const inbox     = useAlertStore((s) => s.inboxCount)
 
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      const saved = localStorage.getItem('sidebar_collapsed')
+      return saved ? JSON.parse(saved) : { herramientas: true }
+    } catch { return { herramientas: true } }
+  })
+
+  const toggleSection = (id) => {
+    const next = { ...collapsed, [id]: !collapsed[id] }
+    setCollapsed(next)
+    localStorage.setItem('sidebar_collapsed', JSON.stringify(next))
+  }
+
   const sections = NAV_SECTIONS(isAdmin, isAnalyst, unread, inbox)
 
   return (
     <>
-      {/* Overlay móvil */}
       {open && (
         <div
           className="fixed inset-0 bg-black/40 z-20 lg:hidden"
@@ -78,42 +95,60 @@ export default function Sidebar({ open, onClose }) {
           </div>
         </div>
 
-        {/* Navegación por secciones */}
-        <nav className="flex-1 px-3 py-4 overflow-y-auto space-y-4">
-          {sections.map(({ label, items }) => (
-            <div key={label}>
-              <p className="text-primary-500 text-[10px] font-semibold tracking-widest px-3 mb-1">
-                {label}
-              </p>
-              <div className="space-y-0.5">
-                {items.map(({ to, icon: Icon, label: itemLabel, badge }) => (
-                  <NavLink
-                    key={to}
-                    to={to}
-                    end={to === '/'}
-                    onClick={onClose}
-                    className={({ isActive }) => clsx(
-                      'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
-                      isActive
-                        ? 'bg-primary-600 text-white'
-                        : 'text-primary-200 hover:bg-primary-800 hover:text-white'
-                    )}
-                  >
-                    <Icon className="w-4 h-4 shrink-0" />
-                    <span className="flex-1">{itemLabel}</span>
-                    {badge > 0 && (
-                      <span className="bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center">
-                        {badge > 99 ? '99+' : badge}
-                      </span>
-                    )}
-                  </NavLink>
-                ))}
+        {/* Navegación */}
+        <nav className="flex-1 px-3 py-4 overflow-y-auto space-y-1">
+          {sections.map(({ id, label, items }) => {
+            const isCollapsed = !!collapsed[id]
+            return (
+              <div key={id}>
+                <button
+                  onClick={() => toggleSection(id)}
+                  className="w-full flex items-center justify-between px-3 py-1.5 mb-0.5 rounded hover:bg-primary-800 group"
+                >
+                  <span className="text-primary-500 group-hover:text-primary-400 text-[10px] font-semibold tracking-widest">
+                    {label}
+                  </span>
+                  <ChevronDown className={clsx(
+                    'w-3 h-3 text-primary-600 group-hover:text-primary-400 transition-transform duration-200',
+                    isCollapsed && '-rotate-90'
+                  )} />
+                </button>
+
+                <div className={clsx(
+                  'overflow-hidden transition-all duration-200',
+                  isCollapsed ? 'max-h-0' : 'max-h-96'
+                )}>
+                  <div className="space-y-0.5 pb-2">
+                    {items.map(({ to, icon: Icon, label: itemLabel, badge }) => (
+                      <NavLink
+                        key={to}
+                        to={to}
+                        end={to === '/'}
+                        onClick={onClose}
+                        className={({ isActive }) => clsx(
+                          'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                          isActive
+                            ? 'bg-primary-600 text-white'
+                            : 'text-primary-200 hover:bg-primary-800 hover:text-white'
+                        )}
+                      >
+                        <Icon className="w-4 h-4 shrink-0" />
+                        <span className="flex-1">{itemLabel}</span>
+                        {badge > 0 && (
+                          <span className="bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center">
+                            {badge > 99 ? '99+' : badge}
+                          </span>
+                        )}
+                      </NavLink>
+                    ))}
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </nav>
 
-        {/* Perfil en la parte inferior */}
+        {/* Perfil */}
         <div className="px-3 py-3 border-t border-primary-700">
           <NavLink
             to="/profile"

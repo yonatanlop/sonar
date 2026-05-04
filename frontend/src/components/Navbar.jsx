@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Menu, Bell, LogOut, User, ChevronDown } from 'lucide-react'
+import { Menu, Bell, Inbox, LogOut, User, ChevronDown } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 import { useAlertStore } from '../store/alertStore'
 
@@ -8,7 +8,7 @@ export default function Navbar({ onMenuClick }) {
   const [profileOpen, setProfileOpen] = useState(false)
   const [alertsOpen,  setAlertsOpen]  = useState(false)
   const { user, logout }   = useAuthStore()
-  const { unreadCount, recentAlerts, resetCount } = useAlertStore()
+  const { unreadCount, recentAlerts, resetCount, inboxCount } = useAlertStore()
   const navigate = useNavigate()
 
   const handleLogout = () => {
@@ -29,6 +29,22 @@ export default function Navbar({ onMenuClick }) {
       </button>
 
       <div className="flex-1" />
+
+      {/* Bandeja */}
+      <div className="relative">
+        <button
+          onClick={() => navigate('/inbox')}
+          className="relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
+          title="Bandeja de menciones"
+        >
+          <Inbox className="w-5 h-5" />
+          {inboxCount > 0 && (
+            <span className="absolute top-1 right-1 bg-red-500 text-white text-xs font-bold w-4 h-4 rounded-full flex items-center justify-center">
+              {inboxCount > 9 ? '9+' : inboxCount}
+            </span>
+          )}
+        </button>
+      </div>
 
       {/* Alertas */}
       <div className="relative">
