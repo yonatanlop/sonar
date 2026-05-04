@@ -74,7 +74,7 @@ export default function Sidebar({ open, onClose }) {
           </div>
           <div>
             <span className="font-bold text-lg tracking-tight">SONAR</span>
-            <p className="text-primary-300 text-xs leading-none">Monitoreo Reputacional</p>
+            <p className="text-primary-300 text-xs leading-none">v2.5 · Monitoreo Reputacional</p>
           </div>
         </div>
 
