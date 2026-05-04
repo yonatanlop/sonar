@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from sse_starlette.sse import EventSourceResponse
 
 from app.api.deps import get_current_user, require_analyst
-from app.core.security import decode_token
+from app.core.security import decode_token, is_token_blacklisted
 from app.database import SessionLocal, get_db
 from app.models.alert import Alert, AlertRule
 from app.models.entity import Entity
@@ -95,6 +95,8 @@ def _rule_dict(r: AlertRule) -> dict:
 @router.get("/stream")
 async def alert_stream(request: Request, token: str = Query(...)):
     """Server-Sent Events — entrega alertas en tiempo real al frontend."""
+    if is_token_blacklisted(token):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
     user_id = decode_token(token)
     if not user_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
