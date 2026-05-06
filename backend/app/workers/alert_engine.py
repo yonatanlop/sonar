@@ -176,44 +176,50 @@ def _check_bot_activity(db: Session, rule: AlertRule) -> Optional[str]:
 def _check_keyword_critical(db: Session, rule: AlertRule) -> Optional[str]:
     """
     Dispara si hay menciones de keywords con peso 3 (crítico).
+    Si keyword_secondary está definido, la mención debe contener AMBAS palabras (AND).
     rule.threshold = cantidad mínima de menciones críticas
     """
     since = _window_start(rule.window_minutes)
 
-    critical_kw_ids = [
-        str(k.id)
-        for k in db.query(Keyword).filter(
-            Keyword.entity_id == rule.entity_id,
-            Keyword.weight    == 3,
-            Keyword.active    == True,
-        ).all()
-    ]
+    critical_kws = db.query(Keyword).filter(
+        Keyword.entity_id == rule.entity_id,
+        Keyword.weight    == 3,
+        Keyword.active    == True,
+    ).all()
 
-    if not critical_kw_ids:
+    if not critical_kws:
         return None
 
-    # Menciones que tienen al menos una keyword crítica
+    kw_map = {str(k.id): k for k in critical_kws}
+
     from app.models.mention import mention_keywords
-    count = (
-        db.query(func.count(func.distinct(Mention.id)))
+    rows = (
+        db.query(Mention.id, Mention.content, mention_keywords.c.keyword_id)
         .join(mention_keywords, mention_keywords.c.mention_id == Mention.id)
         .filter(
             Mention.entity_id    == rule.entity_id,
             Mention.collected_at >= since,
-            mention_keywords.c.keyword_id.in_(critical_kw_ids),
+            mention_keywords.c.keyword_id.in_(list(kw_map.keys())),
         )
-        .scalar() or 0
+        .all()
     )
 
+    matched_ids   = set()
+    matched_names = set()
+    for mention_id, content, kw_id in rows:
+        kw = kw_map.get(str(kw_id))
+        if kw is None:
+            continue
+        # Condición AND: si hay keyword_secondary, debe aparecer en el contenido
+        if kw.keyword_secondary:
+            if kw.keyword_secondary.lower() not in (content or "").lower():
+                continue
+        matched_ids.add(str(mention_id))
+        matched_names.add(kw.keyword)
+
+    count = len(matched_ids)
     if count >= rule.threshold:
-        # Obtener los keywords que aparecieron
-        kw_names = [
-            k.keyword
-            for k in db.query(Keyword).filter(
-                Keyword.id.in_(critical_kw_ids)
-            ).limit(5).all()
-        ]
-        kw_list = ", ".join(f'"{k}"' for k in kw_names)
+        kw_list = ", ".join(f'"{k}"' for k in list(matched_names)[:5])
         return (
             f"{count} menciones con keywords críticas detectadas en "
             f"los últimos {rule.window_minutes} min: {kw_list}."

@@ -55,6 +55,7 @@ class AliasCreate(BaseModel):
 
 class KeywordCreate(BaseModel):
     keyword: str
+    keyword_secondary: Optional[str] = None
     language: str = "es"
     weight: int = 1
 
@@ -175,6 +176,7 @@ def get_entity(
         "aliases":  [{"id": str(a.id), "alias": a.alias} for a in entity.aliases],
         "keywords": [
             {"id": str(k.id), "keyword": k.keyword,
+             "keyword_secondary": k.keyword_secondary,
              "language": k.language, "weight": k.weight, "active": k.active}
             for k in entity.keywords
         ],
@@ -273,6 +275,7 @@ def add_keyword(
     db.commit()
     db.refresh(keyword)
     return {"id": str(keyword.id), "keyword": keyword.keyword,
+            "keyword_secondary": keyword.keyword_secondary,
             "language": keyword.language, "weight": keyword.weight}
 
 

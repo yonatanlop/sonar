@@ -54,7 +54,7 @@ export default function EntityDetail() {
   const [influDays, setInfluDays] = useState(7)
 
   // ── Formularios ──
-  const [kwForm,    setKwForm]    = useState({ keyword: '', language: 'es', weight: 1 })
+  const [kwForm,    setKwForm]    = useState({ keyword: '', keyword_secondary: '', language: 'es', weight: 1 })
   const [aliasForm, setAliasForm] = useState('')
   const [faceForm,  setFaceForm]  = useState({ person_name: '', photo_url: '' })
   const [ruleForm,  setRuleForm]  = useState({
@@ -145,11 +145,14 @@ export default function EntityDetail() {
 
   // ── Mutations: keywords ──
   const addKw = useMutation({
-    mutationFn: () => client.post(`/entities/${id}/keywords`, kwForm),
+    mutationFn: () => client.post(`/entities/${id}/keywords`, {
+      ...kwForm,
+      keyword_secondary: kwForm.keyword_secondary || null,
+    }),
     onSuccess: () => {
       toast.success('Keyword agregada')
       qc.invalidateQueries({ queryKey: ['entity', id] })
-      setKwForm({ keyword: '', language: 'es', weight: 1 })
+      setKwForm({ keyword: '', keyword_secondary: '', language: 'es', weight: 1 })
     },
   })
   const delKw = useMutation({
@@ -718,12 +721,21 @@ export default function EntityDetail() {
           {isAnalyst && (
             <div className="card border-primary-200 border">
               <h2 className="font-semibold mb-4 text-sm">Nueva keyword</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="sm:col-span-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
                   <label className="label">Keyword *</label>
-                  <input className="input" placeholder="Ej: corrupción"
+                  <input className="input" placeholder="Ej: mira"
                     value={kwForm.keyword}
                     onChange={e => setKwForm(f => ({ ...f, keyword: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="label">
+                    Y también contenga{' '}
+                    <span className="text-gray-400 font-normal">(AND — opcional)</span>
+                  </label>
+                  <input className="input" placeholder="Ej: bolita, cristiano"
+                    value={kwForm.keyword_secondary}
+                    onChange={e => setKwForm(f => ({ ...f, keyword_secondary: e.target.value }))} />
                 </div>
                 <div>
                   <label className="label">Idioma</label>
@@ -744,6 +756,12 @@ export default function EntityDetail() {
                   </select>
                 </div>
               </div>
+              {kwForm.keyword_secondary && (
+                <p className="text-xs text-blue-600 mt-2 flex items-center gap-1">
+                  <Tag className="w-3 h-3" />
+                  Solo se alertará cuando el contenido incluya "{kwForm.keyword}" <strong>y</strong> "{kwForm.keyword_secondary}"
+                </p>
+              )}
               <button
                 onClick={() => addKw.mutate()}
                 disabled={addKw.isPending || !kwForm.keyword}
@@ -762,7 +780,14 @@ export default function EntityDetail() {
                 {entity.keywords.map(kw => (
                   <div key={kw.id} className="flex items-center gap-3 py-3">
                     <Tag className="w-4 h-4 text-gray-400 shrink-0" />
-                    <span className="flex-1 text-sm font-medium text-gray-800">{kw.keyword}</span>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm font-medium text-gray-800">{kw.keyword}</span>
+                      {kw.keyword_secondary && (
+                        <span className="text-xs text-blue-600 ml-2">
+                          AND "{kw.keyword_secondary}"
+                        </span>
+                      )}
+                    </div>
                     <span className="text-xs text-gray-400">{kw.language.toUpperCase()}</span>
                     <span className={`badge ${WEIGHT_COLOR[kw.weight]}`}>
                       {WEIGHT_LABEL[kw.weight]}

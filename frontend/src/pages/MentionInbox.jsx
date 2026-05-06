@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Inbox, ExternalLink, AlertTriangle, AlertCircle,
-  CheckCircle, Clock, ChevronRight, User, Globe, Scale, X,
+  CheckCircle, Clock, ChevronRight, User, Globe, Scale, X, HelpCircle, ChevronDown,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import client from '../api/client'
@@ -64,6 +64,9 @@ export default function MentionInbox() {
   const [showEscalate, setShowEscalate] = useState(false)
   const [escTarget, setEscTarget]       = useState('')
   const [escNotes, setEscNotes]         = useState('')
+
+  // Protocolo in-app
+  const [showProtocol, setShowProtocol] = useState(false)
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['inbox'],
@@ -258,6 +261,35 @@ export default function MentionInbox() {
                   </span>
                 )}
               </div>
+            </div>
+
+            {/* Protocolo de intervención */}
+            <div className="card border border-blue-100 bg-blue-50">
+              <button
+                onClick={() => setShowProtocol(v => !v)}
+                className="w-full flex items-center justify-between text-sm font-medium text-blue-800">
+                <span className="flex items-center gap-2">
+                  <HelpCircle className="w-4 h-4 text-blue-500" />
+                  Protocolo de intervención
+                </span>
+                <ChevronDown className={`w-4 h-4 text-blue-500 transition-transform ${showProtocol ? 'rotate-180' : ''}`} />
+              </button>
+              {showProtocol && (
+                <div className="mt-3 space-y-2 text-xs text-blue-900 leading-relaxed">
+                  <p className="font-semibold">Ante una mención negativa o de odio, sigue estos pasos:</p>
+                  <ol className="list-decimal list-inside space-y-1.5 pl-1">
+                    <li><strong>Evalúa la gravedad</strong> — ¿Es discurso de odio? ¿Amenaza directa? ¿Desinformación?</li>
+                    <li><strong>Captura evidencia</strong> — Usa "Escalar a Jurídico" para guardar un snapshot antes de que sea eliminado.</li>
+                    <li><strong>Reporta en la plataforma</strong> — Usa el enlace "Ver original" y reporta el contenido en la red social.</li>
+                    <li><strong>Escalación jurídica</strong> — Si involucra amenazas, difamación o delitos, escala a Jurídico Iglesia o MIRA según corresponda.</li>
+                    <li><strong>Reporta a autoridades</strong> — En caso de amenaza grave, reporta a Fiscalía / Policía de Colombia.</li>
+                    <li><strong>Registra la acción</strong> — Guarda el tratamiento en esta bandeja para el historial de gestión.</li>
+                  </ol>
+                  <p className="text-blue-700 pt-1">
+                    Cuentas reincidentes conocidas (Rizoma) → monitorear desde la sección <strong>Rizoma</strong> en el menú.
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Formulario de tratamiento */}
