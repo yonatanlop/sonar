@@ -3,11 +3,12 @@ import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Inbox, ExternalLink, AlertTriangle, AlertCircle,
-  CheckCircle, Clock, ChevronRight, User, Globe,
+  CheckCircle, Clock, ChevronRight, User, Globe, Scale, X,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import client from '../api/client'
 import { useAlertStore } from '../store/alertStore'
+import { useAuthStore } from '../store/authStore'
 
 const fetchInbox  = () => client.get('/alerts/inbox').then(r => r.data)
 
@@ -52,15 +53,36 @@ function timeAgo(isoStr) {
 export default function MentionInbox() {
   const qc = useQueryClient()
   const setInboxCount = useAlertStore((s) => s.setInboxCount)
+  const isAnalyst = useAuthStore((s) => s.isAnalyst())
+  const isAdmin   = useAuthStore((s) => s.isAdmin())
 
   const [selected, setSelected]   = useState(null)
   const [action, setAction]       = useState('')
   const [notes, setNotes]         = useState('')
 
+  // Modal de escalación jurídica
+  const [showEscalate, setShowEscalate] = useState(false)
+  const [escTarget, setEscTarget]       = useState('')
+  const [escNotes, setEscNotes]         = useState('')
+
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['inbox'],
     queryFn:  fetchInbox,
     refetchInterval: 30_000,
+  })
+
+  const escalate = useMutation({
+    mutationFn: ({ mention_id, target, notes }) =>
+      client.post('/legal/escalations', { mention_id, target, notes }),
+    onSuccess: () => {
+      toast.success('Escalado al equipo jurídico')
+      setShowEscalate(false)
+      setEscTarget('')
+      setEscNotes('')
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.detail ?? 'Error al escalar')
+    },
   })
 
   const treat = useMutation({
@@ -287,9 +309,96 @@ export default function MentionInbox() {
               </div>
             </div>
 
+            {/* Escalación jurídica */}
+            {(isAdmin || isAnalyst) && mention?.id && (
+              <div className="card border border-dashed border-gray-300 bg-gray-50">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                      <Scale className="w-4 h-4 text-primary-600" /> Escalación jurídica
+                    </p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Envía esta mención al equipo jurídico con captura de evidencia
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setShowEscalate(true)}
+                    className="btn-secondary flex items-center gap-1.5 text-sm whitespace-nowrap">
+                    <Scale className="w-3.5 h-3.5" /> Escalar a Jurídico
+                  </button>
+                </div>
+              </div>
+            )}
+
           </div>
         )}
       </div>
+
+      {/* Modal escalación jurídica */}
+      {showEscalate && mention?.id && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                <Scale className="w-5 h-5 text-primary-600" /> Escalar a equipo jurídico
+              </h3>
+              <button onClick={() => setShowEscalate(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-sm text-gray-600">
+              Se guardará una copia de la mención en el momento del escalamiento como evidencia.
+            </p>
+
+            <div className="space-y-2">
+              <label className="label">Destino jurídico</label>
+              {[
+                { value: 'iglesia', label: 'Jurídico Iglesia' },
+                { value: 'mira',    label: 'Jurídico MIRA' },
+              ].map(opt => (
+                <label key={opt.value}
+                  className={`flex items-center gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors ${
+                    escTarget === opt.value
+                      ? 'border-primary-400 bg-primary-50'
+                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                  }`}>
+                  <input type="radio" name="escTarget" value={opt.value}
+                    checked={escTarget === opt.value}
+                    onChange={() => setEscTarget(opt.value)}
+                    className="accent-primary-600" />
+                  <span className="text-sm text-gray-700">{opt.label}</span>
+                </label>
+              ))}
+            </div>
+
+            <div>
+              <label className="label">Notas <span className="text-gray-400 font-normal">(opcional)</span></label>
+              <textarea
+                className="input resize-none"
+                rows={2}
+                placeholder="Contexto adicional para el equipo jurídico…"
+                value={escNotes}
+                onChange={e => setEscNotes(e.target.value)}
+              />
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={() => setShowEscalate(false)}
+                className="btn-secondary flex-1">
+                Cancelar
+              </button>
+              <button
+                onClick={() => escalate.mutate({ mention_id: mention.id, target: escTarget, notes: escNotes })}
+                disabled={escalate.isPending || !escTarget}
+                className="btn-primary flex-1">
+                {escalate.isPending ? 'Escalando…' : 'Confirmar escalamiento'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
