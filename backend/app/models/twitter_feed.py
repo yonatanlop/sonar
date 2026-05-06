@@ -23,6 +23,7 @@ class TwitterFeed(Base):
     display_name: Mapped[str]       = mapped_column(String(200), nullable=False)   # "@pepito", "#MIRA"
     entity_id:    Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("entities.id", ondelete="SET NULL"), nullable=True)
     active:       Mapped[bool]      = mapped_column(Boolean, default=True)
+    is_rizoma:    Mapped[bool]      = mapped_column(Boolean, default=False, nullable=False)
     created_by:   Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     created_at:   Mapped[datetime]  = mapped_column(DateTime(timezone=True), server_default=func.now())
 

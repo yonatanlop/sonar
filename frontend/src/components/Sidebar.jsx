@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Building2, MessageSquare,
   Bell, Inbox, FileText, Users, Settings2, Radio, UserCircle, Sparkles, Activity, Twitter,
-  MapPin, GitCompareArrows, Youtube, ChevronDown, ScrollText,
+  MapPin, GitCompareArrows, Youtube, ChevronDown, ScrollText, ShieldAlert,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useAuthStore } from '../store/authStore'
@@ -25,8 +25,9 @@ const NAV_SECTIONS = (isAdmin, isAnalyst, unread, inbox) => [
     id:    'alertas',
     label: 'ALERTAS',
     items: [
-      { to: '/alerts', icon: Bell,     label: 'Alertas',  badge: unread },
-      { to: '/inbox',  icon: Inbox,    label: 'Bandeja',  badge: inbox  },
+      { to: '/alerts',  icon: Bell,        label: 'Alertas',  badge: unread },
+      { to: '/inbox',   icon: Inbox,       label: 'Bandeja',  badge: inbox  },
+      { to: '/rizoma',  icon: ShieldAlert, label: 'Rizoma' },
       ...(isAnalyst ? [{ to: '/settings/rules', icon: Settings2, label: 'Reglas de alerta' }] : []),
     ],
   },

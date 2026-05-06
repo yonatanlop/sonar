@@ -7,7 +7,7 @@ import { useState, useCallback } from 'react'
 import {
   Youtube, Plus, Trash2, Search, ExternalLink, BookmarkPlus,
   CheckCircle, ToggleLeft, ToggleRight, Eye, MessageSquare, Clock,
-  AlertCircle, X,
+  AlertCircle, X, ShieldAlert,
 } from 'lucide-react'
 import api from '../api/client'
 import { useAuthStore } from '../store/authStore'
@@ -129,12 +129,12 @@ function VideoCard({ video, onSave, canSave, saving }) {
 
 // ── ChannelItem (panel izquierdo) ─────────────────────────────────────────────
 
-function ChannelItem({ ch, selected, onClick, onToggle, onDelete }) {
+function ChannelItem({ ch, selected, onClick, onToggle, onDelete, onToggleRizoma }) {
   return (
     <div
       className={`flex items-center gap-2 px-3 py-2.5 rounded-lg cursor-pointer group transition-colors ${
         selected ? 'bg-red-50 border border-red-200' : 'hover:bg-gray-50 border border-transparent'
-      }`}
+      } ${ch.is_rizoma ? 'border-l-2 border-l-red-400' : ''}`}
       onClick={onClick}
     >
       {ch.thumbnail_url ? (
@@ -147,12 +147,22 @@ function ChannelItem({ ch, selected, onClick, onToggle, onDelete }) {
 
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-gray-800 truncate">{ch.handle}</p>
-        <p className="text-xs text-gray-400 truncate">
-          {ch.keyword_count} keyword{ch.keyword_count !== 1 ? 's' : ''} · {ch.mention_count} menciones
-        </p>
+        <div className="flex items-center gap-1.5">
+          <p className="text-xs text-gray-400 truncate">
+            {ch.keyword_count} kw · {ch.mention_count} menciones
+          </p>
+          {ch.is_rizoma && (
+            <span className="text-[10px] bg-red-100 text-red-600 px-1.5 rounded-full font-medium">Rizoma</span>
+          )}
+        </div>
       </div>
 
       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+        <button onClick={() => onToggleRizoma(ch.id)}
+          title={ch.is_rizoma ? 'Quitar de Rizoma' : 'Marcar como Rizoma'}
+          className={ch.is_rizoma ? 'text-red-500 opacity-100' : 'text-gray-300 hover:text-red-400'}>
+          <ShieldAlert className="w-3.5 h-3.5" />
+        </button>
         <button onClick={() => onToggle(ch.id)} title={ch.active ? 'Desactivar' : 'Activar'}
           className="text-gray-400 hover:text-primary-600">
           {ch.active
@@ -292,6 +302,16 @@ export default function YoutubeExplorer() {
     }
   }
 
+  async function handleToggleRizoma(id) {
+    try {
+      const { data } = await api.patch(`/youtube-explorer/channels/${id}/rizoma`)
+      setChannels(prev => prev.map(c => c.id === id ? data : c))
+      if (selected?.id === id) setSelected(data)
+    } catch {
+      toast.error('Error al actualizar Rizoma')
+    }
+  }
+
   async function handleDelete(id) {
     if (!confirm('¿Eliminar este canal y todas sus keywords?')) return
     try {
@@ -421,6 +441,7 @@ export default function YoutubeExplorer() {
                 onClick={() => selectChannel(ch)}
                 onToggle={handleToggle}
                 onDelete={handleDelete}
+                onToggleRizoma={handleToggleRizoma}
               />
             ))}
           </div>

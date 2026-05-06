@@ -31,11 +31,14 @@ const SEVERITY_DOT = {
 }
 
 const ACTIONS = [
-  { value: 'reported_platform', label: 'Reportar en la plataforma' },
-  { value: 'escalated_mira',    label: 'Escalar a equipo MIRA' },
-  { value: 'escalated_church',  label: 'Escalar a dirección iglesia' },
-  { value: 'opportunity',       label: 'Marcar como oportunidad' },
-  { value: 'dismissed',         label: 'Descartar' },
+  { value: 'reported_platform',      label: 'Reportar en la plataforma' },
+  { value: 'reported_international', label: 'Reportar a instancias internacionales' },
+  { value: 'reported_fiscalia',      label: 'Reportar a Fiscalía / Policía' },
+  { value: 'account_closed',         label: 'Cuenta cerrada como resultado' },
+  { value: 'escalated_mira',         label: 'Escalar a equipo MIRA' },
+  { value: 'escalated_church',       label: 'Escalar a dirección iglesia' },
+  { value: 'opportunity',            label: 'Marcar como oportunidad' },
+  { value: 'dismissed',              label: 'Descartar' },
 ]
 
 function timeAgo(isoStr) {

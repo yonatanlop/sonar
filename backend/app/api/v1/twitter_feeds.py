@@ -101,6 +101,7 @@ def _feed_to_dict(feed: TwitterFeed, db: Session) -> dict:
         "display_name":    feed.display_name,
         "entity_id":       str(feed.entity_id) if feed.entity_id else None,
         "active":          feed.active,
+        "is_rizoma":       feed.is_rizoma,
         "mention_count":   mention_count,
         "last_mention_at": last_mention_at,
     }
@@ -176,6 +177,24 @@ def create_feed(
     db.commit()
     db.refresh(feed)
 
+    return _feed_to_dict(feed, db)
+
+
+@router.patch("/{feed_id}/rizoma")
+def toggle_rizoma(
+    request: Request,
+    feed_id: uuid.UUID,
+    db:      Session = Depends(get_db),
+    current_user: User = Depends(require_analyst),
+):
+    """Marca/desmarca un feed como cuenta Rizoma (hostil conocida)."""
+    feed = db.query(TwitterFeed).filter(TwitterFeed.id == feed_id).first()
+    if not feed:
+        raise HTTPException(status_code=404, detail="Feed no encontrado")
+    feed.is_rizoma = not feed.is_rizoma
+    log_action(db, current_user.id, "twitter_feed_rizoma_toggled", request, "twitter_feeds", feed.id,
+               {"display_name": feed.display_name, "is_rizoma": feed.is_rizoma})
+    db.commit()
     return _feed_to_dict(feed, db)
 
 

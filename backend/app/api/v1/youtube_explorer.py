@@ -141,6 +141,7 @@ def _channel_dict(ch: YoutubeChannel, db: Session) -> dict:
         "channel_name":  ch.channel_name,
         "thumbnail_url": ch.thumbnail_url,
         "active":        ch.active,
+        "is_rizoma":     ch.is_rizoma,
         "entity_id":     ch.entity_id,
         "keyword_count": len([k for k in ch.keywords if k.active]),
         "mention_count": mention_count,
@@ -193,6 +194,19 @@ def create_channel(request: Request, data: ChannelCreate, db: Session = Depends(
                {"handle": handle, "channel_name": resolved["channel_name"]})
     db.commit()
     db.refresh(ch)
+    return _channel_dict(ch, db)
+
+
+@router.patch("/channels/{channel_id}/rizoma")
+def toggle_channel_rizoma(request: Request, channel_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_analyst)):
+    """Marca/desmarca un canal como cuenta Rizoma (hostil conocida)."""
+    ch = db.query(YoutubeChannel).filter(YoutubeChannel.id == channel_id).first()
+    if not ch:
+        raise HTTPException(status_code=404, detail="Canal no encontrado")
+    ch.is_rizoma = not ch.is_rizoma
+    log_action(db, current_user.id, "yt_channel_rizoma_toggled", request, "youtube_channels", None,
+               {"handle": ch.handle, "is_rizoma": ch.is_rizoma})
+    db.commit()
     return _channel_dict(ch, db)
 
 

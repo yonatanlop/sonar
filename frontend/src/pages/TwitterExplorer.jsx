@@ -6,7 +6,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   Twitter, Plus, Trash2, ChevronRight, RefreshCw,
-  Calendar, Filter, ExternalLink, User, Hash, Search,
+  Calendar, Filter, ExternalLink, User, Hash, Search, ShieldAlert,
 } from 'lucide-react'
 import api from '../api/client'
 
@@ -68,14 +68,14 @@ function TweetCard({ mention }) {
 
 // ── Feed Item (panel izquierdo) ───────────────────────────────────────────────
 
-function FeedItem({ feed, selected, onClick, onDelete }) {
+function FeedItem({ feed, selected, onClick, onDelete, onToggleRizoma }) {
   const Icon = feed.feed_type === 'user' ? User : feed.feed_type === 'hashtag' ? Hash : Search
 
   return (
     <div
       className={`flex items-center gap-2 px-3 py-2.5 rounded-lg cursor-pointer group transition-colors ${
         selected ? 'bg-sky-50 border border-sky-200' : 'hover:bg-gray-50 border border-transparent'
-      }`}
+      } ${feed.is_rizoma ? 'border-l-2 border-l-red-400' : ''}`}
       onClick={onClick}
     >
       <div className={`rounded-full p-1 ${selected ? 'bg-sky-100' : 'bg-gray-100'}`}>
@@ -83,8 +83,20 @@ function FeedItem({ feed, selected, onClick, onDelete }) {
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-gray-800 truncate">{feed.display_name}</p>
-        <p className="text-xs text-gray-400">{feed.mention_count} tweets</p>
+        <div className="flex items-center gap-1.5">
+          <p className="text-xs text-gray-400">{feed.mention_count} tweets</p>
+          {feed.is_rizoma && (
+            <span className="text-[10px] bg-red-100 text-red-600 px-1.5 rounded-full font-medium">Rizoma</span>
+          )}
+        </div>
       </div>
+      <button
+        onClick={(e) => { e.stopPropagation(); onToggleRizoma(feed.id) }}
+        className={`opacity-0 group-hover:opacity-100 transition-all ${feed.is_rizoma ? 'text-red-500 opacity-100' : 'text-gray-300 hover:text-red-400'}`}
+        title={feed.is_rizoma ? 'Quitar de Rizoma' : 'Marcar como Rizoma'}
+      >
+        <ShieldAlert className="w-3.5 h-3.5" />
+      </button>
       <button
         onClick={(e) => { e.stopPropagation(); onDelete(feed.id) }}
         className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 transition-all"
@@ -268,6 +280,11 @@ export default function TwitterExplorer() {
     }
   }
 
+  async function handleToggleRizoma(feedId) {
+    const { data } = await api.patch(`/twitter-feeds/${feedId}/rizoma`)
+    setFeeds((prev) => prev.map((f) => f.id === feedId ? data : f))
+  }
+
   function handleFeedAdded(feed) {
     setFeeds((prev) => [...prev, feed])
     setSelectedFeed(feed)
@@ -338,6 +355,7 @@ export default function TwitterExplorer() {
                         selected={selectedFeed?.id === f.id}
                         onClick={() => handleSelectFeed(f)}
                         onDelete={handleDeleteFeed}
+                        onToggleRizoma={handleToggleRizoma}
                       />
                     ))}
                   </div>
@@ -352,6 +370,7 @@ export default function TwitterExplorer() {
                         selected={selectedFeed?.id === f.id}
                         onClick={() => handleSelectFeed(f)}
                         onDelete={handleDeleteFeed}
+                        onToggleRizoma={handleToggleRizoma}
                       />
                     ))}
                   </div>
@@ -366,6 +385,7 @@ export default function TwitterExplorer() {
                         selected={selectedFeed?.id === f.id}
                         onClick={() => handleSelectFeed(f)}
                         onDelete={handleDeleteFeed}
+                        onToggleRizoma={handleToggleRizoma}
                       />
                     ))}
                   </div>

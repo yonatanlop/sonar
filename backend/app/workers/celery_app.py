@@ -59,12 +59,11 @@ celery_app.conf.beat_schedule = {
         "task": "app.workers.tasks.scraping.scrape_youtube_channels",
         "schedule": crontab(minute="*/30"),  # cada 30 min, offset de scrape-youtube
     },
-    # Twitter Explorer: feeds de @usuarios, #hashtags y keywords
-    # Corre en minutos 20 — justo en la mitad entre scrape_twitter (0 y 40)
-    # para maximizar la ventana de rate limit disponible.
+    # Twitter Explorer: feeds de @usuarios, #hashtags y keywords (incluye Rizoma)
+    # Cada 10 min para reducir latencia de detección a ~10 min.
     "scrape-twitter-feeds": {
         "task": "app.workers.tasks.scraping.scrape_twitter_feeds",
-        "schedule": crontab(minute="20"),  # minuto 20 de cada hora
+        "schedule": crontab(minute="*/10"),  # cada 10 min
     },
     # Re-login preventivo cada 3 horas para renovar sesión de twscrape
     "relogin-twitter": {

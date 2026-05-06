@@ -19,6 +19,7 @@ import GeoMap          from './pages/GeoMap'
 import Compare         from './pages/Compare'
 import MentionInbox    from './pages/MentionInbox'
 import Audit          from './pages/Audit'
+import Rizoma         from './pages/Rizoma'
 
 export default function App() {
   return (
@@ -43,6 +44,7 @@ export default function App() {
             <Route path="/geo"               element={<GeoMap />} />
             <Route path="/compare"           element={<Compare />} />
             <Route path="/inbox"             element={<MentionInbox />} />
+            <Route path="/rizoma"            element={<Rizoma />} />
             <Route path="/profile"           element={<Profile />} />
 
             {/* Solo analyst/admin */}

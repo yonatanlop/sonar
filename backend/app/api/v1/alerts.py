@@ -156,7 +156,16 @@ def list_alerts(
     }
 
 
-VALID_ACTIONS = {"reported_platform", "escalated_mira", "escalated_church", "opportunity", "dismissed"}
+VALID_ACTIONS = {
+    "reported_platform",       # Reportada en la plataforma social
+    "reported_international",  # Reportada a instancias internacionales
+    "reported_fiscalia",       # Reportada a Fiscalía/Policía Colombia
+    "account_closed",          # Cuenta cerrada como resultado
+    "escalated_mira",          # Escalada a equipo MIRA
+    "escalated_church",        # Escalada a dirección iglesia
+    "opportunity",             # Marcada como oportunidad
+    "dismissed",               # Descartada
+}
 
 
 @router.post("/{alert_id}/acknowledge", status_code=status.HTTP_200_OK)
