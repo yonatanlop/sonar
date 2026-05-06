@@ -21,10 +21,11 @@ client.interceptors.response.use(
     const detail = error.response?.data?.detail
 
     if (status === 401) {
-      localStorage.removeItem('sonar_token')
-      localStorage.removeItem('sonar_user')
-      // Solo redirigir si NO estamos ya en /login, para evitar bucle infinito
-      if (!window.location.pathname.startsWith('/login')) {
+      if (window.location.pathname.startsWith('/login')) {
+        toast.error(detail || 'Usuario o contraseña incorrectos')
+      } else {
+        localStorage.removeItem('sonar_token')
+        localStorage.removeItem('sonar_user')
         window.location.replace('/login')
       }
       return Promise.reject(error)
