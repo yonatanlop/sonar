@@ -1,9 +1,10 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 
+from app.api.audit_utils import log_action
 from app.api.deps import get_current_user, require_admin, require_analyst
 from app.core.security import hash_password
 from app.database import get_db
@@ -77,7 +78,8 @@ def update_my_profile(data: UserUpdate,
 
 
 @router.post("/me/change-password", status_code=status.HTTP_204_NO_CONTENT)
-def change_password(data: PasswordChange,
+def change_password(request: Request,
+                    data: PasswordChange,
                     current_user: User = Depends(get_current_user),
                     db: Session = Depends(get_db)):
     from app.core.security import verify_password
@@ -85,6 +87,7 @@ def change_password(data: PasswordChange,
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail="Contraseña actual incorrecta")
     current_user.password_hash = hash_password(data.new_password)
+    log_action(db, current_user.id, "password_changed", request, "users", current_user.id)
     db.commit()
 
 
@@ -112,7 +115,8 @@ def list_users(db: Session = Depends(get_db)):
 
 @router.post("/", status_code=status.HTTP_201_CREATED,
              dependencies=[Depends(require_admin)])
-def create_user(data: UserCreate,
+def create_user(request: Request,
+                data: UserCreate,
                 current_user: User = Depends(get_current_user),
                 db: Session = Depends(get_db)):
     if db.query(User).filter(
@@ -134,13 +138,17 @@ def create_user(data: UserCreate,
         created_by=current_user.id,
     )
     db.add(user)
+    db.flush()
+    log_action(db, current_user.id, "user_created", request, "users", user.id,
+               {"username": user.username, "role": user.role})
     db.commit()
     db.refresh(user)
     return _user_to_dict(user)
 
 
 @router.put("/{user_id}", dependencies=[Depends(require_admin)])
-def update_user(user_id: uuid.UUID, data: UserUpdate,
+def update_user(request: Request, user_id: uuid.UUID, data: UserUpdate,
+                current_user: User = Depends(get_current_user),
                 db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
@@ -148,6 +156,8 @@ def update_user(user_id: uuid.UUID, data: UserUpdate,
                             detail="Usuario no encontrado")
     for field, value in data.model_dump(exclude_none=True).items():
         setattr(user, field, value)
+    log_action(db, current_user.id, "user_updated", request, "users", user.id,
+               {"username": user.username})
     db.commit()
     db.refresh(user)
     return _user_to_dict(user)
@@ -155,10 +165,14 @@ def update_user(user_id: uuid.UUID, data: UserUpdate,
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT,
                dependencies=[Depends(require_admin)])
-def deactivate_user(user_id: uuid.UUID, db: Session = Depends(get_db)):
+def deactivate_user(request: Request, user_id: uuid.UUID,
+                    current_user: User = Depends(get_current_user),
+                    db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail="Usuario no encontrado")
     user.active = False
+    log_action(db, current_user.id, "user_deactivated", request, "users", user.id,
+               {"username": user.username})
     db.commit()

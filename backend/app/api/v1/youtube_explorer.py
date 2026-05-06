@@ -12,11 +12,12 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import requests
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.api.audit_utils import log_action
 from app.api.deps import get_current_user, require_analyst
 from app.core.config import settings
 from app.database import get_db
@@ -155,7 +156,7 @@ def list_channels(db: Session = Depends(get_db), _: User = Depends(get_current_u
 
 
 @router.post("/channels", status_code=201)
-def create_channel(data: ChannelCreate, db: Session = Depends(get_db), user: User = Depends(require_analyst)):
+def create_channel(request: Request, data: ChannelCreate, db: Session = Depends(get_db), user: User = Depends(require_analyst)):
     try:
         handle = _normalize_handle(data.handle)
     except ValueError as e:
@@ -187,6 +188,9 @@ def create_channel(data: ChannelCreate, db: Session = Depends(get_db), user: Use
         created_by=user.id,
     )
     db.add(ch)
+    db.flush()
+    log_action(db, user.id, "yt_channel_added", request, "youtube_channels", None,
+               {"handle": handle, "channel_name": resolved["channel_name"]})
     db.commit()
     db.refresh(ch)
     return _channel_dict(ch, db)
@@ -203,10 +207,12 @@ def toggle_channel(channel_id: int, db: Session = Depends(get_db), _: User = Dep
 
 
 @router.delete("/channels/{channel_id}", status_code=204)
-def delete_channel(channel_id: int, db: Session = Depends(get_db), _: User = Depends(require_analyst)):
+def delete_channel(request: Request, channel_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_analyst)):
     ch = db.query(YoutubeChannel).filter(YoutubeChannel.id == channel_id).first()
     if not ch:
         raise HTTPException(status_code=404, detail="Canal no encontrado")
+    log_action(db, current_user.id, "yt_channel_deleted", request, "youtube_channels", None,
+               {"handle": ch.handle, "channel_name": ch.channel_name})
     db.delete(ch)
     db.commit()
 
@@ -345,7 +351,7 @@ def search_channel(
 # ── Guardar videos como menciones ────────────────────────────────
 
 @router.post("/save")
-def save_videos(data: SaveVideosRequest, db: Session = Depends(get_db), _: User = Depends(require_analyst)):
+def save_videos(request: Request, data: SaveVideosRequest, db: Session = Depends(get_db), current_user: User = Depends(require_analyst)):
     if not settings.YOUTUBE_API_KEY:
         raise HTTPException(status_code=503, detail="YOUTUBE_API_KEY no configurada")
     if not data.video_ids:
@@ -407,5 +413,8 @@ def save_videos(data: SaveVideosRequest, db: Session = Depends(get_db), _: User 
         else:
             already_count += 1
 
+    if saved_count > 0:
+        log_action(db, current_user.id, "yt_videos_saved", request, "youtube_channels", None,
+                   {"channel_id": data.channel_id, "saved": saved_count})
     db.commit()
     return {"saved": saved_count, "already_existed": already_count}

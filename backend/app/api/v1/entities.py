@@ -2,11 +2,12 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.api.audit_utils import log_action
 from app.api.deps import get_current_user, require_analyst
 from app.database import get_db
 from app.models.anomaly import Anomaly
@@ -126,6 +127,7 @@ def list_entities(
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 def create_entity(
+    request: Request,
     data: EntityCreate,
     current_user: User = Depends(require_analyst),
     db: Session = Depends(get_db),
@@ -135,6 +137,9 @@ def create_entity(
 
     entity = Entity(**data.model_dump(), created_by=current_user.id)
     db.add(entity)
+    db.flush()
+    log_action(db, current_user.id, "entity_created", request, "entities", entity.id,
+               {"name": entity.name})
     db.commit()
     db.refresh(entity)
     return _entity_dict(entity, db)
@@ -186,9 +191,10 @@ def get_entity(
 
 @router.patch("/{entity_id}")
 def patch_entity(
+    request: Request,
     entity_id: uuid.UUID,
     data: EntityPatch,
-    _=Depends(require_analyst),
+    current_user: User = Depends(require_analyst),
     db: Session = Depends(get_db),
 ):
     entity = db.query(Entity).filter(Entity.id == entity_id).first()
@@ -199,6 +205,8 @@ def patch_entity(
             raise HTTPException(status_code=400, detail="Tipo de entidad no existe")
     for field, value in data.model_dump(exclude_none=True).items():
         setattr(entity, field, value)
+    log_action(db, current_user.id, "entity_updated", request, "entities", entity.id,
+               {"name": entity.name})
     db.commit()
     db.refresh(entity)
     return _entity_dict(entity, db)
@@ -208,6 +216,7 @@ def patch_entity(
 
 @router.post("/{entity_id}/aliases", status_code=status.HTTP_201_CREATED)
 def add_alias(
+    request: Request,
     entity_id: uuid.UUID,
     data: AliasCreate,
     current_user: User = Depends(require_analyst),
@@ -217,6 +226,9 @@ def add_alias(
         raise HTTPException(status_code=404, detail="Entidad no encontrada")
     alias = EntityAlias(entity_id=entity_id, alias=data.alias, created_by=current_user.id)
     db.add(alias)
+    db.flush()
+    log_action(db, current_user.id, "alias_added", request, "entities", entity_id,
+               {"alias": data.alias})
     db.commit()
     db.refresh(alias)
     return {"id": str(alias.id), "alias": alias.alias}
@@ -224,9 +236,10 @@ def add_alias(
 
 @router.delete("/{entity_id}/aliases/{alias_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_alias(
+    request: Request,
     entity_id: uuid.UUID,
     alias_id: uuid.UUID,
-    _=Depends(require_analyst),
+    current_user: User = Depends(require_analyst),
     db: Session = Depends(get_db),
 ):
     alias = db.query(EntityAlias).filter(
@@ -234,6 +247,8 @@ def delete_alias(
     ).first()
     if not alias:
         raise HTTPException(status_code=404, detail="Alias no encontrado")
+    log_action(db, current_user.id, "alias_deleted", request, "entities", entity_id,
+               {"alias": alias.alias})
     db.delete(alias)
     db.commit()
 
@@ -242,6 +257,7 @@ def delete_alias(
 
 @router.post("/{entity_id}/keywords", status_code=status.HTTP_201_CREATED)
 def add_keyword(
+    request: Request,
     entity_id: uuid.UUID,
     data: KeywordCreate,
     current_user: User = Depends(require_analyst),
@@ -251,6 +267,9 @@ def add_keyword(
         raise HTTPException(status_code=404, detail="Entidad no encontrada")
     keyword = Keyword(entity_id=entity_id, created_by=current_user.id, **data.model_dump())
     db.add(keyword)
+    db.flush()
+    log_action(db, current_user.id, "keyword_added", request, "entities", entity_id,
+               {"keyword": data.keyword})
     db.commit()
     db.refresh(keyword)
     return {"id": str(keyword.id), "keyword": keyword.keyword,
@@ -259,9 +278,10 @@ def add_keyword(
 
 @router.delete("/{entity_id}/keywords/{keyword_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_keyword(
+    request: Request,
     entity_id: uuid.UUID,
     keyword_id: uuid.UUID,
-    _=Depends(require_analyst),
+    current_user: User = Depends(require_analyst),
     db: Session = Depends(get_db),
 ):
     kw = db.query(Keyword).filter(
@@ -269,6 +289,8 @@ def delete_keyword(
     ).first()
     if not kw:
         raise HTTPException(status_code=404, detail="Keyword no encontrada")
+    log_action(db, current_user.id, "keyword_deleted", request, "entities", entity_id,
+               {"keyword": kw.keyword})
     db.delete(kw)
     db.commit()
 

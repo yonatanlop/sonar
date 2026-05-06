@@ -18,6 +18,7 @@ import YoutubeExplorer  from './pages/YoutubeExplorer'
 import GeoMap          from './pages/GeoMap'
 import Compare         from './pages/Compare'
 import MentionInbox    from './pages/MentionInbox'
+import Audit          from './pages/Audit'
 
 export default function App() {
   return (
@@ -52,6 +53,7 @@ export default function App() {
             {/* Solo admin */}
             <Route element={<AdminRoute />}>
               <Route path="/admin/users"     element={<Users />} />
+              <Route path="/admin/audit"     element={<Audit />} />
             </Route>
           </Route>
         </Route>

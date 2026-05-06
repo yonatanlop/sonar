@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Building2, MessageSquare,
   Bell, Inbox, FileText, Users, Settings2, Radio, UserCircle, Sparkles, Activity, Twitter,
-  MapPin, GitCompareArrows, Youtube, ChevronDown,
+  MapPin, GitCompareArrows, Youtube, ChevronDown, ScrollText,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useAuthStore } from '../store/authStore'
@@ -45,7 +45,8 @@ const NAV_SECTIONS = (isAdmin, isAnalyst, unread, inbox) => [
     id:    'administracion',
     label: 'ADMINISTRACIÓN',
     items: [
-      { to: '/admin/users', icon: Users, label: 'Usuarios' },
+      { to: '/admin/users',  icon: Users,       label: 'Usuarios' },
+      { to: '/admin/audit',  icon: ScrollText,  label: 'Auditoría' },
     ],
   }] : []),
 ]

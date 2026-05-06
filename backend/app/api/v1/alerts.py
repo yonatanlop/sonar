@@ -10,6 +10,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 from sse_starlette.sse import EventSourceResponse
 
+from app.api.audit_utils import log_action
 from app.api.deps import get_current_user, require_analyst
 from app.core.security import decode_token, is_token_blacklisted
 from app.database import SessionLocal, get_db
@@ -160,6 +161,7 @@ VALID_ACTIONS = {"reported_platform", "escalated_mira", "escalated_church", "opp
 
 @router.post("/{alert_id}/acknowledge", status_code=status.HTTP_200_OK)
 def acknowledge_alert(
+    request: Request,
     alert_id: uuid.UUID,
     body: AlertAcknowledgeIn,
     current_user: User = Depends(get_current_user),
@@ -178,6 +180,8 @@ def acknowledge_alert(
     alert.acknowledged_at = datetime.now(timezone.utc)
     alert.action_taken    = body.action
     alert.action_notes    = body.notes or None
+    log_action(db, current_user.id, "alert_acknowledged", request, "alerts", alert.id,
+               {"action": body.action})
     db.commit()
     return _alert_dict(alert, db)
 
@@ -204,6 +208,7 @@ def list_rules(
 
 @router.post("/rules", status_code=status.HTTP_201_CREATED)
 def create_rule(
+    request: Request,
     data: AlertRuleCreate,
     current_user: User = Depends(require_analyst),
     db: Session = Depends(get_db),
@@ -215,6 +220,9 @@ def create_rule(
 
     rule = AlertRule(**data.model_dump(), created_by=current_user.id)
     db.add(rule)
+    db.flush()
+    log_action(db, current_user.id, "rule_created", request, "alert_rules", rule.id,
+               {"rule_type": rule.rule_type, "severity": rule.severity})
     db.commit()
     db.refresh(rule)
     return _rule_dict(rule)
@@ -222,27 +230,33 @@ def create_rule(
 
 @router.patch("/rules/{rule_id}")
 def toggle_rule(
+    request: Request,
     rule_id: uuid.UUID,
-    _=Depends(require_analyst),
+    current_user: User = Depends(require_analyst),
     db: Session = Depends(get_db),
 ):
     rule = db.query(AlertRule).filter(AlertRule.id == rule_id).first()
     if not rule:
         raise HTTPException(status_code=404, detail="Regla no encontrada")
     rule.active = not rule.active
+    log_action(db, current_user.id, "rule_toggled", request, "alert_rules", rule.id,
+               {"active": rule.active})
     db.commit()
     return _rule_dict(rule)
 
 
 @router.delete("/rules/{rule_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_rule(
+    request: Request,
     rule_id: uuid.UUID,
-    _=Depends(require_analyst),
+    current_user: User = Depends(require_analyst),
     db: Session = Depends(get_db),
 ):
     rule = db.query(AlertRule).filter(AlertRule.id == rule_id).first()
     if not rule:
         raise HTTPException(status_code=404, detail="Regla no encontrada")
+    log_action(db, current_user.id, "rule_deleted", request, "alert_rules", rule.id,
+               {"rule_type": rule.rule_type})
     db.delete(rule)
     db.commit()
 

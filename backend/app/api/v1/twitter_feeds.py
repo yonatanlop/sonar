@@ -7,11 +7,12 @@ al sistema de entidades principal.
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.api.audit_utils import log_action
 from app.api.deps import get_current_user, require_analyst
 from app.database import get_db
 from app.models.entity import Entity, EntityType
@@ -119,6 +120,7 @@ def list_feeds(
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 def create_feed(
+    request: Request,
     data: FeedCreate,
     db:   Session = Depends(get_db),
     user: User    = Depends(get_current_user),
@@ -168,6 +170,9 @@ def create_feed(
         created_by=user.id,
     )
     db.add(feed)
+    db.flush()
+    log_action(db, user.id, "twitter_feed_added", request, "twitter_feeds", feed.id,
+               {"display_name": display, "feed_type": data.feed_type})
     db.commit()
     db.refresh(feed)
 
@@ -176,15 +181,18 @@ def create_feed(
 
 @router.delete("/{feed_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_feed(
+    request: Request,
     feed_id: uuid.UUID,
     db:      Session = Depends(get_db),
-    _:       User    = Depends(require_analyst),
+    current_user: User = Depends(require_analyst),
 ):
     """Desactiva un feed (no elimina las menciones ya recolectadas)."""
     feed = db.query(TwitterFeed).filter(TwitterFeed.id == feed_id).first()
     if not feed:
         raise HTTPException(status_code=404, detail="Feed no encontrado")
     feed.active = False
+    log_action(db, current_user.id, "twitter_feed_deleted", request, "twitter_feeds", feed.id,
+               {"display_name": feed.display_name, "feed_type": feed.feed_type})
     db.commit()
 
 

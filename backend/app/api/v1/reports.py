@@ -3,11 +3,12 @@ from datetime import date
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session
 
+from app.api.audit_utils import log_action
 from app.api.deps import get_current_user
 from app.database import SessionLocal, get_db
 from app.models.entity import Entity
@@ -85,6 +86,7 @@ def list_reports(
 
 @router.post("", status_code=201)
 def create_report(
+    request: Request,
     data: ReportCreate,
     background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
@@ -106,6 +108,9 @@ def create_report(
         created_by=current_user.id,
     )
     db.add(report)
+    db.flush()
+    log_action(db, current_user.id, "report_generated", request, "reports", report.id,
+               {"name": data.name, "type": data.report_type})
     db.commit()
     db.refresh(report)
 
@@ -117,15 +122,20 @@ def create_report(
 
 @router.get("/{report_id}/download")
 def download_report(
+    request: Request,
     report_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-    _=Depends(get_current_user),
 ):
     report = db.query(Report).filter(Report.id == report_id).first()
     if not report:
         raise HTTPException(status_code=404, detail="Reporte no encontrado")
     if not report.file_path or not Path(report.file_path).exists():
         raise HTTPException(status_code=404, detail="El archivo PDF aún no está listo o fue eliminado")
+
+    log_action(db, current_user.id, "report_downloaded", request, "reports", report.id,
+               {"name": report.name})
+    db.commit()
 
     return FileResponse(
         path=report.file_path,
