@@ -113,61 +113,26 @@ No incluyas explicaciones internas ni desarrollo adicional, solo las respuestas 
       return resultado.value;
     }
 
-    function copiarYRedirigir() {
+    function copiarYLanzar(url, mensajeBot) {
       const prompt = getPromptPlano();
       if (!prompt) return;
-      navigator.clipboard.writeText(prompt).then(function() {
-        mostrarModal("<strong>A continuación serás redirigido a ChatGPT.</strong><br><br>Para pegar tu prompt:<br>- <b>En computadora:</b> presiona <b>Ctrl + V</b> en el cuadro de texto.<br>- <b>En teléfono:</b> mantén presionado en el cuadro de texto y selecciona <b>'Pegar'</b>.", "https://chatgpt.com/?model=auto");
-      });
+      const instrucciones = "<br><br>Para pegar tu prompt:<br>- <b>En computadora:</b> presiona <b>Ctrl + V</b> en el cuadro de texto.<br>- <b>En teléfono:</b> mantén presionado en el cuadro de texto y selecciona <b>'Pegar'</b>.";
+      navigator.clipboard.writeText(prompt)
+        .then(function() {
+          mostrarModal("<strong>" + mensajeBot + "</strong>" + instrucciones, url);
+        })
+        .catch(function() {
+          mostrarModal("<strong>" + mensajeBot + "</strong><br><small style='color:#e03131'>No se pudo copiar al portapapeles automáticamente. Copia el prompt manualmente antes de continuar.</small>" + instrucciones, url);
+        });
     }
 
-    function copiarYRedirigirCopilot() {
-      const prompt = getPromptPlano();
-      if (!prompt) return;
-      navigator.clipboard.writeText(prompt).then(function() {
-        mostrarModal("<strong>A continuación serás redirigido a Copilot.</strong><br><br>Para pegar tu prompt:<br>- <b>En computadora:</b> presiona <b>Ctrl + V</b> en el cuadro de texto.<br>- <b>En teléfono:</b> mantén presionado en el cuadro de texto y selecciona <b>'Pegar'</b>.", "https://copilot.microsoft.com/chats/36aEQkA7gcwf7JAgHKQYQ");
-      });
-    }
-
-    function copiarYRedirigirGemini() {
-      const prompt = getPromptPlano();
-      if (!prompt) return;
-      navigator.clipboard.writeText(prompt).then(function() {
-        mostrarModal("<strong>A continuación serás redirigido a Gemini (Google).</strong><br><br>Para pegar tu prompt:<br>- <b>En computadora:</b> presiona <b>Ctrl + V</b> en el cuadro de texto.<br>- <b>En teléfono:</b> mantén presionado en el cuadro de texto y selecciona <b>'Pegar'</b>.", "https://gemini.google.com/?hl=es");
-      });
-    }
-
-    function copiarYRedirigirMetaAI() {
-      const prompt = getPromptPlano();
-      if (!prompt) return;
-      navigator.clipboard.writeText(prompt).then(function() {
-        mostrarModal("<strong>A continuación serás redirigido a Meta AI (WhatsApp).</strong><br><br>Para pegar tu prompt:<br>- <b>En computadora:</b> presiona <b>Ctrl + V</b> en el chat.<br>- <b>En teléfono:</b> mantén presionado en el cuadro de texto y selecciona <b>'Pegar'</b>.", "https://wa.me/13135550002?s=5");
-      });
-    }
-
-    function copiarYRedirigirDeepSeek() {
-      const prompt = getPromptPlano();
-      if (!prompt) return;
-      navigator.clipboard.writeText(prompt).then(function() {
-        mostrarModal("<strong>A continuación serás redirigido a DeepSeek.</strong><br><br>Para pegar tu prompt:<br>- <b>En computadora:</b> presiona <b>Ctrl + V</b> en el chat.<br>- <b>En teléfono:</b> mantén presionado en el cuadro de texto y selecciona <b>'Pegar'</b>.", "https://chat.deepseek.com");
-      });
-    }
-
-    function copiarYRedirigirClaude() {
-      const prompt = getPromptPlano();
-      if (!prompt) return;
-      navigator.clipboard.writeText(prompt).then(function() {
-        mostrarModal("<strong>A continuación serás redirigido a Claude.</strong><br><br>Para pegar tu prompt:<br>- <b>En computadora:</b> presiona <b>Ctrl + V</b> en el chat.<br>- <b>En teléfono:</b> mantén presionado en el cuadro de texto y selecciona <b>'Pegar'</b>.", "https://claude.ai/new");
-      });
-    }
-
-    function copiarYRedirigirMira() {
-      const prompt = getPromptPlano();
-      if (!prompt) return;
-      navigator.clipboard.writeText(prompt).then(function() {
-        mostrarModal("<strong>A continuación serás redirigido a GPT Leyes Partido MIRA.</strong><br><br>Para pegar tu prompt:<br>- <b>En computadora:</b> presiona <b>Ctrl + V</b> en el chat.<br>- <b>En teléfono:</b> mantén presionado en el cuadro de texto y selecciona <b>'Pegar'</b>.", "https://chatgpt.com/g/g-67f94c7133f48191a9a0fcceceb91986-leyes-partido-mira");
-      });
-    }
+    function copiarYRedirigir()        { copiarYLanzar("https://chatgpt.com/?model=auto", "A continuación serás redirigido a ChatGPT."); }
+    function copiarYRedirigirCopilot() { copiarYLanzar("https://copilot.microsoft.com/chats/36aEQkA7gcwf7JAgHKQYQ", "A continuación serás redirigido a Copilot."); }
+    function copiarYRedirigirGemini()  { copiarYLanzar("https://gemini.google.com/?hl=es", "A continuación serás redirigido a Gemini (Google)."); }
+    function copiarYRedirigirMetaAI()  { copiarYLanzar("https://wa.me/13135550002?s=5", "A continuación serás redirigido a Meta AI (WhatsApp)."); }
+    function copiarYRedirigirDeepSeek(){ copiarYLanzar("https://chat.deepseek.com", "A continuación serás redirigido a DeepSeek."); }
+    function copiarYRedirigirClaude()  { copiarYLanzar("https://claude.ai/new", "A continuación serás redirigido a Claude."); }
+    function copiarYRedirigirMira()    { copiarYLanzar("https://chatgpt.com/g/g-67f94c7133f48191a9a0fcceceb91986-leyes-partido-mira", "A continuación serás redirigido a GPT Leyes Partido MIRA."); }
 
     function mostrarToast(mensaje) {
       const toast = document.getElementById('toast');
@@ -235,7 +200,8 @@ No incluyas explicaciones internas ni desarrollo adicional, solo las respuestas 
 
     function continuarRedireccion() {
       if (redireccionURL) {
-        window.location.href = redireccionURL;
+        window.open(redireccionURL, '_blank', 'noopener,noreferrer');
+        cerrarModal();
       }
     }
 

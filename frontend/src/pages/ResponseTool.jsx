@@ -5,7 +5,7 @@ export default function ResponseTool() {
         src="/promt/"
         title="Herramienta de Respuesta a Comentarios Negativos"
         className="flex-1 w-full border-0"
-        allow="clipboard-read; clipboard-write"
+        allow="clipboard-read; clipboard-write; popups"
       />
     </div>
   )
