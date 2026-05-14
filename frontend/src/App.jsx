@@ -15,8 +15,8 @@ import Chat         from './pages/Chat'
 import Platforms       from './pages/Platforms'
 import TwitterExplorer  from './pages/TwitterExplorer'
 import YoutubeExplorer  from './pages/YoutubeExplorer'
-import GeoMap          from './pages/GeoMap'
 import Compare         from './pages/Compare'
+import ResponseTool    from './pages/ResponseTool'
 import MentionInbox    from './pages/MentionInbox'
 import Audit          from './pages/Audit'
 import Rizoma         from './pages/Rizoma'
@@ -42,8 +42,8 @@ export default function App() {
             <Route path="/platforms"          element={<Platforms />} />
             <Route path="/twitter-explorer"  element={<TwitterExplorer />} />
             <Route path="/youtube-explorer"  element={<YoutubeExplorer />} />
-            <Route path="/geo"               element={<GeoMap />} />
             <Route path="/compare"           element={<Compare />} />
+            <Route path="/response-tool"     element={<ResponseTool />} />
             <Route path="/inbox"             element={<MentionInbox />} />
             <Route path="/rizoma"            element={<Rizoma />} />
             <Route path="/legal"             element={<LegalInbox />} />

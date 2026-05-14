@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Building2, MessageSquare,
-  Bell, Inbox, FileText, Users, Settings2, Radio, UserCircle, Sparkles, Activity, Twitter,
-  MapPin, GitCompareArrows, Youtube, ChevronDown, ScrollText, ShieldAlert, Scale,
+  Bell, Inbox, FileText, Users, Settings2, Radio, UserCircle, Activity, Twitter,
+  GitCompareArrows, Youtube, ChevronDown, ScrollText, ShieldAlert, Scale, Reply,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useAuthStore } from '../store/authStore'
@@ -17,7 +17,6 @@ const NAV_SECTIONS = (isAdmin, isAnalyst, unread, inbox) => [
       { to: '/',         icon: LayoutDashboard,  label: 'Dashboard' },
       { to: '/entities', icon: Building2,         label: 'Entidades' },
       { to: '/mentions', icon: MessageSquare,     label: 'Menciones' },
-      { to: '/geo',      icon: MapPin,            label: 'Mapa Geográfico' },
       { to: '/compare',  icon: GitCompareArrows,  label: 'Comparar Entidades' },
     ],
   },
@@ -37,9 +36,9 @@ const NAV_SECTIONS = (isAdmin, isAnalyst, unread, inbox) => [
     label: 'HERRAMIENTAS',
     items: [
       { to: '/reports',          icon: FileText,  label: 'Reportes' },
-      { to: '/chat',             icon: Sparkles,  label: 'Asistente IA' },
       { to: '/twitter-explorer', icon: Twitter,   label: 'Twitter Explorer' },
       { to: '/youtube-explorer', icon: Youtube,   label: 'YouTube Explorer' },
+      { to: '/response-tool',    icon: Reply,     label: 'Herramienta de Respuesta' },
       { to: '/platforms',        icon: Activity,  label: 'Plataformas' },
     ],
   },
