@@ -2,7 +2,9 @@ from celery import Celery
 from celery.schedules import crontab
 
 from app.core.config import settings
-# Necesario para que SQLAlchemy resuelva YoutubeChannel.keyword_hits al iniciar el worker
+# Importar en orden: YoutubeChannel primero, luego YtKeywordHit
+# para que SQLAlchemy resuelva las relaciones bidireccionales al iniciar el worker
+from app.models.youtube_channel import YoutubeChannel, YoutubeChannelKeyword  # noqa: F401
 from app.models.yt_keyword_hit import YtKeywordHit  # noqa: F401
 
 celery_app = Celery(
