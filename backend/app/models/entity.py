@@ -59,6 +59,7 @@ class Keyword(Base):
     entity_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("entities.id"), nullable=False)
     keyword: Mapped[str] = mapped_column(String(200), nullable=False)
     keyword_secondary: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    logic_op: Mapped[str] = mapped_column(String(3), nullable=False, default="AND")  # AND | OR | NOT
     language: Mapped[str] = mapped_column(String(2), nullable=False, default="es")
     weight: Mapped[int] = mapped_column(SmallInteger, default=1)  # 1=normal 2=importante 3=crítico
     active: Mapped[bool] = mapped_column(Boolean, default=True)

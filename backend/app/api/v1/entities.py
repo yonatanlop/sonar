@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -56,8 +56,16 @@ class AliasCreate(BaseModel):
 class KeywordCreate(BaseModel):
     keyword: str
     keyword_secondary: Optional[str] = None
+    logic_op: str = "AND"
     language: str = "es"
     weight: int = 1
+
+    @field_validator("logic_op")
+    @classmethod
+    def validate_logic_op(cls, v: str) -> str:
+        if v.upper() not in ("AND", "OR", "NOT"):
+            raise ValueError("logic_op debe ser AND, OR o NOT")
+        return v.upper()
 
 
 # ── Helpers ───────────────────────────────────────────────────
@@ -177,6 +185,7 @@ def get_entity(
         "keywords": [
             {"id": str(k.id), "keyword": k.keyword,
              "keyword_secondary": k.keyword_secondary,
+             "logic_op": k.logic_op,
              "language": k.language, "weight": k.weight, "active": k.active}
             for k in entity.keywords
         ],
@@ -276,6 +285,7 @@ def add_keyword(
     db.refresh(keyword)
     return {"id": str(keyword.id), "keyword": keyword.keyword,
             "keyword_secondary": keyword.keyword_secondary,
+            "logic_op": keyword.logic_op,
             "language": keyword.language, "weight": keyword.weight}
 
 

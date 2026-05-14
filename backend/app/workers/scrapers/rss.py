@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 
 from app.models.entity import Entity, Keyword
 from app.workers.scrapers.base import (
-    BaseScraper, build_search_terms, save_mention, upsert_account_profile,
+    BaseScraper, build_search_terms, keyword_matches_text, save_mention, upsert_account_profile,
 )
 
 logger = logging.getLogger(__name__)
@@ -146,17 +146,15 @@ class RSSScraper(BaseScraper):
             summary = entry.get("summary", "") or entry.get("description", "")
             content_text = f"{title}. {summary}".strip()
 
-            # Verificar si el artículo menciona algún keyword
-            content_lower = content_text.lower()
-            matched_terms = [t for t in keyword_terms if t in content_lower]
-            if not matched_terms:
+            # Verificar si el artículo cumple la expresión lógica de alguna keyword
+            matched_kw_objs = [
+                kw for kw in term_to_kw.values()
+                if keyword_matches_text(content_text, kw)
+            ]
+            if not matched_kw_objs:
                 continue
 
-            # Obtener keyword_obj del término de mayor peso que hizo match
-            matched_kw_objs = [term_to_kw[t] for t in matched_terms if t in term_to_kw]
-            best_kw = max(matched_kw_objs, key=lambda k: k.weight) if matched_kw_objs else None
-            if not best_kw:
-                continue
+            best_kw = max(matched_kw_objs, key=lambda k: k.weight)
 
             # URL y external_id del artículo
             url = entry.get("link", "")

@@ -186,27 +186,69 @@ def get_active_entities_with_keywords(db: Session) -> list[tuple[Entity, list[Ke
     return result
 
 
+def build_twitter_query(kw: "Keyword") -> str:
+    """Construye el término de búsqueda para Twitter aplicando logic_op."""
+    primary = kw.keyword.strip()
+    secondary = (kw.keyword_secondary or "").strip()
+    op = getattr(kw, "logic_op", "AND")
+
+    if not secondary:
+        return primary
+
+    if op == "OR":
+        return f'({primary} OR {secondary})'
+    if op == "NOT":
+        return f'{primary} -{secondary}'
+    # AND (default)
+    return f'{primary} {secondary}'
+
+
+def keyword_matches_text(text: str, kw: "Keyword") -> bool:
+    """Evalúa si un texto cumple con la expresión lógica de la keyword."""
+    if not text:
+        return False
+    t = text.lower()
+    primary = kw.keyword.strip().lower()
+    secondary = (kw.keyword_secondary or "").strip().lower()
+    op = getattr(kw, "logic_op", "AND")
+
+    has_primary = primary in t
+    if not has_primary:
+        return False
+    if not secondary:
+        return True
+
+    has_secondary = secondary in t
+    if op == "OR":
+        return True  # primary already found
+    if op == "NOT":
+        return not has_secondary
+    # AND
+    return has_secondary
+
+
 def build_search_terms(entity: Entity, keywords: list[Keyword]) -> list[tuple[str, Keyword]]:
     """
     Construye lista de (término_de_búsqueda, keyword_obj).
-    Incluye keywords y aliases, priorizando las de mayor peso.
+    El término ya incluye el operador lógico para plataformas como Twitter.
+    Para plataformas con búsqueda local usar keyword_matches_text() en el post-filtro.
     """
     terms = []
     seen = set()
 
     # Keywords ordenadas por peso descendente
     for kw in sorted(keywords, key=lambda k: k.weight, reverse=True):
-        term = kw.keyword.strip()
-        if term.lower() not in seen:
-            seen.add(term.lower())
+        term = build_twitter_query(kw)
+        key = term.lower()
+        if key not in seen:
+            seen.add(key)
             terms.append((term, kw))
 
-    # Aliases de la entidad
+    # Aliases de la entidad (sin operador secundario)
     for alias in entity.aliases:
         term = alias.alias.strip()
         if term.lower() not in seen:
             seen.add(term.lower())
-            # Buscar keyword más relevante para el alias
             best_kw = sorted(keywords, key=lambda k: k.weight, reverse=True)[0]
             terms.append((term, best_kw))
 

@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.models.entity import Entity, Keyword
 from app.workers.scrapers.base import (
-    BaseScraper, build_search_terms, save_mention, upsert_account_profile,
+    BaseScraper, build_search_terms, keyword_matches_text, save_mention, upsert_account_profile,
 )
 
 logger = logging.getLogger(__name__)
@@ -91,6 +91,10 @@ class RedditScraper(BaseScraper):
             # Contenido del post: título + cuerpo
             content = f"{post.title}\n\n{post.selftext}".strip()
             if not content:
+                continue
+
+            # Post-filtro con la expresión lógica (AND/OR/NOT + secondary)
+            if not keyword_matches_text(content, keyword_obj):
                 continue
 
             mention = save_mention(
