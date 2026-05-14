@@ -85,7 +85,7 @@ def get_rizoma_feed(
             "id":              str(m.id),
             "content":         m.content,
             "author_username": m.author_username,
-            "platform_code":   m.platform_code,
+            "platform_code":   m.platform.code if m.platform else None,
             "url":             m.url,
             "published_at":    m.published_at.isoformat() if m.published_at else None,
             "collected_at":    m.collected_at.isoformat() if m.collected_at else None,

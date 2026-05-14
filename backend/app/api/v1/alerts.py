@@ -341,7 +341,7 @@ def get_inbox(
             "mention": {
                 "id":               str(m.id),
                 "content":          m.content,
-                "platform_code":    m.platform_code,
+                "platform_code":    m.platform.code if m.platform else None,
                 "author_username":  m.author_username,
                 "sentiment_label":  m.sentiment_label,
                 "sentiment_score":  float(m.sentiment_score or 0),
