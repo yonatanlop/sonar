@@ -113,16 +113,36 @@ No incluyas explicaciones internas ni desarrollo adicional, solo las respuestas 
       return resultado.value;
     }
 
+    function copiarAlPortapapeles(texto) {
+      // Clipboard API solo funciona en HTTPS; fallback con execCommand para HTTP
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        return navigator.clipboard.writeText(texto);
+      }
+      return new Promise(function(resolve, reject) {
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = texto;
+          ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;';
+          document.body.appendChild(ta);
+          ta.focus();
+          ta.select();
+          const ok = document.execCommand('copy');
+          document.body.removeChild(ta);
+          ok ? resolve() : reject(new Error('execCommand falló'));
+        } catch (e) { reject(e); }
+      });
+    }
+
     function copiarYLanzar(url, mensajeBot) {
       const prompt = getPromptPlano();
       if (!prompt) return;
       const instrucciones = "<br><br>Para pegar tu prompt:<br>- <b>En computadora:</b> presiona <b>Ctrl + V</b> en el cuadro de texto.<br>- <b>En teléfono:</b> mantén presionado en el cuadro de texto y selecciona <b>'Pegar'</b>.";
-      navigator.clipboard.writeText(prompt)
+      copiarAlPortapapeles(prompt)
         .then(function() {
           mostrarModal("<strong>" + mensajeBot + "</strong>" + instrucciones, url);
         })
         .catch(function() {
-          mostrarModal("<strong>" + mensajeBot + "</strong><br><small style='color:#e03131'>No se pudo copiar al portapapeles automáticamente. Copia el prompt manualmente antes de continuar.</small>" + instrucciones, url);
+          mostrarModal("<strong>" + mensajeBot + "</strong><br><small style='color:#e03131'>No se pudo copiar automáticamente. Copia el prompt manualmente (Ctrl+A → Ctrl+C) antes de continuar.</small>" + instrucciones, url);
         });
     }
 
@@ -259,9 +279,9 @@ No incluyas explicaciones internas ni desarrollo adicional, solo las respuestas 
       if (btnCopyPrompt && resultado) {
         btnCopyPrompt.addEventListener('click', function(e) {
           e.preventDefault();
-          navigator.clipboard.writeText(resultado.value).then(function() {
-            mostrarToast('Prompt copiado exitosamente');
-          });
+          copiarAlPortapapeles(resultado.value)
+            .then(function() { mostrarToast('Prompt copiado exitosamente'); })
+            .catch(function() { mostrarToast('No se pudo copiar automáticamente'); });
         });
       }
     });
