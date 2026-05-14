@@ -340,7 +340,7 @@ def _check_negative_mention(db: Session, rule: AlertRule) -> list[tuple]:
     results = []
     for m in mentions:
         sev      = "high" if m.sentiment_label == "very_negative" else "medium"
-        platform = m.platform_code or "desconocida"
+        platform = (m.platform.code if m.platform else None) or "desconocida"
         author   = m.author_username or "anónimo"
         snippet  = (m.content or "")[:120]
         label    = "muy negativa" if m.sentiment_label == "very_negative" else "negativa"
