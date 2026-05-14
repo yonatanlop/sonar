@@ -1,0 +1,22 @@
+{
+  "name": "Generador de Prompts Inteligente",
+  "short_name": "Prompt",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#e0e7ff",
+  "theme_color": "#3b5bdb",
+  "description": "Responde comentarios negativos en Facebook con argumentos sólidos y respeto.",
+  "icons": [
+    {
+      "src": "icons/iconoapp192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/iconoapp512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+} 

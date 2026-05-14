@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Generador de Prompt - Comentario Negativo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.json">
+</head>
+<body>
+  <div class="header" style="position:relative; display:flex; flex-direction:column; align-items:center;">
+    <button id="show-pwa-modal" style="margin-bottom:16px; background:transparent; color:#3b5bdb; border:2px solid #3b5bdb; border-radius:50px; padding:10px 22px; font-size:1.02rem; font-weight:600; box-shadow:none; cursor:pointer; display:none; align-self:center;">Instalar app</button>
+    <h1>🧠 Herramienta de Respuesta a Comentarios Negativos</h1>
+    <p>Responde comentarios negativos en Facebook con argumentos sólidos y respeto</p>
+  </div>
+  <form class="card" onsubmit="event.preventDefault(); generarPrompt();">
+    <label for="tema">¿Cuál es el tema de la publicación principal?</label>
+    <textarea id="tema" class="input-autoresize" rows="1" placeholder="Ejemplo:Participación política de las mujeres" autocomplete="off" required style="resize:none; min-height:60px;"></textarea>
+
+    <label for="link">Link a la publicación</label>
+    <textarea id="link" class="input-autoresize" rows="1" placeholder="Ejemplo:https://facebook.com/post/12" autocomplete="off" required style="resize:none; min-height:38px;"></textarea>
+
+    <label for="comentario">¿Cuál es el comentario negativo completo?</label>
+    <textarea id="comentario" class="input-autoresize" rows="2" placeholder="Escribe aquí el comentario negativo..." required style="resize:none; min-height:38px;"></textarea>
+
+    <div class="actions">
+      <button type="submit" class="gen">Generar Prompt</button>
+    </div>
+    <div class="textarea-wrapper" style="position:relative; width:100%; display:none;">
+      <div style="position:absolute; left:8px; top:-17px; display:flex; gap:10px; z-index:4;">
+        <button id="btnEdit" type="button" class="edit-btn-bar" style="display:flex; align-items:center; gap:6px; font-size:1em; background:#fff; border-radius:6px; border:1.5px solid #a78bfa; box-shadow:0 1px 4px rgba(60,72,88,0.10); color:#7c3aed; padding:3px 12px; cursor:pointer; transition:background 0.18s, color 0.18s; font-weight:600;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 17.25V21h3.75l11.06-11.06a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0L3 17.25zm14.71-9.04a1.003 1.003 0 0 1 1.42 0l2.34 2.34a1.003 1.003 0 0 1 0 1.42l-1.13 1.13-3.76-3.76 1.13-1.13z" fill="#7c3aed"/></svg>
+          Editar
+        </button>
+        <button id="btnCopyPrompt" type="button" class="copy-btn-bar" style="display:flex; align-items:center; gap:6px; font-size:1em; background:#fff; border-radius:6px; border:1.5px solid #3b5bdb; box-shadow:0 1px 4px rgba(60,72,88,0.10); color:#3b5bdb; padding:3px 12px; cursor:pointer; transition:background 0.18s, color 0.18s; font-weight:600;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="8" y="8" width="8" height="12" rx="2" fill="#3b5bdb"/><rect x="4" y="4" width="8" height="12" rx="2" fill="#a5b4fc"/></svg>
+          Copiar
+        </button>
+      </div>
+      <button id="btnScrollUp" type="button" class="scroll-btn" style="position:absolute; right:-5px; top:8px; z-index:3; display:flex; align-items:center; justify-content:center; font-size:1.3em; background:#fff; border-radius:50%; border:1.5px solid #e0e7ff; box-shadow:0 1px 4px rgba(60,72,88,0.10); width:28px; height:28px; cursor:pointer;">▲</button>
+      <textarea id="resultado" class="output-textarea" rows="18" style="resize:vertical; width:100%; min-height:320px;" readonly></textarea>
+      <button id="btnScrollDown" type="button" class="scroll-btn" style="position:absolute; right:-5px; bottom:8px; z-index:3; display:flex; align-items:center; justify-content:center; font-size:1.3em; background:#fff; border-radius:50%; border:1.5px solid #e0e7ff; box-shadow:0 1px 4px rgba(60,72,88,0.10); width:28px; height:28px; cursor:pointer;">▼</button>
+    </div>
+    <div class="copy-actions" style="display:flex; flex-direction:column; gap:10px; margin-top:10px; display:none;">
+      <div style="margin-bottom: 8px; font-weight: 600; color: #612fb6; font-size: 1.14rem; text-align:left;">¿A qué chat bot quieres enviar tu prompt? Selecciona tu favorito:</div>
+      
+      <div style="margin-bottom: 8px; font-weight: 600; color: #1e40af; font-size: 1.08rem; text-align:left;">Chat bot recomendado:</div>
+      <button id="copiarRedirigirMira" type="button" class="mira" onclick="copiarYRedirigirMira()">
+        <img src="img/m.png" alt="MIRA" style="width:1.3em;height:1.3em;vertical-align:middle;margin-right:7px;border-radius:5px;box-shadow:0 1px 4px rgba(60,72,88,0.10);background:#fff;object-fit:contain;"/>
+        Copiar y abrir GPT Leyes Partido MIRA
+      </button>
+      <div style="margin-bottom: 16px; font-size: 0.9rem; color: #6b7280; text-align:left; font-style: italic; padding: 8px; background: #f8fafc; border-radius: 6px; border-left: 3px solid #1e40af;">
+        Este GPT responde exclusivamente consultas sobre leyes, proyectos y logros del Partido Político MIRA, utilizando como base los documentos cargados en conocimientos. No interpreta, opina ni responde fuera del contenido proporcionado.
+      </div>
+      
+      <div style="margin-bottom: 8px; font-weight: 600; color: #364fc7; font-size: 1.08rem; text-align:left;">Chat bots más conocidos:</div>
+      <button id="copiarRedirigir" type="button" class="chatgpt" onclick="copiarYRedirigir()"><img src="img/chat gpt.png" alt="ChatGPT" class="icon-img-chatgpt" aria-hidden="true"/> Copiar y abrir ChatGPT</button>
+      <button id="copiarRedirigirCopilot" type="button" class="copilot" onclick="copiarYRedirigirCopilot()"><img src="img/copilot.png" alt="Copilot" class="icon-img-copilot" aria-hidden="true"/> Copiar y abrir Copilot</button>
+      <button id="copiarRedirigirGemini" type="button" class="gemini" onclick="copiarYRedirigirGemini()"><img src="img/gemini.png" alt="Gemini" class="icon-img-gemini" aria-hidden="true"/> Copiar y abrir Gemini</button>
+      <button id="copiarRedirigirMetaAI" type="button" class="metaai" onclick="copiarYRedirigirMetaAI()"><img src="img/metaai.png" alt="Meta AI" class="icon-img-metaai" aria-hidden="true" style="width:1.3em;height:1.3em;vertical-align:middle;margin-right:7px;"/> Copiar y abrir Meta AI</button>
+      <button id="copiarRedirigirDeepSeek" type="button" class="deepseek" onclick="copiarYRedirigirDeepSeek()"><img src="img/deepseek.png" alt="DeepSeek" class="icon-img-deepseek" aria-hidden="true" style="width:1.3em;height:1.3em;vertical-align:middle;margin-right:7px;"/> Copiar y abrir DeepSeek</button>
+      <button id="copiarRedirigirClaude" type="button" class="claude" onclick="copiarYRedirigirClaude()"><img src="img/claude.png" alt="Claude" class="icon-img-claude" aria-hidden="true" style="width:1.3em;height:1.3em;vertical-align:middle;margin-right:7px;"/> Copiar y abrir Claude</button>
+      <button id="btnLimpiarRecargar" type="button" class="limpiarrecargar" onclick="limpiarYRecargar()" style="display:flex;align-items:center;justify-content:center;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle;"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.3-.42 2.5-1.13 3.47l1.46 1.46C19.07 15.07 20 13.13 20 11c0-4.42-3.58-8-8-8zm-6.36 2.05l1.41 1.41C5.58 7.5 5 9.17 5 11c0 4.42 3.58 8 8 8v3l4-4-4-4v3c-3.31 0-6-2.69-6-6 0-1.3.42-2.5 1.13-3.47z" fill="#3b5bdb"/></svg> Limpiar y recargar</button>
+    </div>
+  </form>
+
+  <!-- Modal personalizado -->
+  <div id="modal" class="modal">
+    <div class="modal-content">
+      <button class="close" onclick="cerrarModal()" aria-label="Cerrar ventana">&times;</button>
+      <div id="modalMensaje"></div>
+      <div id="modalAcciones"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    let redireccionURL = null;
+    let deferredPrompt;
+
+    function generarPrompt() {
+      const tema = document.getElementById("tema").value.trim();
+      const link = document.getElementById("link").value.trim();
+      const comentario = document.getElementById("comentario").value.trim();
+
+      const prompt = `Quiero que me ayudes a responder a un comentario negativo en Facebook relacionado con el tema *${tema}*,  que fue publicado en el siguiente enlace:  ${link}
+
+El comentario dice: *"${comentario}"*.
+
+Necesito que generes *5 posibles respuestas* que cumplan con lo siguiente:
+- Sean claras, respetuosas y firmes.
+- Estén fundamentadas en legislación colombiana vigente (cita artículos o leyes si aplica).
+- Utilicen técnicas de contraargumentación, sin caer en provocaciones ni lenguaje ofensivo.
+- Estén alineadas con los valores del Partido MIRA: respeto, coherencia y responsabilidad.
+- Tengan en cuenta el contexto actual del país y hechos verificables.
+- Dé las respuestas en tercera persona, como hablaría una persona que no fuera del partido.
+
+No incluyas explicaciones internas ni desarrollo adicional, solo las respuestas listas para publicar.`;
+
+      const resultado = document.getElementById("resultado");
+      resultado.value = prompt;
+      document.querySelector('.textarea-wrapper').style.display = "block";
+      document.querySelector('.copy-actions').style.display = "flex";
+      // Scroll suave hacia el textarea
+      setTimeout(() => {
+        resultado.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
+    }
+
+    function getPromptPlano() {
+      const resultado = document.getElementById("resultado");
+      return resultado.value;
+    }
+
+    function copiarYRedirigir() {
+      const prompt = getPromptPlano();
+      if (!prompt) return;
+      navigator.clipboard.writeText(prompt).then(function() {
+        mostrarModal("<strong>A continuación serás redirigido a ChatGPT.</strong><br><br>Para pegar tu prompt:<br>- <b>En computadora:</b> presiona <b>Ctrl + V</b> en el cuadro de texto.<br>- <b>En teléfono:</b> mantén presionado en el cuadro de texto y selecciona <b>'Pegar'</b>.", "https://chatgpt.com/?model=auto");
+      });
+    }
+
+    function copiarYRedirigirCopilot() {
+      const prompt = getPromptPlano();
+      if (!prompt) return;
+      navigator.clipboard.writeText(prompt).then(function() {
+        mostrarModal("<strong>A continuación serás redirigido a Copilot.</strong><br><br>Para pegar tu prompt:<br>- <b>En computadora:</b> presiona <b>Ctrl + V</b> en el cuadro de texto.<br>- <b>En teléfono:</b> mantén presionado en el cuadro de texto y selecciona <b>'Pegar'</b>.", "https://copilot.microsoft.com/chats/36aEQkA7gcwf7JAgHKQYQ");
+      });
+    }
+
+    function copiarYRedirigirGemini() {
+      const prompt = getPromptPlano();
+      if (!prompt) return;
+      navigator.clipboard.writeText(prompt).then(function() {
+        mostrarModal("<strong>A continuación serás redirigido a Gemini (Google).</strong><br><br>Para pegar tu prompt:<br>- <b>En computadora:</b> presiona <b>Ctrl + V</b> en el cuadro de texto.<br>- <b>En teléfono:</b> mantén presionado en el cuadro de texto y selecciona <b>'Pegar'</b>.", "https://gemini.google.com/?hl=es");
+      });
+    }
+
+    function copiarYRedirigirMetaAI() {
+      const prompt = getPromptPlano();
+      if (!prompt) return;
+      navigator.clipboard.writeText(prompt).then(function() {
+        mostrarModal("<strong>A continuación serás redirigido a Meta AI (WhatsApp).</strong><br><br>Para pegar tu prompt:<br>- <b>En computadora:</b> presiona <b>Ctrl + V</b> en el chat.<br>- <b>En teléfono:</b> mantén presionado en el cuadro de texto y selecciona <b>'Pegar'</b>.", "https://wa.me/13135550002?s=5");
+      });
+    }
+
+    function copiarYRedirigirDeepSeek() {
+      const prompt = getPromptPlano();
+      if (!prompt) return;
+      navigator.clipboard.writeText(prompt).then(function() {
+        mostrarModal("<strong>A continuación serás redirigido a DeepSeek.</strong><br><br>Para pegar tu prompt:<br>- <b>En computadora:</b> presiona <b>Ctrl + V</b> en el chat.<br>- <b>En teléfono:</b> mantén presionado en el cuadro de texto y selecciona <b>'Pegar'</b>.", "https://chat.deepseek.com");
+      });
+    }
+
+    function copiarYRedirigirClaude() {
+      const prompt = getPromptPlano();
+      if (!prompt) return;
+      navigator.clipboard.writeText(prompt).then(function() {
+        mostrarModal("<strong>A continuación serás redirigido a Claude.</strong><br><br>Para pegar tu prompt:<br>- <b>En computadora:</b> presiona <b>Ctrl + V</b> en el chat.<br>- <b>En teléfono:</b> mantén presionado en el cuadro de texto y selecciona <b>'Pegar'</b>.", "https://claude.ai/new");
+      });
+    }
+
+    function copiarYRedirigirMira() {
+      const prompt = getPromptPlano();
+      if (!prompt) return;
+      navigator.clipboard.writeText(prompt).then(function() {
+        mostrarModal("<strong>A continuación serás redirigido a GPT Leyes Partido MIRA.</strong><br><br>Para pegar tu prompt:<br>- <b>En computadora:</b> presiona <b>Ctrl + V</b> en el chat.<br>- <b>En teléfono:</b> mantén presionado en el cuadro de texto y selecciona <b>'Pegar'</b>.", "https://chatgpt.com/g/g-67f94c7133f48191a9a0fcceceb91986-leyes-partido-mira");
+      });
+    }
+
+    function mostrarToast(mensaje) {
+      const toast = document.getElementById('toast');
+      toast.textContent = mensaje;
+      toast.style.display = 'block';
+      setTimeout(() => {
+        toast.style.display = 'none';
+      }, 2000);
+    }
+
+    function mostrarModal(mensaje, url) {
+      mostrarToast('Prompt copiado exitosamente');
+      setTimeout(() => {
+        document.getElementById('modalMensaje').innerHTML = mensaje + '<br><br><b>Presiona continuar para abrir el chat bot seleccionado.</b>';
+        document.getElementById('modal').style.display = 'flex';
+        redireccionURL = url;
+        // Botones de acción
+        let acciones = document.getElementById('modalAcciones');
+        if (!acciones) {
+          acciones = document.createElement('div');
+          acciones.id = 'modalAcciones';
+          acciones.style.display = 'flex';
+          acciones.style.justifyContent = 'center';
+          acciones.style.gap = '16px';
+          acciones.style.marginTop = '18px';
+          document.querySelector('.modal-content').appendChild(acciones);
+        }
+        acciones.innerHTML = '';
+        // Botón cancelar
+        const btnCancelar = document.createElement('button');
+        btnCancelar.textContent = 'Cancelar';
+        btnCancelar.style.background = '#e03131';
+        btnCancelar.style.color = '#fff';
+        btnCancelar.style.border = 'none';
+        btnCancelar.style.borderRadius = '8px';
+        btnCancelar.style.padding = '12px 28px';
+        btnCancelar.style.fontWeight = '600';
+        btnCancelar.style.fontSize = '1.08rem';
+        btnCancelar.style.cursor = 'pointer';
+        btnCancelar.onclick = cerrarModal;
+        // Botón continuar
+        const btnContinuar = document.createElement('button');
+        btnContinuar.textContent = 'Continuar';
+        btnContinuar.style.background = 'linear-gradient(90deg, #3b5bdb 0%, #818cf8 100%)';
+        btnContinuar.style.color = '#fff';
+        btnContinuar.style.border = 'none';
+        btnContinuar.style.borderRadius = '8px';
+        btnContinuar.style.padding = '12px 28px';
+        btnContinuar.style.fontWeight = '600';
+        btnContinuar.style.fontSize = '1.08rem';
+        btnContinuar.style.cursor = 'pointer';
+        btnContinuar.onclick = continuarRedireccion;
+        acciones.appendChild(btnCancelar);
+        acciones.appendChild(btnContinuar);
+      }, 2000);
+    }
+
+    function cerrarModal() {
+      document.getElementById('modal').style.display = 'none';
+      redireccionURL = null;
+      // Eliminar botones de acción si existen
+      const acciones = document.getElementById('modalAcciones');
+      if (acciones) acciones.remove();
+    }
+
+    function continuarRedireccion() {
+      if (redireccionURL) {
+        window.location.href = redireccionURL;
+      }
+    }
+
+    // Funcionalidad de los botones de scroll
+    document.addEventListener('DOMContentLoaded', function() {
+      const resultado = document.getElementById('resultado');
+      const btnUp = document.getElementById('btnScrollUp');
+      const btnDown = document.getElementById('btnScrollDown');
+      btnUp.addEventListener('click', function(e) {
+        e.preventDefault();
+        resultado.scrollBy({ top: -resultado.clientHeight * 0.2, behavior: 'smooth' });
+      });
+      btnDown.addEventListener('click', function(e) {
+        e.preventDefault();
+        resultado.scrollBy({ top: resultado.clientHeight * 0.2, behavior: 'smooth' });
+      });
+    });
+
+    // Funcionalidad del botón de edición tipo barra
+    document.addEventListener('DOMContentLoaded', function() {
+      const resultado = document.getElementById('resultado');
+      const btnEdit = document.getElementById('btnEdit');
+      let editando = false;
+      btnEdit.addEventListener('click', function(e) {
+        e.preventDefault();
+        editando = !editando;
+        resultado.readOnly = !editando;
+        if (editando) {
+          resultado.focus();
+          btnEdit.style.background = '#a78bfa';
+          btnEdit.style.color = '#fff';
+          btnEdit.querySelector('svg path').setAttribute('fill', '#fff');
+          btnEdit.childNodes[2].textContent = ' Editando';
+        } else {
+          btnEdit.style.background = '#fff';
+          btnEdit.style.color = '#7c3aed';
+          btnEdit.querySelector('svg path').setAttribute('fill', '#7c3aed');
+          btnEdit.childNodes[2].textContent = ' Editar';
+        }
+      });
+    });
+
+    // Autoajuste de altura para los nuevos textareas
+    document.addEventListener('input', function(e) {
+      if (e.target && e.target.classList.contains('input-autoresize')) {
+        e.target.style.height = 'auto';
+        e.target.style.height = e.target.scrollHeight + 'px';
+      }
+    });
+
+    // Funcionalidad del botón copiar prompt
+    document.addEventListener('DOMContentLoaded', function() {
+      const btnCopyPrompt = document.getElementById('btnCopyPrompt');
+      const resultado = document.getElementById('resultado');
+      if (btnCopyPrompt && resultado) {
+        btnCopyPrompt.addEventListener('click', function(e) {
+          e.preventDefault();
+          navigator.clipboard.writeText(resultado.value).then(function() {
+            mostrarToast('Prompt copiado exitosamente');
+          });
+        });
+      }
+    });
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('/promt/service-worker.js');
+      });
+    }
+
+    const showPWAModalBtn = document.getElementById('show-pwa-modal');
+
+    function isIos() {
+      return /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
+    }
+    function isInStandaloneMode() {
+      return ('standalone' in window.navigator) && window.navigator.standalone;
+    }
+
+    // Mostrar el botón solo si la app no está instalada
+    function mostrarBotonInstalar() {
+      if (window.matchMedia('(display-mode: standalone)').matches || isInStandaloneMode()) {
+        showPWAModalBtn.style.display = 'none';
+        return;
+      }
+      // iOS: mostrar siempre el botón si no está instalada
+      if (isIos()) {
+        showPWAModalBtn.style.display = '';
+        return;
+      }
+      // Android/otros: solo mostrar si beforeinstallprompt está disponible
+      showPWAModalBtn.style.display = 'none';
+    }
+
+    // Android/Chrome: guardar el evento para poder usarlo al pulsar el botón
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      mostrarBotonInstalar();
+      showPWAModalBtn.style.display = '';
+    });
+
+    // iOS y otros: mostrar/ocultar el botón al cargar
+    document.addEventListener('DOMContentLoaded', mostrarBotonInstalar);
+
+    // Ocultar el botón si la app se instala
+    window.addEventListener('appinstalled', () => {
+      showPWAModalBtn.style.display = 'none';
+      deferredPrompt = null;
+    });
+
+    // Al hacer clic en el botón
+    showPWAModalBtn.addEventListener('click', function() {
+      if (isIos()) {
+        alert('Para instalar la app en tu iPhone o iPad, pulsa el botón de compartir y selecciona "Agregar a pantalla de inicio".');
+      } else if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt = null;
+        showPWAModalBtn.style.display = 'none';
+      }
+    });
+
+    function limpiarYRecargar() {
+      document.getElementById('tema').value = '';
+      document.getElementById('link').value = '';
+      document.getElementById('comentario').value = '';
+      document.getElementById('resultado').value = '';
+      document.querySelector('.textarea-wrapper').style.display = 'none';
+      document.querySelector('.copy-actions').style.display = 'none';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      setTimeout(() => { location.reload(); }, 200);
+    }
+  </script>
+</body>
+</html>
