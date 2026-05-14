@@ -4,6 +4,7 @@ YouTube Explorer — Monitoreo de canales de YouTube por keywords.
 Permite asignar cuentas específicas de YouTube (@jdoviedoar) y buscar
 dentro de su contenido publicado usando palabras clave.
 """
+import hashlib
 import json
 import logging
 import re
@@ -24,6 +25,7 @@ from app.database import get_db
 from app.models.mention import Mention, SocialPlatform
 from app.models.user import User
 from app.models.youtube_channel import YoutubeChannel, YoutubeChannelKeyword
+from app.models.yt_keyword_hit import YtKeywordHit
 from app.workers.scrapers.base import save_mention
 
 logger = logging.getLogger(__name__)
@@ -148,6 +150,114 @@ def _channel_dict(ch: YoutubeChannel, db: Session) -> dict:
     }
 
 
+# ── Indexor helpers ──────────────────────────────────────────────
+
+def _indexor_register_channel(handle: str) -> tuple[bool, str]:
+    """Registra el canal en Indexor. Retorna (ok, error_msg). Nunca lanza."""
+    if not settings.INDEXOR_API_TOKEN:
+        return False, "INDEXOR_API_TOKEN no está configurado en el servidor"
+    try:
+        resp = requests.post(
+            f"{settings.INDEXOR_API_URL}/api/yt-channels",
+            json={"channel": f"https://www.youtube.com/@{handle}/videos"},
+            headers={"Authorization": f"Bearer {settings.INDEXOR_API_TOKEN}"},
+            timeout=15,
+        )
+        if resp.status_code == 200:
+            return True, ""
+        logger.error("Indexor register_channel status=%s body=%s", resp.status_code, resp.text[:200])
+        return False, f"Indexor respondió con estado {resp.status_code}"
+    except requests.Timeout:
+        logger.error("Indexor register_channel timeout handle=%s", handle)
+        return False, "Timeout al conectar con el sistema de indexación"
+    except requests.RequestException as exc:
+        logger.error("Indexor register_channel error handle=%s: %s", handle, exc)
+        return False, "No se pudo conectar con el sistema de indexación"
+
+
+def _indexor_search_keyword(handle: str, keyword: str) -> dict | None:
+    """Busca hits de keyword en Indexor. Retorna JSON o None si falla. Nunca lanza."""
+    if not settings.INDEXOR_API_TOKEN:
+        return None
+    try:
+        resp = requests.get(
+            f"{settings.INDEXOR_API_URL}/api/videos/search_keyword",
+            params={"q": keyword, "channel": f"https://www.youtube.com/@{handle}/videos"},
+            headers={"Authorization": f"Bearer {settings.INDEXOR_API_TOKEN}"},
+            timeout=20,
+        )
+        if resp.status_code == 200:
+            return resp.json()
+        logger.error("Indexor search_keyword status=%s handle=%s kw=%s", resp.status_code, handle, keyword)
+        return None
+    except requests.Timeout:
+        logger.error("Indexor search_keyword timeout handle=%s kw=%s", handle, keyword)
+        return None
+    except requests.RequestException as exc:
+        logger.error("Indexor search_keyword error handle=%s kw=%s: %s", handle, keyword, exc)
+        return None
+
+
+def _sha256_url(url: str) -> str:
+    return hashlib.sha256(url.encode("utf-8")).hexdigest()
+
+
+def _run_indexor_keyword_search(db: Session, handle: str, keyword_id: int, keyword_text: str) -> dict:
+    """Llama Indexor, guarda hits en BD y retorna payload para la respuesta API."""
+    indexor_result = _indexor_search_keyword(handle, keyword_text)
+    if not indexor_result:
+        return {"findings": 0, "data": []}
+    raw_hits = indexor_result.get("data", [])
+    ch_obj = db.query(YoutubeChannelKeyword).filter(YoutubeChannelKeyword.id == keyword_id).first()
+    channel_id = ch_obj.channel_id if ch_obj else 0
+    saved = _upsert_hits(db, channel_id, keyword_id, keyword_text, raw_hits)
+    db.commit()
+    return {"findings": indexor_result.get("findings", len(raw_hits)), "data": saved}
+
+
+def _upsert_hits(db: Session, channel_id: int, keyword_id: int | None,
+                 keyword_text: str, hits_data: list[dict]) -> list[dict]:
+    """Inserta hits nuevos en yt_keyword_hits (deduplica por hash). Retorna lista serializada."""
+    result = []
+    for item in hits_data:
+        url = item.get("url", "")
+        if not url:
+            continue
+        h = _sha256_url(url)
+        existing = db.query(YtKeywordHit).filter(YtKeywordHit.hash == h).first()
+        if existing:
+            result.append({
+                "id": existing.id,
+                "yt_media_video_id": existing.yt_media_video_id,
+                "inicio": existing.inicio,
+                "texto": existing.texto,
+                "url": existing.url,
+                "query_date": existing.query_date.isoformat() if existing.query_date else None,
+            })
+            continue
+        hit = YtKeywordHit(
+            hash=h,
+            channel_id=channel_id,
+            keyword_id=keyword_id,
+            keyword=keyword_text,
+            yt_media_video_id=item.get("yt_media_video_id", ""),
+            inicio=item.get("inicio"),
+            texto=item.get("texto"),
+            url=url,
+        )
+        db.add(hit)
+        db.flush()
+        result.append({
+            "id": hit.id,
+            "yt_media_video_id": hit.yt_media_video_id,
+            "inicio": hit.inicio,
+            "texto": hit.texto,
+            "url": hit.url,
+            "query_date": None,
+        })
+    return result
+
+
 # ── Canales — CRUD ────────────────────────────────────────────────
 
 @router.get("/channels")
@@ -168,6 +278,9 @@ def create_channel(request: Request, data: ChannelCreate, db: Session = Depends(
     existing = db.query(YoutubeChannel).filter(YoutubeChannel.handle == handle).first()
     if existing:
         if not existing.active:
+            ok, _ = _indexor_register_channel(handle)
+            if not ok:
+                raise HTTPException(status_code=400, detail="No se pudo registrar el canal en el sistema de indexación")
             existing.active = True
             db.commit()
             return _channel_dict(existing, db)
@@ -178,6 +291,10 @@ def create_channel(request: Request, data: ChannelCreate, db: Session = Depends(
     dup_id = db.query(YoutubeChannel).filter(YoutubeChannel.channel_id == resolved["channel_id"]).first()
     if dup_id:
         raise HTTPException(status_code=409, detail=f"Este canal ya existe como '@{dup_id.handle}'")
+
+    ok, _ = _indexor_register_channel(handle)
+    if not ok:
+        raise HTTPException(status_code=400, detail="No se pudo registrar el canal en el sistema de indexación")
 
     ch = YoutubeChannel(
         handle=handle,
@@ -257,12 +374,16 @@ def add_keyword(channel_id: int, data: KeywordCreate, db: Session = Depends(get_
         if not existing.active:
             existing.active = True
             db.commit()
-        return {"id": existing.id, "keyword": existing.keyword, "active": existing.active}
+        hits_payload = _run_indexor_keyword_search(db, ch.handle, existing.id, existing.keyword)
+        return {"id": existing.id, "keyword": existing.keyword, "active": existing.active, "hits": hits_payload}
+
     kw = YoutubeChannelKeyword(channel_id=channel_id, keyword=kw_text)
     db.add(kw)
     db.commit()
     db.refresh(kw)
-    return {"id": kw.id, "keyword": kw.keyword, "active": kw.active}
+
+    hits_payload = _run_indexor_keyword_search(db, ch.handle, kw.id, kw_text)
+    return {"id": kw.id, "keyword": kw.keyword, "active": kw.active, "hits": hits_payload}
 
 
 @router.delete("/channels/{channel_id}/keywords/{keyword_id}", status_code=204)
@@ -275,6 +396,45 @@ def delete_keyword(channel_id: int, keyword_id: int, db: Session = Depends(get_d
         raise HTTPException(status_code=404, detail="Keyword no encontrada")
     db.delete(kw)
     db.commit()
+
+
+# ── Hits de Indexor ──────────────────────────────────────────────
+
+@router.get("/channels/{channel_id}/keyword-hits")
+def list_keyword_hits(
+    channel_id: int,
+    keyword_id: Optional[int] = Query(None, description="Filtrar por keyword"),
+    offset:     int           = Query(0,   ge=0),
+    limit:      int           = Query(50,  ge=1, le=200),
+    db:         Session       = Depends(get_db),
+    _:          User          = Depends(get_current_user),
+):
+    ch = db.query(YoutubeChannel).filter(YoutubeChannel.id == channel_id).first()
+    if not ch:
+        raise HTTPException(status_code=404, detail="Canal no encontrado")
+    q = db.query(YtKeywordHit).filter(YtKeywordHit.channel_id == channel_id)
+    if keyword_id is not None:
+        q = q.filter(YtKeywordHit.keyword_id == keyword_id)
+    total = q.count()
+    hits = q.order_by(YtKeywordHit.query_date.desc()).offset(offset).limit(limit).all()
+    return {
+        "total": total,
+        "offset": offset,
+        "limit": limit,
+        "data": [
+            {
+                "id":                hit.id,
+                "keyword":           hit.keyword,
+                "keyword_id":        hit.keyword_id,
+                "yt_media_video_id": hit.yt_media_video_id,
+                "inicio":            hit.inicio,
+                "texto":             hit.texto,
+                "url":               hit.url,
+                "query_date":        hit.query_date.isoformat() if hit.query_date else None,
+            }
+            for hit in hits
+        ],
+    }
 
 
 # ── Búsqueda on-demand ────────────────────────────────────────────

@@ -28,6 +28,12 @@ class YoutubeChannel(Base):
         cascade="all, delete-orphan",
         lazy="select",
     )
+    keyword_hits = relationship(
+        "YtKeywordHit",
+        back_populates="channel",
+        cascade="all, delete-orphan",
+        lazy="select",
+    )
 
 
 class YoutubeChannelKeyword(Base):
@@ -41,3 +47,9 @@ class YoutubeChannelKeyword(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     channel = relationship("YoutubeChannel", back_populates="keywords")
+    hits = relationship(
+        "YtKeywordHit",
+        back_populates="keyword_ref",
+        cascade="all, delete-orphan",
+        lazy="select",
+    )

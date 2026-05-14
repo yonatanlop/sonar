@@ -40,6 +40,10 @@ class Settings(BaseSettings):
     YOUTUBE_API_KEY: str = ""
     HUGGINGFACE_TOKEN: str = ""
 
+    # Indexor — sistema externo de indexación de videos YouTube por subtítulos
+    INDEXOR_API_URL: str = "https://live.arquitectura-test.xyz"
+    INDEXOR_API_TOKEN: str = ""
+
     # Twitter / X (twscrape — sin API key oficial)
     # Ruta a la DB SQLite donde twscrape guarda las cuentas y sus cookies.
     # El volumen storage_data lo persiste entre reinicios del contenedor.

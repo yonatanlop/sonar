@@ -1,0 +1,1487 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SONAR v2.7 — Manual de Usuario</title>
+<style>
+/* ── Reset y base ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; font-size: 15px; }
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  color: #1e293b;
+  background: #f8fafc;
+  line-height: 1.7;
+}
+
+/* ── Variables ── */
+:root {
+  --primary:       #1d4ed8;
+  --primary-dark:  #1e3a5f;
+  --primary-light: #dbeafe;
+  --primary-mid:   #3b82f6;
+  --orange:        #ea580c;
+  --green:         #16a34a;
+  --red:           #dc2626;
+  --yellow:        #d97706;
+  --gray-50:       #f8fafc;
+  --gray-100:      #f1f5f9;
+  --gray-200:      #e2e8f0;
+  --gray-400:      #94a3b8;
+  --gray-600:      #475569;
+  --gray-900:      #0f172a;
+  --sidebar-w:     270px;
+  --radius:        8px;
+}
+
+/* ── Layout ── */
+.wrapper { display: flex; min-height: 100vh; }
+
+/* ── Sidebar TOC ── */
+.sidebar {
+  width: var(--sidebar-w);
+  min-width: var(--sidebar-w);
+  background: var(--primary-dark);
+  color: #cbd5e1;
+  position: fixed;
+  top: 0; left: 0;
+  height: 100vh;
+  overflow-y: auto;
+  z-index: 100;
+  padding-bottom: 2rem;
+}
+.sidebar-header {
+  padding: 1.5rem 1.25rem 1rem;
+  border-bottom: 1px solid rgba(255,255,255,.1);
+  margin-bottom: .5rem;
+}
+.sidebar-logo {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.5px;
+}
+.sidebar-sub { font-size: .72rem; color: #93c5fd; margin-top: .2rem; }
+.toc-section { padding: .4rem 1rem; }
+.toc-section-label {
+  font-size: .65rem;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: #64748b;
+  padding: .6rem .25rem .2rem;
+}
+.toc-link {
+  display: block;
+  padding: .38rem .5rem .38rem .75rem;
+  border-radius: 6px;
+  color: #cbd5e1;
+  text-decoration: none;
+  font-size: .82rem;
+  transition: background .15s, color .15s;
+  margin-bottom: 1px;
+  border-left: 3px solid transparent;
+}
+.toc-link:hover, .toc-link.active {
+  background: rgba(255,255,255,.1);
+  color: #fff;
+  border-left-color: #3b82f6;
+}
+.toc-link.sub { padding-left: 1.4rem; font-size: .78rem; color: #94a3b8; }
+.toc-link.sub:hover { color: #e2e8f0; }
+
+/* ── Contenido principal ── */
+.content {
+  margin-left: var(--sidebar-w);
+  flex: 1;
+  max-width: 900px;
+  padding: 2.5rem 3rem 6rem;
+}
+
+/* ── Portada ── */
+.cover {
+  text-align: center;
+  padding: 4rem 2rem 3rem;
+  margin-bottom: 3rem;
+  background: linear-gradient(135deg, var(--primary-dark) 0%, #1d4ed8 100%);
+  border-radius: var(--radius);
+  color: white;
+}
+.cover-logo { font-size: 3.5rem; font-weight: 900; letter-spacing: -2px; margin-bottom: .5rem; }
+.cover-tagline { font-size: 1rem; color: #93c5fd; margin-bottom: 2rem; letter-spacing: .05em; }
+.cover-version {
+  display: inline-block;
+  background: rgba(255,255,255,.15);
+  border: 1px solid rgba(255,255,255,.3);
+  border-radius: 20px;
+  padding: .4rem 1.2rem;
+  font-size: .9rem;
+  margin-bottom: .75rem;
+}
+.cover-date { font-size: .82rem; color: #93c5fd; }
+.cover-desc {
+  max-width: 520px;
+  margin: 1.5rem auto 0;
+  font-size: .92rem;
+  color: #bfdbfe;
+  line-height: 1.6;
+}
+
+/* ── Tipografía ── */
+h1 { font-size: 1.75rem; font-weight: 800; color: var(--primary-dark); margin-bottom: 1rem; padding-top: .5rem; }
+h2 { font-size: 1.25rem; font-weight: 700; color: var(--primary-dark); margin: 2rem 0 .75rem; border-bottom: 2px solid var(--primary-light); padding-bottom: .4rem; }
+h3 { font-size: 1rem; font-weight: 700; color: var(--gray-900); margin: 1.5rem 0 .5rem; }
+h4 { font-size: .9rem; font-weight: 600; color: var(--gray-600); margin: 1.2rem 0 .4rem; text-transform: uppercase; letter-spacing: .04em; }
+p { margin-bottom: .85rem; color: #334155; }
+ul, ol { padding-left: 1.4rem; margin-bottom: .85rem; }
+li { margin-bottom: .3rem; color: #334155; }
+strong { color: var(--gray-900); }
+code {
+  background: var(--gray-100);
+  border: 1px solid var(--gray-200);
+  border-radius: 4px;
+  padding: .15em .45em;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: .83em;
+  color: #be185d;
+}
+
+/* ── Secciones ── */
+.section {
+  margin-bottom: 3.5rem;
+  padding-top: .5rem;
+}
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  margin-bottom: 1.25rem;
+  padding-bottom: .75rem;
+  border-bottom: 3px solid var(--primary);
+}
+.section-icon {
+  width: 42px; height: 42px;
+  background: var(--primary);
+  border-radius: var(--radius);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.3rem;
+  color: white;
+  flex-shrink: 0;
+}
+.section-header h1 { border: none; margin: 0; padding: 0; font-size: 1.5rem; }
+.section-num { font-size: .75rem; color: var(--primary-mid); font-weight: 600; text-transform: uppercase; letter-spacing: .08em; }
+
+/* ── Cards / Boxes ── */
+.card {
+  background: white;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1rem;
+}
+.info-box {
+  background: #eff6ff;
+  border-left: 4px solid var(--primary-mid);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding: .9rem 1.2rem;
+  margin: 1rem 0;
+  font-size: .88rem;
+  color: #1e40af;
+}
+.info-box .box-title { font-weight: 700; margin-bottom: .3rem; }
+.warning-box {
+  background: #fffbeb;
+  border-left: 4px solid var(--yellow);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding: .9rem 1.2rem;
+  margin: 1rem 0;
+  font-size: .88rem;
+  color: #92400e;
+}
+.warning-box .box-title { font-weight: 700; margin-bottom: .3rem; }
+.tip-box {
+  background: #f0fdf4;
+  border-left: 4px solid var(--green);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding: .9rem 1.2rem;
+  margin: 1rem 0;
+  font-size: .88rem;
+  color: #14532d;
+}
+.tip-box .box-title { font-weight: 700; margin-bottom: .3rem; }
+.danger-box {
+  background: #fef2f2;
+  border-left: 4px solid var(--red);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding: .9rem 1.2rem;
+  margin: 1rem 0;
+  font-size: .88rem;
+  color: #7f1d1d;
+}
+.danger-box .box-title { font-weight: 700; margin-bottom: .3rem; }
+
+/* ── Pasos numerados ── */
+.steps { list-style: none; padding: 0; counter-reset: step; }
+.steps li {
+  counter-increment: step;
+  display: flex;
+  gap: .9rem;
+  margin-bottom: .85rem;
+  align-items: flex-start;
+}
+.steps li::before {
+  content: counter(step);
+  background: var(--primary);
+  color: white;
+  font-weight: 700;
+  font-size: .8rem;
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  margin-top: .2rem;
+}
+
+/* ── Tabla de roles ── */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .86rem;
+  margin: 1rem 0 1.5rem;
+}
+th {
+  background: var(--primary-dark);
+  color: white;
+  padding: .6rem .9rem;
+  text-align: left;
+  font-weight: 600;
+  font-size: .8rem;
+  letter-spacing: .04em;
+}
+td { padding: .55rem .9rem; border-bottom: 1px solid var(--gray-200); vertical-align: top; }
+tr:nth-child(even) td { background: var(--gray-50); }
+tr:hover td { background: var(--primary-light); }
+.check { color: var(--green); font-weight: 700; }
+.cross { color: var(--gray-400); }
+
+/* ── Badges de rol ── */
+.role { display: inline-block; border-radius: 20px; padding: .2em .7em; font-size: .72rem; font-weight: 700; }
+.role-admin { background: #fce7f3; color: #9d174d; }
+.role-analyst { background: #ede9fe; color: #5b21b6; }
+.role-viewer { background: #e0f2fe; color: #0c4a6e; }
+.role-all { background: var(--gray-100); color: var(--gray-600); }
+
+/* ── Feature grid ── */
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: .75rem;
+  margin: 1rem 0;
+}
+.feature-item {
+  background: white;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius);
+  padding: .9rem 1rem;
+  text-align: center;
+}
+.feature-item .icon { font-size: 1.6rem; margin-bottom: .4rem; }
+.feature-item .label { font-size: .82rem; font-weight: 600; color: var(--gray-900); }
+.feature-item .desc { font-size: .75rem; color: var(--gray-600); margin-top: .2rem; }
+
+/* ── Screenshot placeholder ── */
+.screen-placeholder {
+  background: var(--gray-100);
+  border: 2px dashed var(--gray-200);
+  border-radius: var(--radius);
+  height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--gray-400);
+  font-size: .85rem;
+  margin: .75rem 0;
+  font-style: italic;
+}
+
+/* ── Divider ── */
+.divider {
+  border: none;
+  border-top: 1px solid var(--gray-200);
+  margin: 2.5rem 0;
+}
+
+/* ── Tag inline ── */
+.tag {
+  display: inline-block;
+  padding: .15em .6em;
+  border-radius: 20px;
+  font-size: .75rem;
+  font-weight: 600;
+}
+.tag-blue { background: var(--primary-light); color: #1e40af; }
+.tag-orange { background: #fff7ed; color: #c2410c; }
+.tag-red { background: #fef2f2; color: #b91c1c; }
+.tag-green { background: #f0fdf4; color: #15803d; }
+.tag-purple { background: #f5f3ff; color: #6d28d9; }
+.tag-gray { background: var(--gray-100); color: var(--gray-600); }
+
+/* ── Workflow steps ── */
+.workflow {
+  display: flex;
+  gap: 0;
+  margin: 1.25rem 0;
+  flex-wrap: wrap;
+}
+.wf-step {
+  flex: 1;
+  min-width: 110px;
+  background: var(--primary);
+  color: white;
+  padding: .7rem .9rem;
+  font-size: .78rem;
+  font-weight: 600;
+  text-align: center;
+  position: relative;
+}
+.wf-step:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  right: -12px; top: 50%;
+  transform: translateY(-50%);
+  width: 0; height: 0;
+  border-top: 14px solid transparent;
+  border-bottom: 14px solid transparent;
+  border-left: 12px solid var(--primary);
+  z-index: 1;
+}
+.wf-step:nth-child(2) { background: #2563eb; }
+.wf-step:nth-child(2):not(:last-child)::after { border-left-color: #2563eb; }
+.wf-step:nth-child(3) { background: #3b82f6; }
+.wf-step:nth-child(3):not(:last-child)::after { border-left-color: #3b82f6; }
+.wf-step:nth-child(4) { background: #60a5fa; }
+.wf-step:nth-child(4):not(:last-child)::after { border-left-color: #60a5fa; }
+.wf-step:nth-child(5) { background: #93c5fd; color: #1e3a5f; }
+.wf-step:first-child { border-radius: var(--radius) 0 0 var(--radius); }
+.wf-step:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
+
+/* ── Imprimir ── */
+@media print {
+  .sidebar { display: none !important; }
+  .content { margin-left: 0 !important; max-width: 100% !important; padding: 1.5cm 2cm !important; }
+  .cover { background: var(--primary-dark) !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .section { page-break-inside: avoid; }
+  h1, h2, h3 { page-break-after: avoid; }
+  .section-header { page-break-after: avoid; }
+  a { color: inherit; text-decoration: none; }
+}
+@page { margin: 1.5cm 2cm; }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+<!-- ══════════════════════════════════════════════════
+     SIDEBAR — Tabla de contenidos
+══════════════════════════════════════════════════ -->
+<nav class="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-logo">📡 SONAR</div>
+    <div class="sidebar-sub">Manual de Usuario · v2.7</div>
+  </div>
+
+  <div class="toc-section">
+    <div class="toc-section-label">Inicio</div>
+    <a class="toc-link" href="#introduccion">1. Introducción</a>
+    <a class="toc-link" href="#acceso">2. Acceso al sistema</a>
+    <a class="toc-link" href="#roles">3. Roles y permisos</a>
+    <a class="toc-link" href="#navegacion">4. Navegación</a>
+  </div>
+
+  <div class="toc-section">
+    <div class="toc-section-label">Monitoreo</div>
+    <a class="toc-link" href="#dashboard">5. Dashboard</a>
+    <a class="toc-link" href="#entidades">6. Entidades</a>
+    <a class="toc-link sub" href="#entidades-keywords">· Keywords</a>
+    <a class="toc-link sub" href="#entidades-aliases">· Aliases</a>
+    <a class="toc-link sub" href="#entidades-reglas">· Reglas de alerta</a>
+    <a class="toc-link" href="#menciones">7. Menciones</a>
+    <a class="toc-link" href="#mapa">8. Mapa geográfico</a>
+    <a class="toc-link" href="#comparar">9. Comparar entidades</a>
+  </div>
+
+  <div class="toc-section">
+    <div class="toc-section-label">Gestión de alertas</div>
+    <a class="toc-link" href="#alertas">10. Alertas</a>
+    <a class="toc-link" href="#bandeja">11. Bandeja de menciones</a>
+    <a class="toc-link sub" href="#bandeja-protocolo">· Protocolo</a>
+    <a class="toc-link sub" href="#bandeja-escalacion">· Escalación jurídica</a>
+    <a class="toc-link" href="#rizoma">12. Rizoma</a>
+    <a class="toc-link" href="#juridico">13. Bandeja jurídica</a>
+  </div>
+
+  <div class="toc-section">
+    <div class="toc-section-label">Herramientas</div>
+    <a class="toc-link" href="#twitter">14. Twitter Explorer</a>
+    <a class="toc-link" href="#youtube">15. YouTube Explorer</a>
+    <a class="toc-link" href="#reportes">16. Reportes</a>
+    <a class="toc-link" href="#chat">17. Asistente IA</a>
+    <a class="toc-link" href="#plataformas">18. Plataformas</a>
+  </div>
+
+  <div class="toc-section">
+    <div class="toc-section-label">Administración</div>
+    <a class="toc-link" href="#reglas-alerta">19. Reglas de alerta</a>
+    <a class="toc-link" href="#usuarios">20. Gestión de usuarios</a>
+    <a class="toc-link" href="#auditoria">21. Auditoría</a>
+    <a class="toc-link" href="#perfil">22. Mi perfil</a>
+  </div>
+
+  <div class="toc-section">
+    <div class="toc-section-label">Referencia</div>
+    <a class="toc-link" href="#protocolo-incidentes">23. Protocolo de incidentes</a>
+    <a class="toc-link" href="#glosario">24. Glosario</a>
+  </div>
+</nav>
+
+<!-- ══════════════════════════════════════════════════
+     CONTENIDO PRINCIPAL
+══════════════════════════════════════════════════ -->
+<main class="content">
+
+  <!-- PORTADA -->
+  <div class="cover">
+    <div class="cover-logo">📡 SONAR</div>
+    <div class="cover-tagline">SISTEMA DE MONITOREO Y ANÁLISIS REPUTACIONAL</div>
+    <div class="cover-version">Versión 2.7</div>
+    <div class="cover-date">Mayo 2026 &nbsp;·&nbsp; Ministerio de Derechos Humanos MIRA</div>
+    <div class="cover-desc">
+      Manual de usuario para operadores del equipo de Fuerza Virtual.
+      Cubre todas las funcionalidades disponibles en la plataforma SONAR
+      para el monitoreo de redes sociales, gestión de alertas y coordinación jurídica.
+    </div>
+  </div>
+
+  <!-- ══ 1. INTRODUCCIÓN ══════════════════════════════════ -->
+  <div class="section" id="introduccion">
+    <div class="section-header">
+      <div class="section-icon">ℹ</div>
+      <div>
+        <div class="section-num">Sección 1</div>
+        <h1>Introducción</h1>
+      </div>
+    </div>
+
+    <p><strong>SONAR</strong> es la plataforma de monitoreo y análisis reputacional de MIRA. Permite vigilar en tiempo real las conversaciones en redes sociales (Twitter/X, YouTube, Reddit, Instagram, Facebook, RSS) que mencionan a personas, organizaciones o temas de interés, aplicando inteligencia artificial para detectar contenido negativo, discurso de odio, bots y campañas coordinadas.</p>
+
+    <h2>¿Qué puede hacer SONAR?</h2>
+    <div class="feature-grid">
+      <div class="feature-item">
+        <div class="icon">📊</div>
+        <div class="label">Monitoreo 24/7</div>
+        <div class="desc">Recolecta menciones cada 10 minutos automáticamente</div>
+      </div>
+      <div class="feature-item">
+        <div class="icon">🤖</div>
+        <div class="desc">Análisis automático de sentimiento, odio y urgencia con IA</div>
+        <div class="label">IA integrada</div>
+      </div>
+      <div class="feature-item">
+        <div class="icon">🔔</div>
+        <div class="label">Alertas inteligentes</div>
+        <div class="desc">Notificaciones por Telegram, email y dashboard</div>
+      </div>
+      <div class="feature-item">
+        <div class="icon">⚖</div>
+        <div class="label">Gestión jurídica</div>
+        <div class="desc">Escalamiento formal con captura de evidencia</div>
+      </div>
+      <div class="feature-item">
+        <div class="icon">🛡</div>
+        <div class="label">Rizoma</div>
+        <div class="desc">Vigilancia directa de cuentas hostiles conocidas</div>
+      </div>
+      <div class="feature-item">
+        <div class="icon">📄</div>
+        <div class="label">Reportes PDF</div>
+        <div class="desc">Informes descargables por entidad y período</div>
+      </div>
+    </div>
+
+    <h2>Plataformas monitoreadas</h2>
+    <table>
+      <tr><th>Plataforma</th><th>Tipo de monitoreo</th><th>Frecuencia</th></tr>
+      <tr><td><strong>Twitter / X</strong></td><td>Búsqueda por keywords + cuentas específicas (Rizoma)</td><td>Cada 10 min</td></tr>
+      <tr><td><strong>YouTube</strong></td><td>Búsqueda por keywords + canales específicos (Rizoma)</td><td>Cada 10 min</td></tr>
+      <tr><td><strong>Reddit</strong></td><td>Búsqueda por keywords en subreddits</td><td>Cada 30 min</td></tr>
+      <tr><td><strong>RSS / Noticias</strong></td><td>Feeds configurados por entidad</td><td>Cada 30 min</td></tr>
+      <tr><td><strong>Instagram</strong></td><td>Hashtags y menciones (requiere cuenta)</td><td>Cada hora</td></tr>
+      <tr><td><strong>Facebook</strong></td><td>Páginas públicas (requiere cookies)</td><td>Cada hora</td></tr>
+    </table>
+  </div>
+
+  <hr class="divider" />
+
+  <!-- ══ 2. ACCESO ══════════════════════════════════════== -->
+  <div class="section" id="acceso">
+    <div class="section-header">
+      <div class="section-icon">🔑</div>
+      <div>
+        <div class="section-num">Sección 2</div>
+        <h1>Acceso al sistema</h1>
+      </div>
+    </div>
+
+    <h2>Iniciar sesión</h2>
+    <ol class="steps">
+      <li>Abre el navegador y ve a la dirección del servidor SONAR: <code>http://163.176.221.142</code></li>
+      <li>Ingresa tu nombre de usuario y contraseña en el formulario de inicio de sesión.</li>
+      <li>Haz clic en <strong>Iniciar sesión</strong>. Serás redirigido al Dashboard principal.</li>
+    </ol>
+
+    <div class="info-box">
+      <div class="box-title">ℹ Sesión activa</div>
+      Tu sesión permanece activa durante <strong>2 horas</strong>. Después de ese tiempo, deberás volver a ingresar tus credenciales. Si cierras el navegador, la sesión se cierra automáticamente al volver a abrir.
+    </div>
+
+    <div class="warning-box">
+      <div class="box-title">⚠ Seguridad</div>
+      No compartas tu contraseña con otras personas. Cada operador debe tener su propio usuario para que el registro de auditoría sea preciso. Si sospechas que tu cuenta fue comprometida, comunícate con el administrador del sistema.
+    </div>
+
+    <h2>Cerrar sesión</h2>
+    <p>Haz clic en tu nombre de usuario en la parte inferior del menú lateral y selecciona <strong>Mi perfil</strong>. En la parte superior encontrarás el botón <strong>Cerrar sesión</strong>.</p>
+  </div>
+
+  <hr class="divider" />
+
+  <!-- ══ 3. ROLES ═══════════════════════════════════════== -->
+  <div class="section" id="roles">
+    <div class="section-header">
+      <div class="section-icon">👥</div>
+      <div>
+        <div class="section-num">Sección 3</div>
+        <h1>Roles y permisos</h1>
+      </div>
+    </div>
+
+    <p>SONAR tiene tres roles de usuario con diferentes niveles de acceso:</p>
+
+    <div style="display:flex;gap:1rem;margin:1.25rem 0;flex-wrap:wrap">
+      <div class="card" style="flex:1;min-width:180px;border-top:4px solid #9d174d">
+        <span class="role role-admin">👑 Administrador</span>
+        <p style="margin-top:.6rem;font-size:.85rem">Control total del sistema. Crea usuarios, configura entidades, ve registros de auditoría y puede realizar todas las acciones de los demás roles.</p>
+      </div>
+      <div class="card" style="flex:1;min-width:180px;border-top:4px solid #5b21b6">
+        <span class="role role-analyst">🔍 Analista</span>
+        <p style="margin-top:.6rem;font-size:.85rem">Puede configurar entidades, keywords, reglas de alerta, generar reportes y gestionar la bandeja de menciones y escalaciones jurídicas.</p>
+      </div>
+      <div class="card" style="flex:1;min-width:180px;border-top:4px solid #0c4a6e">
+        <span class="role role-viewer">👁 Visualizador</span>
+        <p style="margin-top:.6rem;font-size:.85rem">Acceso de solo lectura. Puede ver menciones, alertas, bandeja, Rizoma y marcar como recibido en la bandeja jurídica.</p>
+      </div>
+    </div>
+
+    <h2>Tabla de permisos por funcionalidad</h2>
+    <table>
+      <tr><th>Funcionalidad</th><th>Visualizador</th><th>Analista</th><th>Administrador</th></tr>
+      <tr><td>Dashboard y métricas</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td></tr>
+      <tr><td>Ver menciones y alertas</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td></tr>
+      <tr><td>Bandeja de menciones</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td></tr>
+      <tr><td>Sección Rizoma</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td></tr>
+      <tr><td>Bandeja jurídica (ver y recibir)</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td></tr>
+      <tr><td>Asistente IA (chat)</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td></tr>
+      <tr><td>Generar reportes</td><td class="cross">–</td><td class="check">✓</td><td class="check">✓</td></tr>
+      <tr><td>Crear/editar entidades</td><td class="cross">–</td><td class="check">✓</td><td class="check">✓</td></tr>
+      <tr><td>Gestionar keywords y aliases</td><td class="cross">–</td><td class="check">✓</td><td class="check">✓</td></tr>
+      <tr><td>Crear reglas de alerta</td><td class="cross">–</td><td class="check">✓</td><td class="check">✓</td></tr>
+      <tr><td>Escalar a jurídico</td><td class="cross">–</td><td class="check">✓</td><td class="check">✓</td></tr>
+      <tr><td>Configurar Twitter/YouTube Explorer</td><td class="cross">–</td><td class="check">✓</td><td class="check">✓</td></tr>
+      <tr><td>Marcar cuentas como Rizoma</td><td class="cross">–</td><td class="check">✓</td><td class="check">✓</td></tr>
+      <tr><td>Gestionar usuarios</td><td class="cross">–</td><td class="cross">–</td><td class="check">✓</td></tr>
+      <tr><td>Ver registro de auditoría</td><td class="cross">–</td><td class="cross">–</td><td class="check">✓</td></tr>
+    </table>
+  </div>
+
+  <hr class="divider" />
+
+  <!-- ══ 4. NAVEGACIÓN ════════════════════════════════════ -->
+  <div class="section" id="navegacion">
+    <div class="section-header">
+      <div class="section-icon">🧭</div>
+      <div>
+        <div class="section-num">Sección 4</div>
+        <h1>Navegación</h1>
+      </div>
+    </div>
+
+    <p>SONAR tiene un menú lateral (sidebar) siempre visible con todas las secciones agrupadas por categoría. Puedes expandir o colapsar cada grupo haciendo clic en su encabezado.</p>
+
+    <h2>Grupos del menú</h2>
+    <table>
+      <tr><th>Grupo</th><th>Secciones</th></tr>
+      <tr><td><strong>MONITOREO</strong></td><td>Dashboard · Entidades · Menciones · Mapa Geográfico · Comparar Entidades</td></tr>
+      <tr><td><strong>ALERTAS</strong></td><td>Alertas · Bandeja · Rizoma · Jurídico · Reglas de alerta (analista+)</td></tr>
+      <tr><td><strong>HERRAMIENTAS</strong></td><td>Reportes · Asistente IA · Twitter Explorer · YouTube Explorer · Plataformas</td></tr>
+      <tr><td><strong>ADMINISTRACIÓN</strong></td><td>Usuarios · Auditoría <em>(solo administradores)</em></td></tr>
+    </table>
+
+    <h2>Indicadores del menú</h2>
+    <ul>
+      <li><strong>Número rojo en "Alertas"</strong> — cantidad de alertas sin leer en tiempo real.</li>
+      <li><strong>Número rojo en "Bandeja"</strong> — menciones negativas pendientes de tratamiento.</li>
+      <li>La versión del sistema aparece en la parte superior del menú (<code>v2.7</code>).</li>
+    </ul>
+  </div>
+
+  <hr class="divider" />
+
+  <!-- ══ 5. DASHBOARD ══════════════════════════════════════ -->
+  <div class="section" id="dashboard">
+    <div class="section-header">
+      <div class="section-icon">📊</div>
+      <div>
+        <div class="section-num">Sección 5</div>
+        <h1>Dashboard</h1>
+      </div>
+    </div>
+
+    <p>El Dashboard es la pantalla principal de SONAR. Muestra un resumen ejecutivo del estado actual de todas las entidades monitoreadas.</p>
+
+    <h2>Componentes del Dashboard</h2>
+
+    <h3>Tarjetas de métricas</h3>
+    <p>Muestra los totales del día actual:</p>
+    <ul>
+      <li><strong>Total menciones hoy</strong> — todas las plataformas combinadas.</li>
+      <li><strong>Menciones negativas</strong> — con sentimiento negativo o muy negativo.</li>
+      <li><strong>Alertas activas</strong> — reglas que se dispararon hoy.</li>
+      <li><strong>Entidades monitoreadas</strong> — total de entidades activas en el sistema.</li>
+    </ul>
+
+    <h3>Gráfica de volumen por plataforma</h3>
+    <p>Barras que muestran la distribución de menciones por red social en los últimos 7 días. Útil para identificar qué plataformas generan más actividad.</p>
+
+    <h3>Distribución de sentimiento</h3>
+    <p>Dona o barras apiladas con la proporción de menciones positivas, neutrales, negativas y muy negativas.</p>
+
+    <h3>Feed de actividad reciente</h3>
+    <p>Listado de las últimas menciones y alertas en tiempo real, actualizado automáticamente cada 30 segundos.</p>
+
+    <div class="tip-box">
+      <div class="box-title">✓ Buena práctica</div>
+      Revisa el Dashboard al inicio de cada turno de monitoreo para detectar rápidamente si hubo un pico de actividad nocturno o durante el fin de semana.
+    </div>
+  </div>
+
+  <hr class="divider" />
+
+  <!-- ══ 6. ENTIDADES ══════════════════════════════════════ -->
+  <div class="section" id="entidades">
+    <div class="section-header">
+      <div class="section-icon">🏢</div>
+      <div>
+        <div class="section-num">Sección 6</div>
+        <h1>Entidades</h1>
+      </div>
+    </div>
+
+    <p>Una <strong>Entidad</strong> es la persona, organización o tema que SONAR monitorea. Todo el sistema gira en torno a las entidades: cada mención, alerta y reporte está vinculado a una entidad.</p>
+
+    <div class="info-box">
+      <div class="box-title">ℹ Roles requeridos</div>
+      Ver entidades: <span class="role role-all">todos</span> &nbsp;·&nbsp; Crear/editar: <span class="role role-analyst">analista</span> <span class="role role-admin">admin</span>
+    </div>
+
+    <h2>Crear una entidad</h2>
+    <ol class="steps">
+      <li>Ve al menú <strong>MONITOREO → Entidades</strong> y haz clic en <strong>+ Nueva entidad</strong>.</li>
+      <li>Completa el nombre, tipo (persona, organización, tema), país y descripción opcional.</li>
+      <li>Haz clic en <strong>Crear entidad</strong>. SONAR comienza a monitorearla inmediatamente.</li>
+      <li>Accede al detalle de la entidad para agregar keywords, aliases y reglas de alerta.</li>
+    </ol>
+
+    <h2>Pestañas del detalle de entidad</h2>
+
+    <div id="entidades-keywords">
+      <h3>📌 Pestaña: Keywords</h3>
+      <p>Las keywords son las palabras o frases que SONAR busca en las redes sociales para encontrar menciones de la entidad.</p>
+
+      <h4>Agregar una keyword</h4>
+      <ol class="steps">
+        <li>Haz clic en la pestaña <strong>Keywords</strong> del detalle de la entidad.</li>
+        <li>Escribe la palabra clave en el campo <strong>Keyword</strong>.</li>
+        <li><em>(Opcional)</em> En el campo <strong>"Y también contenga" (AND)</strong>, escribe una segunda palabra. La mención solo se capturará si contiene <strong>ambas</strong> palabras. Útil para reducir ruido con palabras cortas.</li>
+        <li>Selecciona el idioma y el peso:</li>
+      </ol>
+
+      <table>
+        <tr><th>Peso</th><th>Uso recomendado</th><th>Efecto en alertas</th></tr>
+        <tr><td><span class="tag tag-gray">1 — Normal</span></td><td>Keywords de monitoreo general</td><td>Genera alertas estándar</td></tr>
+        <tr><td><span class="tag tag-blue">2 — Importante</span></td><td>Keywords que requieren atención</td><td>Mayor prioridad en filtros</td></tr>
+        <tr><td><span class="tag tag-red">3 — Crítico</span></td><td>Palabras de alto riesgo o amenaza</td><td>Dispara alerta "Keyword Crítica" inmediatamente</td></tr>
+      </table>
+
+      <div class="tip-box">
+        <div class="box-title">✓ Ejemplo de uso del operador AND</div>
+        La palabra "mira" sola genera demasiado ruido porque aparece en muchos contextos. Al configurarla con <strong>keyword</strong> = <code>mira</code> y <strong>Y también contenga</strong> = <code>bolita</code>, solo se capturarán menciones que incluyan ambas palabras, reduciendo los falsos positivos significativamente.
+      </div>
+    </div>
+
+    <div id="entidades-aliases">
+      <h3>🏷 Pestaña: Aliases</h3>
+      <p>Los aliases son nombres alternativos de la entidad. SONAR busca tanto el nombre principal como todos los aliases configurados.</p>
+      <p><strong>Ejemplos:</strong> Si la entidad es "Ministerio de Derechos Humanos", los aliases podrían ser <code>MIRA</code>, <code>@mira_oficial</code>, <code>#MIRA</code>.</p>
+    </div>
+
+    <div id="entidades-reglas">
+      <h3>🔔 Pestaña: Reglas de alerta</h3>
+      <p>Configura cuándo y cómo debe alertarte SONAR sobre esta entidad. Ver <a href="#reglas-alerta">Sección 19 — Reglas de alerta</a> para el detalle completo.</p>
+    </div>
+
+    <h3>📈 Pestaña: Resumen</h3>
+    <p>Muestra métricas de los últimos 7 días: total de menciones, distribución de sentimiento (gráfica de dona), resumen diario generado por IA, pronóstico de volumen para los próximos 7 días, y anomalías detectadas.</p>
+
+    <h3>⭐ Pestaña: Influencers</h3>
+    <p>Lista las cuentas con mayor alcance (seguidores) que han mencionado esta entidad. Incluye detección de bots y sentimiento promedio de cada cuenta.</p>
+
+    <h3>📸 Pestaña: Reconocimiento visual</h3>
+    <p>Permite agregar fotos de referencia de personas para que SONAR las detecte en imágenes de menciones (requiere configuración adicional del servidor).</p>
+  </div>
+
+  <hr class="divider" />
+
+  <!-- ══ 7. MENCIONES ══════════════════════════════════════ -->
+  <div class="section" id="menciones">
+    <div class="section-header">
+      <div class="section-icon">💬</div>
+      <div>
+        <div class="section-num">Sección 7</div>
+        <h1>Menciones</h1>
+      </div>
+    </div>
+
+    <p>La sección <strong>Menciones</strong> es el repositorio completo de todo el contenido capturado por SONAR. Puedes buscar, filtrar y analizar cualquier mención.</p>
+
+    <h2>Filtros disponibles</h2>
+    <table>
+      <tr><th>Filtro</th><th>Descripción</th></tr>
+      <tr><td><strong>Entidad</strong></td><td>Ver solo las menciones de una entidad específica</td></tr>
+      <tr><td><strong>Plataforma</strong></td><td>Twitter, YouTube, Reddit, RSS, Instagram, Facebook</td></tr>
+      <tr><td><strong>Sentimiento</strong></td><td>Muy negativo · Negativo · Neutro · Positivo</td></tr>
+      <tr><td><strong>Fecha</strong></td><td>Rango de fechas personalizable</td></tr>
+      <tr><td><strong>Discurso de odio</strong></td><td>Muestra solo menciones marcadas como hate speech</td></tr>
+      <tr><td><strong>Texto libre</strong></td><td>Busca dentro del contenido de las menciones</td></tr>
+    </table>
+
+    <h2>Indicadores de cada mención</h2>
+    <ul>
+      <li><span class="tag tag-red">Muy negativo / Negativo</span> — Clasificación de sentimiento por IA.</li>
+      <li><span class="tag tag-orange">Urgencia XX/100</span> — Puntuación de urgencia calculada automáticamente.</li>
+      <li><span class="tag tag-red">Discurso de odio</span> — Mención identificada como hate speech.</li>
+      <li><span class="tag tag-purple">Bot</span> — Autor identificado como probable cuenta automatizada.</li>
+    </ul>
+
+    <div class="info-box">
+      <div class="box-title">ℹ ¿Qué es la puntuación de urgencia?</div>
+      La <strong>urgencia (0–100)</strong> combina el sentimiento negativo, la presencia de discurso de odio, el alcance del autor y otros factores para priorizar las menciones más críticas. Urgencia ≥ 70 se considera alta; 40–69, media; menos de 40, baja.
+    </div>
+  </div>
+
+  <hr class="divider" />
+
+  <!-- ══ 8. MAPA ════════════════════════════════════════════ -->
+  <div class="section" id="mapa">
+    <div class="section-header">
+      <div class="section-icon">🗺</div>
+      <div>
+        <div class="section-num">Sección 8</div>
+        <h1>Mapa Geográfico</h1>
+      </div>
+    </div>
+
+    <p>El <strong>Mapa Geográfico</strong> muestra la distribución territorial de las menciones. Permite identificar de qué regiones o departamentos provienen los ataques o conversaciones para enfocar acciones locales.</p>
+
+    <ul>
+      <li>Los puntos en el mapa representan menciones geolocalizadas.</li>
+      <li>El color del punto indica el sentimiento predominante (rojo = negativo, verde = positivo).</li>
+      <li>La localización se obtiene del perfil del autor en la red social cuando está disponible.</li>
+      <li>Puedes filtrar por entidad y rango de fechas.</li>
+    </ul>
+
+    <div class="warning-box">
+      <div class="box-title">⚠ Limitación</div>
+      Muchos usuarios de redes sociales no publican su ubicación real en su perfil. Por eso, el mapa puede mostrar datos incompletos. Se toma el campo <em>location</em> del perfil tal como lo escribe el usuario.
+    </div>
+  </div>
+
+  <hr class="divider" />
+
+  <!-- ══ 9. COMPARAR ════════════════════════════════════════ -->
+  <div class="section" id="comparar">
+    <div class="section-header">
+      <div class="section-icon">⚖</div>
+      <div>
+        <div class="section-num">Sección 9</div>
+        <h1>Comparar Entidades</h1>
+      </div>
+    </div>
+
+    <p>La herramienta de <strong>Comparación</strong> permite poner dos o más entidades lado a lado para analizar diferencias en volumen, sentimiento y actividad en el mismo período.</p>
+
+    <ol class="steps">
+      <li>Ve a <strong>MONITOREO → Comparar Entidades</strong>.</li>
+      <li>Selecciona las entidades que deseas comparar del listado.</li>
+      <li>Define el rango de fechas.</li>
+      <li>Analiza las gráficas comparativas de volumen, sentimiento y plataformas.</li>
+    </ol>
+
+    <p>Útil para detectar si una campaña contra una entidad tiene también impacto en entidades relacionadas, o para comparar el comportamiento de distintos temas en el mismo período.</p>
+  </div>
+
+  <hr class="divider" />
+
+  <!-- ══ 10. ALERTAS ════════════════════════════════════════ -->
+  <div class="section" id="alertas">
+    <div class="section-header">
+      <div class="section-icon">🔔</div>
+      <div>
+        <div class="section-num">Sección 10</div>
+        <h1>Alertas</h1>
+      </div>
+    </div>
+
+    <p>Las <strong>Alertas</strong> son notificaciones automáticas generadas cuando el sistema detecta una situación que supera un umbral configurado. Se reciben en el dashboard (tiempo real), Telegram y/o email según la configuración.</p>
+
+    <h2>Tipos de alerta</h2>
+    <table>
+      <tr><th>Tipo</th><th>¿Qué detecta?</th><th>Severidad típica</th></tr>
+      <tr><td><span class="tag tag-blue">Pico de volumen</span></td><td>Volumen de menciones supera N veces el promedio histórico</td><td>Media / Alta</td></tr>
+      <tr><td><span class="tag tag-orange">Umbral de negatividad</span></td><td>% de menciones negativas supera el umbral configurado</td><td>Alta</td></tr>
+      <tr><td><span class="tag tag-red">Mención negativa</span></td><td>Una mención con sentimiento negativo/muy negativo (va a Bandeja)</td><td>Media / Alta</td></tr>
+      <tr><td><span class="tag tag-red">Keyword crítica</span></td><td>Mención con keyword de peso 3 detectada</td><td>Alta / Crítica</td></tr>
+      <tr><td><span class="tag tag-red">Discurso de odio</span></td><td>Mención marcada como hate speech</td><td>Alta</td></tr>
+      <tr><td><span class="tag tag-orange">Actividad de bots</span></td><td>N o más cuentas bot activas en la ventana de tiempo</td><td>Media</td></tr>
+      <tr><td><span class="tag tag-purple">Campaña detectada</span></td><td>Múltiples cuentas publicando contenido similar coordinadamente</td><td>Crítica</td></tr>
+      <tr><td><span class="tag tag-orange">Anomalía detectada</span></td><td>Comportamiento estadístico anómalo en volumen o negatividad</td><td>Variable</td></tr>
+    </table>
+
+    <h2>Severidades y canales de notificación</h2>
+    <table>
+      <tr><th>Severidad</th><th>Dashboard</th><th>Telegram</th><th>WhatsApp</th><th>Email</th></tr>
+      <tr><td><span class="tag tag-gray">Baja</span></td><td class="check">✓</td><td class="cross">–</td><td class="cross">–</td><td class="cross">–</td></tr>
+      <tr><td><span class="tag tag-blue">Media</span></td><td class="check">✓</td><td class="check">✓</td><td class="cross">–</td><td class="cross">–</td></tr>
+      <tr><td><span class="tag tag-orange">Alta</span></td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td></tr>
+      <tr><td><span class="tag tag-red">Crítica</span></td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td></tr>
+    </table>
+
+    <h2>Gestión de alertas</h2>
+    <p>En la vista de Alertas puedes ver el historial completo. Cada alerta puede ser <strong>reconocida</strong> (acknowledged) para indicar que fue revisada. También puedes registrar la acción tomada y agregar notas.</p>
+
+    <div class="tip-box">
+      <div class="box-title">✓ Bandeja de menciones</div>
+      Las alertas de tipo <strong>Mención negativa</strong> van directamente a la <strong>Bandeja de menciones</strong>, que es la vista optimizada para gestionar estas situaciones con un flujo de trabajo completo. Ver Sección 11.
+    </div>
+  </div>
+
+  <hr class="divider" />
+
+  <!-- ══ 11. BANDEJA ════════════════════════════════════════ -->
+  <div class="section" id="bandeja">
+    <div class="section-header">
+      <div class="section-icon">📥</div>
+      <div>
+        <div class="section-num">Sección 11</div>
+        <h1>Bandeja de menciones</h1>
+      </div>
+    </div>
+
+    <p>La <strong>Bandeja de menciones</strong> es el espacio de trabajo principal para los operadores de Fuerza Virtual. Consolida todas las menciones negativas pendientes de tratamiento en una vista de dos paneles: lista a la izquierda y formulario de tratamiento a la derecha.</p>
+
+    <div class="info-box">
+      <div class="box-title">ℹ Acceso</div>
+      El número en rojo junto al ícono de Bandeja en el menú indica cuántas menciones están pendientes de tratamiento. La bandeja se actualiza automáticamente cada 30 segundos.
+    </div>
+
+    <h2>Cómo usar la Bandeja</h2>
+    <ol class="steps">
+      <li>Haz clic en una mención de la lista izquierda para seleccionarla.</li>
+      <li>Lee el contenido de la mención en el panel derecho. Revisa el sentimiento, urgencia y si hay discurso de odio.</li>
+      <li>Consulta el <strong>Protocolo de intervención</strong> si es necesario (ver sección siguiente).</li>
+      <li>Selecciona la <strong>acción tomada</strong> del formulario.</li>
+      <li>Agrega notas adicionales si es necesario.</li>
+      <li>Haz clic en <strong>Guardar tratamiento</strong>. La mención desaparece de la bandeja y el sistema avanza automáticamente a la siguiente.</li>
+    </ol>
+
+    <h2>Acciones disponibles</h2>
+    <table>
+      <tr><th>Acción</th><th>Cuándo usarla</th></tr>
+      <tr><td><strong>Reportar en la plataforma</strong></td><td>Cuando se hace un reporte dentro de Twitter, YouTube, etc.</td></tr>
+      <tr><td><strong>Reportar a instancias internacionales</strong></td><td>Cuando el caso amerita reporte a organismos como OEA, CIDH u otros</td></tr>
+      <tr><td><strong>Reportar a Fiscalía / Policía</strong></td><td>Amenazas, incitación a la violencia, delitos detectados</td></tr>
+      <tr><td><strong>Cuenta cerrada como resultado</strong></td><td>Cuando la cuenta atacante fue suspendida o eliminada</td></tr>
+      <tr><td><strong>Escalar a equipo MIRA</strong></td><td>Casos que requieren atención del equipo interno MIRA</td></tr>
+      <tr><td><strong>Escalar a dirección iglesia</strong></td><td>Situaciones que deben conocer las autoridades de la iglesia</td></tr>
+      <tr><td><strong>Marcar como oportunidad</strong></td><td>Menciones que pueden aprovecharse de forma positiva</td></tr>
+      <tr><td><strong>Descartar</strong></td><td>Falsos positivos o menciones sin relevancia</td></tr>
+    </table>
+
+    <div id="bandeja-protocolo">
+      <h2>Protocolo de intervención</h2>
+      <p>El panel de detalle incluye un <strong>Protocolo de intervención</strong> colapsable (haz clic en el encabezado azul para expandirlo). Describe los 6 pasos que debe seguir el operador ante una mención negativa:</p>
+      <ol class="steps">
+        <li><strong>Evalúa la gravedad</strong> — ¿Es discurso de odio? ¿Amenaza directa? ¿Desinformación?</li>
+        <li><strong>Captura evidencia</strong> — Usa "Escalar a Jurídico" para guardar un snapshot antes de que el atacante pueda borrar la publicación.</li>
+        <li><strong>Reporta en la plataforma</strong> — Usa el enlace "Ver original" y reporta el contenido dentro de la red social.</li>
+        <li><strong>Escalación jurídica</strong> — Si involucra amenazas, difamación o delitos, escala al equipo jurídico correspondiente.</li>
+        <li><strong>Reporta a autoridades</strong> — En caso de amenaza grave, reporta a Fiscalía o Policía.</li>
+        <li><strong>Registra la acción</strong> — Guarda el tratamiento en la bandeja para el historial de gestión mensual.</li>
+      </ol>
+    </div>
+
+    <div id="bandeja-escalacion">
+      <h2>Escalación jurídica</h2>
+      <p>La sección <strong>"Escalación jurídica"</strong> (solo visible para analistas y administradores) permite enviar una mención al equipo jurídico con captura automática de evidencia.</p>
+
+      <div class="warning-box">
+        <div class="box-title">⚠ Importante</div>
+        Al escalar, SONAR guarda una <strong>copia del contenido</strong> (texto, URL, autor, plataforma, fecha, sentimiento) en el momento exacto del escalamiento. Esta copia se conserva aunque el atacante elimine la publicación original.
+      </div>
+
+      <h4>Cómo escalar una mención</h4>
+      <ol class="steps">
+        <li>Selecciona la mención en la Bandeja.</li>
+        <li>En el panel derecho, haz clic en <strong>Escalar a Jurídico</strong>.</li>
+        <li>Elige el destino: <strong>Jurídico Iglesia</strong> o <strong>Jurídico MIRA</strong>.</li>
+        <li>Agrega notas de contexto (opcional).</li>
+        <li>Haz clic en <strong>Confirmar escalamiento</strong>. El equipo jurídico recibirá el caso en su bandeja.</li>
+      </ol>
+    </div>
+  </div>
+
+  <hr class="divider" />
+
+  <!-- ══ 12. RIZOMA ══════════════════════════════════════════ -->
+  <div class="section" id="rizoma">
+    <div class="section-header">
+      <div class="section-icon">🛡</div>
+      <div>
+        <div class="section-num">Sección 12</div>
+        <h1>Rizoma — Cuentas hostiles conocidas</h1>
+      </div>
+    </div>
+
+    <p>El <strong>Rizoma</strong> es la sección dedicada al monitoreo de <em>atacantes recurrentes</em>: cuentas de Twitter/X o canales de YouTube que son conocidos por atacar a la organización de forma sistemática.</p>
+
+    <div class="info-box">
+      <div class="box-title">ℹ ¿Por qué "Rizoma"?</div>
+      Los atacantes cambian constantemente su vocabulario para evadir keywords (por ejemplo, usan "HDMI" en lugar de "IDMJD"). El Rizoma monitorea la <strong>cuenta directamente</strong>, sin depender de palabras clave, capturando <em>todo</em> lo que esa cuenta publica.
+    </div>
+
+    <h2>Vista Rizoma</h2>
+    <p>La página Rizoma muestra:</p>
+    <ul>
+      <li>Las cuentas y canales marcados como Rizoma (con resumen de cuántos hay por plataforma).</li>
+      <li>Un feed unificado con <strong>todas sus publicaciones recientes</strong>, ordenadas por fecha.</li>
+      <li>Filtros por plataforma (Twitter / YouTube).</li>
+      <li>Indicadores de sentimiento y urgencia para cada publicación.</li>
+    </ul>
+
+    <h2>Cómo marcar una cuenta como Rizoma</h2>
+    <ol class="steps">
+      <li>Ve a <strong>HERRAMIENTAS → Twitter Explorer</strong> o <strong>YouTube Explorer</strong>.</li>
+      <li>Encuentra la cuenta o canal que deseas marcar (debe estar ya configurada como feed o canal).</li>
+      <li>Haz clic en el ícono de escudo <strong>🛡</strong> que aparece en la tarjeta de la cuenta.</li>
+      <li>La cuenta quedará resaltada con borde rojo y badge "Rizoma". Aparecerá en el feed de la sección Rizoma.</li>
+    </ol>
+
+    <div class="tip-box">
+      <div class="box-title">✓ Cuentas conocidas</div>
+      Algunos atacantes recurrentes que deben estar siempre en el Rizoma: <strong>Payita, César Soto</strong> y otras cuentas identificadas por el equipo de inteligencia. El equipo de coordinación mantiene la lista actualizada.
+    </div>
+
+    <div class="warning-box">
+      <div class="box-title">⚠ Requisito previo</div>
+      Para que una cuenta aparezca en el Rizoma, primero debe ser añadida como feed en el <strong>Twitter Explorer</strong> o como canal en el <strong>YouTube Explorer</strong>. Solo entonces se puede marcar como Rizoma.
+    </div>
+  </div>
+
+  <hr class="divider" />
+
+  <!-- ══ 13. JURÍDICO ════════════════════════════════════════ -->
+  <div class="section" id="juridico">
+    <div class="section-header">
+      <div class="section-icon">⚖</div>
+      <div>
+        <div class="section-num">Sección 13</div>
+        <h1>Bandeja Jurídica</h1>
+      </div>
+    </div>
+
+    <p>La <strong>Bandeja Jurídica</strong> es la vista donde el equipo jurídico (abogados y asesores legales) recibe y gestiona los casos escalados por los operadores de monitoreo.</p>
+
+    <div class="info-box">
+      <div class="box-title">ℹ Acceso</div>
+      Todos los roles pueden acceder a la Bandeja Jurídica. Ir a <strong>ALERTAS → Jurídico</strong>.
+    </div>
+
+    <h2>Flujo de trabajo</h2>
+    <div class="workflow">
+      <div class="wf-step">Operador detecta mención grave</div>
+      <div class="wf-step">Escala desde Bandeja con snapshot</div>
+      <div class="wf-step">Jurídico ve caso en su bandeja</div>
+      <div class="wf-step">Revisa contenido capturado</div>
+      <div class="wf-step">Marca "Recibido"</div>
+    </div>
+
+    <h2>Cómo usar la Bandeja Jurídica</h2>
+
+    <h3>Para el equipo jurídico (recibir casos)</h3>
+    <ol class="steps">
+      <li>Ve a <strong>ALERTAS → Jurídico</strong>.</li>
+      <li>Usa los filtros <strong>Destino</strong> (Iglesia / MIRA) y <strong>Estado</strong> (Pendientes / Recibidos) para ver los casos que te corresponden.</li>
+      <li>Lee el contenido capturado de la mención. Usa el enlace <strong>"Ver original"</strong> para ir a la publicación en la red social.</li>
+      <li>Una vez revisado, haz clic en <strong>Marcar recibido</strong>. El caso queda registrado con tu nombre y la fecha de recepción.</li>
+    </ol>
+
+    <h3>Información disponible en cada caso</h3>
+    <ul>
+      <li>Contenido textual de la mención (capturado al momento de escalar).</li>
+      <li>Autor, plataforma y URL original.</li>
+      <li>Clasificación de sentimiento y urgencia.</li>
+      <li>Quién escaló el caso y cuándo.</li>
+      <li>Notas del operador que escaló.</li>
+    </ul>
+
+    <div class="tip-box">
+      <div class="box-title">✓ Evidencia preservada</div>
+      Incluso si el atacante elimina la publicación de la red social, SONAR conserva el contenido capturado en el momento del escalamiento. Esta copia puede usarse como evidencia formal.
+    </div>
+  </div>
+
+  <hr class="divider" />
+
+  <!-- ══ 14. TWITTER EXPLORER ════════════════════════════════ -->
+  <div class="section" id="twitter">
+    <div class="section-header">
+      <div class="section-icon">🐦</div>
+      <div>
+        <div class="section-num">Sección 14</div>
+        <h1>Twitter Explorer</h1>
+      </div>
+    </div>
+
+    <p>El <strong>Twitter Explorer</strong> permite monitorear cuentas específicas de Twitter/X directamente, sin depender de keywords. Es ideal para seguir a atacantes conocidos, periodistas de investigación o cuentas de interés.</p>
+
+    <div class="info-box">
+      <div class="box-title">ℹ Roles requeridos</div>
+      Ver feeds: <span class="role role-all">todos</span> &nbsp;·&nbsp; Agregar/eliminar/configurar Rizoma: <span class="role role-analyst">analista</span> <span class="role role-admin">admin</span>
+    </div>
+
+    <h2>Agregar una cuenta de Twitter</h2>
+    <ol class="steps">
+      <li>Ve a <strong>HERRAMIENTAS → Twitter Explorer</strong>.</li>
+      <li>Haz clic en <strong>+ Agregar cuenta</strong>.</li>
+      <li>Ingresa el nombre de usuario de Twitter (sin @). Ejemplo: <code>payita_oficial</code></li>
+      <li>Opcionalmente, asigna una entidad para vincular las menciones.</li>
+      <li>Haz clic en <strong>Guardar</strong>. SONAR comenzará a recolectar sus tweets en el próximo ciclo (máx. 10 minutos).</li>
+    </ol>
+
+    <h2>Marcar como Rizoma</h2>
+    <p>En la tarjeta de cada cuenta, haz clic en el ícono 🛡 para activar/desactivar el monitoreo Rizoma. Ver <a href="#rizoma">Sección 12</a> para más detalles.</p>
+
+    <h2>Guardar tweets históricos</h2>
+    <p>El botón <strong>"Guardar tweets"</strong> en cada feed descarga el historial reciente de la cuenta (hasta los últimos 100 tweets). Útil cuando se agrega una cuenta nueva y se quiere ver su actividad previa.</p>
+  </div>
+
+  <hr class="divider" />
+
+  <!-- ══ 15. YOUTUBE EXPLORER ════════════════════════════════ -->
+  <div class="section" id="youtube">
+    <div class="section-header">
+      <div class="section-icon">▶</div>
+      <div>
+        <div class="section-num">Sección 15</div>
+        <h1>YouTube Explorer</h1>
+      </div>
+    </div>
+
+    <p>El <strong>YouTube Explorer</strong> permite monitorear canales específicos de YouTube y los comentarios de sus videos. Funciona de forma similar al Twitter Explorer.</p>
+
+    <h2>Agregar un canal de YouTube</h2>
+    <ol class="steps">
+      <li>Ve a <strong>HERRAMIENTAS → YouTube Explorer</strong>.</li>
+      <li>Haz clic en <strong>+ Agregar canal</strong>.</li>
+      <li>Ingresa el identificador del canal o el nombre de usuario. Ejemplo: <code>@nombrecanalyt</code></li>
+      <li>Selecciona si deseas monitorear videos, comentarios o ambos.</li>
+      <li>Asigna una entidad (opcional) y guarda.</li>
+    </ol>
+
+    <h2>Guardar videos / comentarios</h2>
+    <p>El botón <strong>"Guardar videos"</strong> descarga los videos y comentarios recientes del canal para análisis NLP inmediato.</p>
+
+    <h2>Marcar como Rizoma</h2>
+    <p>Igual que en Twitter Explorer, el ícono 🛡 en la tarjeta del canal activa el monitoreo Rizoma. Los comentarios y videos de ese canal aparecerán en la sección <a href="#rizoma">Rizoma</a>.</p>
+  </div>
+
+  <hr class="divider" />
+
+  <!-- ══ 16. REPORTES ════════════════════════════════════════ -->
+  <div class="section" id="reportes">
+    <div class="section-header">
+      <div class="section-icon">📄</div>
+      <div>
+        <div class="section-num">Sección 16</div>
+        <h1>Reportes</h1>
+      </div>
+    </div>
+
+    <p>SONAR genera <strong>reportes PDF</strong> con análisis detallado de una entidad para un período determinado. Ideales para presentaciones, reuniones de liderazgo o archivos de seguimiento.</p>
+
+    <div class="info-box">
+      <div class="box-title">ℹ Roles requeridos</div>
+      <span class="role role-analyst">analista</span> <span class="role role-admin">admin</span>
+    </div>
+
+    <h2>Generar un reporte</h2>
+    <ol class="steps">
+      <li>Ve a <strong>HERRAMIENTAS → Reportes</strong>.</li>
+      <li>Haz clic en <strong>+ Nuevo reporte</strong>.</li>
+      <li>Selecciona la entidad, tipo de reporte y rango de fechas.</li>
+      <li>Haz clic en <strong>Generar</strong>. El sistema procesa el reporte en segundo plano.</li>
+      <li>Cuando aparezca en la lista con estado "Listo", haz clic en <strong>Descargar</strong> para obtener el PDF.</li>
+    </ol>
+
+    <h2>Tipos de reporte</h2>
+    <table>
+      <tr><th>Tipo</th><th>Contenido</th></tr>
+      <tr><td><strong>Resumen ejecutivo</strong></td><td>Métricas clave, sentimiento, top menciones y recomendaciones</td></tr>
+      <tr><td><strong>Análisis detallado</strong></td><td>Listado completo de menciones con análisis NLP, gráficas por plataforma y anomalías</td></tr>
+      <tr><td><strong>Reporte de crisis</strong></td><td>Enfocado en menciones negativas, alertas disparadas y acciones tomadas</td></tr>
+      <tr><td><strong>Reporte de gestión</strong></td><td>Seguimiento de acciones de denuncia y escalaciones jurídicas del período</td></tr>
+    </table>
+  </div>
+
+  <hr class="divider" />
+
+  <!-- ══ 17. ASISTENTE IA ════════════════════════════════════ -->
+  <div class="section" id="chat">
+    <div class="section-header">
+      <div class="section-icon">🤖</div>
+      <div>
+        <div class="section-num">Sección 17</div>
+        <h1>Asistente IA</h1>
+      </div>
+    </div>
+
+    <p>El <strong>Asistente IA</strong> es un chat inteligente que puede responder preguntas sobre las menciones monitoreadas, analizar tendencias y ayudar a elaborar respuestas. Está respaldado por tecnología RAG (Retrieval-Augmented Generation) que combina la base de datos de SONAR con modelos de lenguaje.</p>
+
+    <h2>Cómo usar el Asistente</h2>
+    <ol class="steps">
+      <li>Ve a <strong>HERRAMIENTAS → Asistente IA</strong>.</li>
+      <li>Escribe tu pregunta en el campo de texto.</li>
+      <li>El asistente buscará información relevante en la base de datos y generará una respuesta contextualizada.</li>
+    </ol>
+
+    <h2>Ejemplos de preguntas</h2>
+    <ul>
+      <li>"¿Cuáles son las menciones más urgentes de la entidad X en los últimos 3 días?"</li>
+      <li>"¿Qué temas se mencionan junto con MIRA en Twitter esta semana?"</li>
+      <li>"Resume las menciones negativas del lunes"</li>
+      <li>"¿Hay señales de una campaña coordinada contra [entidad]?"</li>
+    </ul>
+
+    <div class="warning-box">
+      <div class="box-title">⚠ Uso responsable</div>
+      Las respuestas del asistente son generadas por IA y pueden contener errores. Siempre verifica la información crítica directamente en la sección de Menciones antes de actuar.
+    </div>
+  </div>
+
+  <hr class="divider" />
+
+  <!-- ══ 18. PLATAFORMAS ══════════════════════════════════════ -->
+  <div class="section" id="plataformas">
+    <div class="section-header">
+      <div class="section-icon">📡</div>
+      <div>
+        <div class="section-num">Sección 18</div>
+        <h1>Plataformas</h1>
+      </div>
+    </div>
+
+    <p>La sección <strong>Plataformas</strong> muestra el estado de conexión y actividad de cada red social monitoreada: última recolección, número de menciones procesadas y estado del scraper.</p>
+
+    <p>Es útil para diagnosticar si una plataforma dejó de recolectar datos (por ejemplo, si las cookies de Instagram expiraron o si hay problemas de conectividad).</p>
+  </div>
+
+  <hr class="divider" />
+
+  <!-- ══ 19. REGLAS DE ALERTA ════════════════════════════════ -->
+  <div class="section" id="reglas-alerta">
+    <div class="section-header">
+      <div class="section-icon">⚙</div>
+      <div>
+        <div class="section-num">Sección 19</div>
+        <h1>Reglas de alerta</h1>
+      </div>
+    </div>
+
+    <p>Las <strong>Reglas de alerta</strong> definen las condiciones que disparan una notificación automática. Se configuran por entidad desde la pestaña <em>Reglas de alerta</em> en el detalle de la entidad, o globalmente desde <strong>ALERTAS → Reglas de alerta</strong>.</p>
+
+    <div class="info-box">
+      <div class="box-title">ℹ Roles requeridos</div>
+      <span class="role role-analyst">analista</span> <span class="role role-admin">admin</span>
+    </div>
+
+    <h2>Parámetros de una regla</h2>
+    <table>
+      <tr><th>Parámetro</th><th>Descripción</th></tr>
+      <tr><td><strong>Nombre</strong></td><td>Nombre descriptivo para identificar la regla</td></tr>
+      <tr><td><strong>Tipo</strong></td><td>El tipo de condición que evalúa (ver tabla de tipos de alerta)</td></tr>
+      <tr><td><strong>Umbral</strong></td><td>El valor que debe superarse para disparar la alerta (ej: 3 veces el promedio, 70% de negatividad)</td></tr>
+      <tr><td><strong>Ventana de tiempo</strong></td><td>Período de evaluación: 30 min, 1h, 2h, 6h, 24h</td></tr>
+      <tr><td><strong>Severidad</strong></td><td>Baja / Media / Alta / Crítica — determina los canales de notificación</td></tr>
+    </table>
+
+    <h2>Activar / desactivar reglas</h2>
+    <p>Usa el interruptor (toggle) en la lista de reglas para activar o desactivar una regla sin eliminarla. Útil durante períodos de mantenimiento o cuando se sabe que habrá actividad inusual por razones conocidas.</p>
+
+    <div class="tip-box">
+      <div class="box-title">✓ Configuración recomendada mínima por entidad</div>
+      <ul>
+        <li><strong>Mención negativa</strong> — umbral 40 de urgencia, severidad Media → va a la Bandeja.</li>
+        <li><strong>Keyword crítica</strong> — threshold 1, severidad Alta → para palabras de amenaza directa.</li>
+        <li><strong>Discurso de odio</strong> — threshold 1, severidad Alta → cualquier mención de odio.</li>
+      </ul>
+    </div>
+  </div>
+
+  <hr class="divider" />
+
+  <!-- ══ 20. USUARIOS ════════════════════════════════════════ -->
+  <div class="section" id="usuarios">
+    <div class="section-header">
+      <div class="section-icon">👤</div>
+      <div>
+        <div class="section-num">Sección 20</div>
+        <h1>Gestión de usuarios</h1>
+      </div>
+    </div>
+
+    <div class="info-box">
+      <div class="box-title">ℹ Solo administradores</div>
+      Esta sección está disponible únicamente para usuarios con rol <span class="role role-admin">admin</span>. Ir a <strong>ADMINISTRACIÓN → Usuarios</strong>.
+    </div>
+
+    <h2>Crear un usuario</h2>
+    <ol class="steps">
+      <li>Haz clic en <strong>+ Nuevo usuario</strong>.</li>
+      <li>Completa nombre completo, nombre de usuario, correo electrónico y contraseña temporal.</li>
+      <li>Asigna el rol: Visualizador, Analista o Administrador.</li>
+      <li>Haz clic en <strong>Crear usuario</strong>. El usuario podrá iniciar sesión inmediatamente.</li>
+    </ol>
+
+    <h2>Gestionar usuarios existentes</h2>
+    <ul>
+      <li><strong>Desactivar</strong> — suspende el acceso del usuario sin eliminarlo. Útil cuando alguien deja el equipo temporalmente.</li>
+      <li><strong>Cambiar contraseña</strong> — permite asignar una nueva contraseña si el usuario la olvidó.</li>
+      <li><strong>Cambiar rol</strong> — edita el rol del usuario para ampliar o restringir su acceso.</li>
+    </ul>
+
+    <div class="danger-box">
+      <div class="box-title">🚫 Importante</div>
+      No elimines usuarios del sistema, ya que esto afectaría el historial de auditoría. En su lugar, <strong>desactiva</strong> la cuenta cuando alguien deje el equipo.
+    </div>
+  </div>
+
+  <hr class="divider" />
+
+  <!-- ══ 21. AUDITORÍA ═══════════════════════════════════════ -->
+  <div class="section" id="auditoria">
+    <div class="section-header">
+      <div class="section-icon">📋</div>
+      <div>
+        <div class="section-num">Sección 21</div>
+        <h1>Auditoría del sistema</h1>
+      </div>
+    </div>
+
+    <div class="info-box">
+      <div class="box-title">ℹ Solo administradores</div>
+      Ir a <strong>ADMINISTRACIÓN → Auditoría</strong>.
+    </div>
+
+    <p>El <strong>Registro de Auditoría</strong> registra automáticamente cada acción relevante realizada en el sistema: quién la hizo, cuándo, desde qué IP y sobre qué elemento.</p>
+
+    <h2>Acciones registradas</h2>
+    <ul>
+      <li>Login / Logout de usuarios.</li>
+      <li>Creación, edición y eliminación de entidades, keywords y aliases.</li>
+      <li>Generación y descarga de reportes.</li>
+      <li>Escalaciones jurídicas creadas y recibidas.</li>
+      <li>Tratamientos guardados en la Bandeja.</li>
+      <li>Adición y eliminación de feeds de Twitter y canales de YouTube.</li>
+      <li>Cambios de configuración.</li>
+    </ul>
+
+    <h2>Filtros del registro</h2>
+    <p>Puedes filtrar por <strong>usuario</strong>, <strong>tipo de acción</strong>, <strong>módulo</strong> y <strong>rango de fechas</strong> para encontrar rápidamente cualquier acción específica.</p>
+  </div>
+
+  <hr class="divider" />
+
+  <!-- ══ 22. PERFIL ══════════════════════════════════════════ -->
+  <div class="section" id="perfil">
+    <div class="section-header">
+      <div class="section-icon">👤</div>
+      <div>
+        <div class="section-num">Sección 22</div>
+        <h1>Mi perfil</h1>
+      </div>
+    </div>
+
+    <p>En <strong>Mi perfil</strong> (clic en tu nombre al final del menú lateral) puedes gestionar tu información personal y preferencias de notificación.</p>
+
+    <h2>Configuración disponible</h2>
+    <table>
+      <tr><th>Opción</th><th>Descripción</th></tr>
+      <tr><td><strong>Cambiar contraseña</strong></td><td>Actualiza tu contraseña de acceso al sistema</td></tr>
+      <tr><td><strong>Notificaciones Telegram</strong></td><td>Vincula tu cuenta de Telegram para recibir alertas. Necesitas el Chat ID de tu bot</td></tr>
+      <tr><td><strong>Notificaciones email</strong></td><td>Activa o desactiva las notificaciones por correo electrónico</td></tr>
+      <tr><td><strong>Notificaciones WhatsApp</strong></td><td>Configura tu número y API key para recibir alertas por WhatsApp</td></tr>
+    </table>
+
+    <div class="tip-box">
+      <div class="box-title">✓ Recomendación</div>
+      Se recomienda activar al menos las <strong>notificaciones de Telegram</strong> para alertas de severidad Media o superior. Así podrás reaccionar rápidamente incluso cuando no estés frente al computador.
+    </div>
+  </div>
+
+  <hr class="divider" />
+
+  <!-- ══ 23. PROTOCOLO DE INCIDENTES ════════════════════════ -->
+  <div class="section" id="protocolo-incidentes">
+    <div class="section-header">
+      <div class="section-icon">🚨</div>
+      <div>
+        <div class="section-num">Sección 23</div>
+        <h1>Protocolo de respuesta a incidentes</h1>
+      </div>
+    </div>
+
+    <p>Este protocolo define los pasos a seguir según el nivel de gravedad de una mención o situación detectada en SONAR.</p>
+
+    <h2>Nivel 1 — Mención negativa aislada</h2>
+    <p><span class="tag tag-blue">Urgencia &lt; 40</span></p>
+    <ol class="steps">
+      <li>Revisa la mención en la Bandeja.</li>
+      <li>Si es un falso positivo, <strong>Descarta</strong> la mención.</li>
+      <li>Si es relevante, selecciona la acción tomada y guarda el tratamiento.</li>
+    </ol>
+
+    <h2>Nivel 2 — Mención negativa con urgencia media</h2>
+    <p><span class="tag tag-orange">Urgencia 40–69</span></p>
+    <ol class="steps">
+      <li>Revisa el contenido completo y verifica el contexto en la plataforma original.</li>
+      <li>Reporta el contenido dentro de la red social si viola sus términos de uso.</li>
+      <li>Registra la acción en la Bandeja (<em>Reportar en la plataforma</em>).</li>
+      <li>Notifica verbalmente a tu coordinador de turno.</li>
+    </ol>
+
+    <h2>Nivel 3 — Mención de alta urgencia o discurso de odio</h2>
+    <p><span class="tag tag-red">Urgencia ≥ 70 / Hate speech</span></p>
+    <ol class="steps">
+      <li><strong>Escala a Jurídico</strong> inmediatamente desde la Bandeja para capturar evidencia.</li>
+      <li>Reporta en la plataforma social.</li>
+      <li>Notifica al coordinador y al equipo de liderazgo.</li>
+      <li>Si hay amenaza directa o delito: reporta a Fiscalía / Policía.</li>
+      <li>Registra todas las acciones en la Bandeja con notas detalladas.</li>
+    </ol>
+
+    <h2>Nivel 4 — Campaña coordinada o crisis</h2>
+    <p><span class="tag tag-red">Alerta de Campaña detectada / Pico de volumen</span></p>
+    <ol class="steps">
+      <li>Activa el protocolo de crisis de comunicaciones de la organización.</li>
+      <li>Monitorea el Rizoma en tiempo real para detectar nuevas cuentas hostiles activas.</li>
+      <li>Genera un <strong>Reporte de crisis</strong> desde la sección Reportes.</li>
+      <li>Escala todos los casos graves al equipo jurídico.</li>
+      <li>Coordina con el equipo de comunicaciones para una respuesta unificada.</li>
+      <li>Documenta todo en SONAR para el informe post-crisis.</li>
+    </ol>
+
+    <h2>Cuentas del Rizoma: protocolo específico</h2>
+    <p>Cuando se detecta actividad nueva de una cuenta Rizoma:</p>
+    <ol class="steps">
+      <li>Revisa el feed Rizoma en la sección <strong>ALERTAS → Rizoma</strong>.</li>
+      <li>Si la publicación es atacante, escala desde la Bandeja (si aparece en ella) o documenta manualmente.</li>
+      <li>Si la cuenta cambió de vocabulario para evadir keywords, actualiza las keywords en la entidad correspondiente usando el operador AND.</li>
+      <li>Si es una nueva cuenta del mismo atacante, agrégala al Twitter/YouTube Explorer y márcala como Rizoma.</li>
+    </ol>
+  </div>
+
+  <hr class="divider" />
+
+  <!-- ══ 24. GLOSARIO ════════════════════════════════════════ -->
+  <div class="section" id="glosario">
+    <div class="section-header">
+      <div class="section-icon">📖</div>
+      <div>
+        <div class="section-num">Sección 24</div>
+        <h1>Glosario</h1>
+      </div>
+    </div>
+
+    <table>
+      <tr><th>Término</th><th>Definición</th></tr>
+      <tr><td><strong>Alerta</strong></td><td>Notificación automática generada cuando se supera un umbral configurado en una regla de alerta.</td></tr>
+      <tr><td><strong>Alias</strong></td><td>Nombre alternativo de una entidad que SONAR también monitorea (ej: apodos, nombres de usuario).</td></tr>
+      <tr><td><strong>Bandeja</strong></td><td>Vista de trabajo para gestionar las menciones negativas pendientes de tratamiento.</td></tr>
+      <tr><td><strong>Bot</strong></td><td>Cuenta automatizada o sospechosa de no ser manejada por un humano real. Detectada por SONAR mediante análisis de patrones de comportamiento.</td></tr>
+      <tr><td><strong>Campaña coordinada</strong></td><td>Patrón donde múltiples cuentas distintas publican contenido muy similar en un corto período, indicando coordinación.</td></tr>
+      <tr><td><strong>Discurso de odio</strong></td><td>Contenido que incita a la violencia, discriminación o daño basado en características de identidad. Detectado automáticamente por IA.</td></tr>
+      <tr><td><strong>Entidad</strong></td><td>Persona, organización o tema que SONAR monitorea.</td></tr>
+      <tr><td><strong>Escalación jurídica</strong></td><td>Proceso formal de enviar una mención al equipo jurídico con captura de evidencia incluida.</td></tr>
+      <tr><td><strong>Feed</strong></td><td>Fuente de datos configurada: cuenta de Twitter, canal de YouTube, feed RSS, etc.</td></tr>
+      <tr><td><strong>Keyword</strong></td><td>Palabra o frase que SONAR busca en las redes sociales para capturar menciones relevantes.</td></tr>
+      <tr><td><strong>Keyword AND</strong></td><td>Segunda keyword opcional que actúa como condición adicional: la mención debe contener ambas palabras.</td></tr>
+      <tr><td><strong>Mención</strong></td><td>Publicación capturada en una red social que contiene una keyword o es de una cuenta monitoreada.</td></tr>
+      <tr><td><strong>NLP</strong></td><td>Procesamiento de Lenguaje Natural. Conjunto de técnicas de IA para analizar texto automáticamente.</td></tr>
+      <tr><td><strong>RAG</strong></td><td>Retrieval-Augmented Generation. Tecnología del Asistente IA que combina búsqueda en la base de datos con generación de texto.</td></tr>
+      <tr><td><strong>Rizoma</strong></td><td>Sección de SONAR para monitorear cuentas hostiles conocidas sin depender de keywords.</td></tr>
+      <tr><td><strong>Scraper</strong></td><td>Programa que recolecta datos automáticamente de una red social.</td></tr>
+      <tr><td><strong>Sentimiento</strong></td><td>Clasificación automática del tono de una mención: Muy negativo, Negativo, Neutro o Positivo.</td></tr>
+      <tr><td><strong>Snapshot</strong></td><td>Copia del contenido de una mención guardada en el momento de escalar, como evidencia.</td></tr>
+      <tr><td><strong>Umbral</strong></td><td>Valor límite que, al ser superado, dispara una alerta en una regla.</td></tr>
+      <tr><td><strong>Urgencia</strong></td><td>Puntuación de 0 a 100 que estima la gravedad de una mención combinando múltiples factores.</td></tr>
+    </table>
+
+    <div style="margin-top:3rem;padding:1.5rem;background:var(--gray-100);border-radius:var(--radius);text-align:center;font-size:.82rem;color:var(--gray-600)">
+      <strong>SONAR v2.7</strong> — Sistema de Monitoreo y Análisis Reputacional<br>
+      Ministerio de Derechos Humanos MIRA · Manual de Usuario · Mayo 2026<br>
+      <span style="font-size:.75rem;color:var(--gray-400)">Para soporte técnico, contactar al administrador del sistema.</span>
+    </div>
+  </div>
+
+</main>
+</div>
+
+<script>
+// Resaltar enlace activo en la TOC al hacer scroll
+const links = document.querySelectorAll('.toc-link[href^="#"]');
+const sections = [...links].map(l => document.querySelector(l.getAttribute('href'))).filter(Boolean);
+
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      links.forEach(l => l.classList.remove('active'));
+      const active = document.querySelector(`.toc-link[href="#${entry.target.id}"]`);
+      if (active) active.classList.add('active');
+    }
+  });
+}, { rootMargin: '-10% 0px -80% 0px' });
+
+sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

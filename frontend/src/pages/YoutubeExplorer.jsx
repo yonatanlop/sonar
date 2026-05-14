@@ -177,6 +177,51 @@ function ChannelItem({ ch, selected, onClick, onToggle, onDelete, onToggleRizoma
   )
 }
 
+// ── IndexorHitsPanel ──────────────────────────────────────────────────────────
+
+function IndexorHitsPanel({ hits, keyword }) {
+  const [open, setOpen] = useState(true)
+  if (!hits || hits.findings === 0) return null
+
+  return (
+    <div className="mt-2 border border-blue-200 rounded-lg bg-blue-50 overflow-hidden">
+      <button
+        className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium text-blue-800 hover:bg-blue-100 transition-colors"
+        onClick={() => setOpen(o => !o)}
+      >
+        <span className="flex items-center gap-2">
+          <Search className="w-3.5 h-3.5" />
+          Resultados de indexación — <span className="font-semibold">{keyword}</span>
+          <span className="bg-blue-600 text-white text-xs px-1.5 py-0.5 rounded-full">
+            {hits.findings}
+          </span>
+        </span>
+        <span className="text-blue-500 text-xs">{open ? '▲' : '▼'}</span>
+      </button>
+      {open && (
+        <div className="divide-y divide-blue-100 max-h-64 overflow-y-auto">
+          {hits.data.map((hit, i) => (
+            <div key={hit.id ?? i} className="px-3 py-2 text-xs">
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-gray-800 leading-snug flex-1">{hit.texto}</p>
+                <span className="shrink-0 text-blue-600 font-mono">{hit.inicio}</span>
+              </div>
+              <a
+                href={hit.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 mt-1 text-blue-500 hover:text-blue-700"
+              >
+                <ExternalLink className="w-3 h-3" /> Ver en YouTube
+              </a>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Modal agregar canal ───────────────────────────────────────────────────────
 
 function AddChannelModal({ onClose, onCreated }) {
@@ -195,7 +240,9 @@ function AddChannelModal({ onClose, onCreated }) {
       toast.success(`Canal ${data.handle} agregado`)
       onClose()
     } catch (err) {
-      setError(err?.response?.data?.detail ?? 'Error al agregar canal')
+      const msg = err?.response?.data?.detail ?? 'Error al agregar canal'
+      setError(msg)
+      toast.error('Hubo un error y no se pudo agregar el canal')
     } finally {
       setLoading(false)
     }
@@ -230,7 +277,7 @@ function AddChannelModal({ onClose, onCreated }) {
           <div className="flex gap-2 justify-end">
             <button type="button" className="btn-secondary" onClick={onClose}>Cancelar</button>
             <button type="submit" className="btn-primary" disabled={loading || !handle.trim()}>
-              {loading ? 'Resolviendo…' : 'Agregar canal'}
+              {loading ? 'Registrando canal…' : 'Agregar canal'}
             </button>
           </div>
         </form>
@@ -254,6 +301,7 @@ export default function YoutubeExplorer() {
   const [keywords, setKeywords]     = useState([])
   const [newKw, setNewKw]           = useState('')
   const [kwLoading, setKwLoading]   = useState(false)
+  const [kwHits, setKwHits]         = useState({})  // { [keyword_id]: { findings, data, keyword } }
 
   // Búsqueda
   const [searchTerm, setSearchTerm] = useState('')
@@ -280,16 +328,34 @@ export default function YoutubeExplorer() {
     }
   }
 
+  async function loadStoredHits(channelId) {
+    try {
+      const { data } = await api.get(`/youtube-explorer/channels/${channelId}/keyword-hits`, { params: { limit: 200 } })
+      const grouped = {}
+      for (const hit of data.data) {
+        const kid = hit.keyword_id ?? 'unknown'
+        if (!grouped[kid]) grouped[kid] = { findings: 0, data: [], keyword: hit.keyword }
+        grouped[kid].data.push(hit)
+        grouped[kid].findings++
+      }
+      setKwHits(grouped)
+    } catch {
+      // no-op: hits son extra, no bloquean el flujo
+    }
+  }
+
   async function selectChannel(ch) {
     setSelected(ch)
     setResults(null)
     setSearchTerm('')
+    setKwHits({})
     try {
       const { data } = await api.get(`/youtube-explorer/channels/${ch.id}/keywords`)
       setKeywords(data)
     } catch {
       setKeywords([])
     }
+    await loadStoredHits(ch.id)
   }
 
   async function handleToggle(id) {
@@ -330,10 +396,15 @@ export default function YoutubeExplorer() {
     setKwLoading(true)
     try {
       const { data } = await api.post(`/youtube-explorer/channels/${selected.id}/keywords`, { keyword: newKw.trim() })
-      setKeywords(prev => [...prev, data])
+      setKeywords(prev => {
+        const exists = prev.find(k => k.id === data.id)
+        return exists ? prev.map(k => k.id === data.id ? data : k) : [...prev, data]
+      })
       setNewKw('')
-      // Actualizar conteo en lista
       setChannels(prev => prev.map(c => c.id === selected.id ? { ...c, keyword_count: c.keyword_count + 1 } : c))
+      if (data.hits && data.hits.findings > 0) {
+        setKwHits(prev => ({ ...prev, [data.id]: { ...data.hits, keyword: data.keyword } }))
+      }
     } catch (err) {
       toast.error(err?.response?.data?.detail ?? 'Error al agregar keyword')
     } finally {
@@ -345,6 +416,7 @@ export default function YoutubeExplorer() {
     try {
       await api.delete(`/youtube-explorer/channels/${selected.id}/keywords/${kwId}`)
       setKeywords(prev => prev.filter(k => k.id !== kwId))
+      setKwHits(prev => { const n = { ...prev }; delete n[kwId]; return n })
       setChannels(prev => prev.map(c => c.id === selected.id ? { ...c, keyword_count: Math.max(0, c.keyword_count - 1) } : c))
     } catch {
       toast.error('Error al eliminar keyword')
@@ -501,9 +573,18 @@ export default function YoutubeExplorer() {
                       onChange={e => setNewKw(e.target.value)}
                     />
                     <button type="submit" disabled={kwLoading || !newKw.trim()} className="btn-primary py-1.5 px-3 text-sm">
-                      <Plus className="w-4 h-4" />
+                      {kwLoading ? <Clock className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                     </button>
                   </form>
+                )}
+
+                {/* Resultados Indexor por keyword */}
+                {Object.entries(kwHits).length > 0 && (
+                  <div className="mt-1 space-y-1">
+                    {Object.entries(kwHits).map(([kwId, hits]) => (
+                      <IndexorHitsPanel key={kwId} hits={hits} keyword={hits.keyword} />
+                    ))}
+                  </div>
                 )}
               </div>
 
