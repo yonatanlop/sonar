@@ -2,6 +2,9 @@ from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import relationship
 
 from app.database import Base
+# Must import YoutubeChannel before YtKeywordHit is defined so SQLAlchemy can
+# resolve the back_populates="channel" string reference on mapper init.
+from app.models.youtube_channel import YoutubeChannel, YoutubeChannelKeyword  # noqa: F401
 
 
 class YtKeywordHit(Base):
