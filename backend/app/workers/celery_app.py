@@ -2,6 +2,8 @@ from celery import Celery
 from celery.schedules import crontab
 
 from app.core.config import settings
+# Necesario para que SQLAlchemy resuelva YoutubeChannel.keyword_hits al iniciar el worker
+from app.models.yt_keyword_hit import YtKeywordHit  # noqa: F401
 
 celery_app = Celery(
     "sonar",
