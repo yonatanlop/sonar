@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
@@ -10,7 +10,21 @@ import client from '../api/client'
 import { useAlertStore } from '../store/alertStore'
 import { useAuthStore } from '../store/authStore'
 
-const fetchInbox  = () => client.get('/alerts/inbox').then(r => r.data)
+const fetchInbox = (status, sortBy, topic) =>
+  client.get('/alerts/inbox', {
+    params: {
+      status,
+      sort_by: sortBy,
+      ...(topic ? { topic } : {}),
+    },
+  }).then(r => r.data)
+
+function fmtFollowers(n) {
+  if (!n) return null
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
+  if (n >= 1_000)     return `${(n / 1_000).toFixed(0)}K`
+  return String(n)
+}
 
 const PLATFORM_LABEL = {
   reddit:    'Reddit',
@@ -60,6 +74,11 @@ export default function MentionInbox() {
   const [action, setAction]       = useState('')
   const [notes, setNotes]         = useState('')
 
+  // Filtros y ordenamiento
+  const [statusFilter, setStatusFilter] = useState('pending')
+  const [sortBy, setSortBy]             = useState('date')
+  const [topicFilter, setTopicFilter]   = useState('')
+
   // Modal de escalación jurídica
   const [showEscalate, setShowEscalate] = useState(false)
   const [escTarget, setEscTarget]       = useState('')
@@ -69,10 +88,15 @@ export default function MentionInbox() {
   const [showProtocol, setShowProtocol] = useState(false)
 
   const { data: items = [], isLoading } = useQuery({
-    queryKey: ['inbox'],
-    queryFn:  fetchInbox,
+    queryKey: ['inbox', statusFilter, sortBy, topicFilter],
+    queryFn:  () => fetchInbox(statusFilter, sortBy, topicFilter),
     refetchInterval: 30_000,
   })
+
+  const topics = useMemo(() =>
+    [...new Set((items || []).map(i => i.mention?.topic_label).filter(Boolean))],
+    [items]
+  )
 
   const escalate = useMutation({
     mutationFn: ({ mention_id, target, notes }) =>
@@ -123,14 +147,40 @@ export default function MentionInbox() {
 
       {/* ── Lista izquierda ─────────────────────────────────── */}
       <div className="w-full md:w-80 lg:w-96 border-r border-gray-200 flex flex-col bg-white shrink-0">
-        <div className="px-4 py-4 border-b border-gray-100">
+        <div className="px-4 py-4 border-b border-gray-100 space-y-3">
           <div className="flex items-center gap-2">
             <Inbox className="w-5 h-5 text-primary-600" />
             <h1 className="font-semibold text-gray-900">Bandeja de menciones</h1>
           </div>
-          <p className="text-xs text-gray-500 mt-0.5">
-            {isLoading ? 'Cargando…' : `${items.length} pendiente${items.length !== 1 ? 's' : ''}`}
+          <p className="text-xs text-gray-500">
+            {isLoading ? 'Cargando…' : `${items.length} elemento${items.length !== 1 ? 's' : ''}`}
           </p>
+
+          {/* Filtro de estado */}
+          <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs w-full">
+            {[['pending','🚨 Pendientes'],['all','Todas'],['managed','✓ Gestionadas']].map(([v, label]) => (
+              <button key={v}
+                className={`flex-1 px-2 py-1.5 font-medium transition-colors ${
+                  statusFilter === v ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'
+                }`}
+                onClick={() => setStatusFilter(v)}>{label}</button>
+            ))}
+          </div>
+
+          {/* Ordenar y tema */}
+          <div className="flex gap-2">
+            <select className="input text-xs py-1.5 flex-1"
+              value={sortBy} onChange={e => setSortBy(e.target.value)}>
+              <option value="date">📅 Más recientes</option>
+              <option value="urgency">🔥 Mayor urgencia</option>
+              <option value="followers">👥 Más seguidores</option>
+            </select>
+            <select className="input text-xs py-1.5 flex-1"
+              value={topicFilter} onChange={e => setTopicFilter(e.target.value)}>
+              <option value="">📋 Todos los temas</option>
+              {topics.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
@@ -139,14 +189,21 @@ export default function MentionInbox() {
           ) : items.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-gray-400 gap-3">
               <CheckCircle className="w-10 h-10 text-green-400" />
-              <p className="text-sm font-medium">Bandeja vacía</p>
-              <p className="text-xs text-center px-4">No hay menciones negativas pendientes de tratamiento</p>
+              <p className="text-sm font-medium">Sin resultados</p>
+              <p className="text-xs text-center px-4">
+                {statusFilter === 'pending'
+                  ? 'No hay menciones negativas pendientes de tratamiento'
+                  : statusFilter === 'managed'
+                    ? 'No hay menciones gestionadas con los filtros actuales'
+                    : 'No se encontraron menciones con los filtros seleccionados'}
+              </p>
             </div>
           ) : (
             items.map(item => {
-              const badge   = SENTIMENT_BADGE[item.mention?.sentiment_label]
-              const dot     = SEVERITY_DOT[item.severity] ?? 'bg-gray-400'
+              const badge    = SENTIMENT_BADGE[item.mention?.sentiment_label]
+              const dot      = SEVERITY_DOT[item.severity] ?? 'bg-gray-400'
               const isActive = selected?.id === item.id
+              const followers = fmtFollowers(item.mention?.author_followers)
               return (
                 <button
                   key={item.id}
@@ -156,24 +213,46 @@ export default function MentionInbox() {
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2 mb-1">
-                    <span className="font-medium text-sm text-gray-900 truncate">{item.entity_name}</span>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="font-medium text-sm text-gray-900 truncate">{item.entity_name}</span>
+                      {item.mention?.is_verified && (
+                        <span title="Cuenta verificada" className="shrink-0 text-blue-500 text-xs">✅</span>
+                      )}
+                      <span title={item.mention?.acknowledged ? 'Gestionada' : 'Pendiente'}
+                        className="shrink-0 text-xs">
+                        {item.mention?.acknowledged ? '✓' : '🚨'}
+                      </span>
+                    </div>
                     <span className={`w-2 h-2 rounded-full shrink-0 mt-1.5 ${dot}`} />
                   </div>
                   <p className="text-xs text-gray-500 line-clamp-2 mb-1.5">
                     {item.mention?.content ?? item.message}
                   </p>
-                  <div className="flex items-center gap-2 text-xs text-gray-400">
+                  <div className="flex items-center gap-2 text-xs text-gray-400 flex-wrap">
                     <Globe className="w-3 h-3" />
                     <span>{PLATFORM_LABEL[item.mention?.platform_code] ?? item.mention?.platform_code ?? '—'}</span>
                     <span>·</span>
                     <Clock className="w-3 h-3" />
                     <span>{timeAgo(item.triggered_at)}</span>
+                    {followers && (
+                      <>
+                        <span>·</span>
+                        <span className="flex items-center gap-0.5">👥 {followers}</span>
+                      </>
+                    )}
                   </div>
-                  {badge && (
-                    <span className={`mt-1.5 inline-block text-xs px-2 py-0.5 rounded-full border font-medium ${badge.cls}`}>
-                      {badge.text}
-                    </span>
-                  )}
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    {badge && (
+                      <span className={`inline-block text-xs px-2 py-0.5 rounded-full border font-medium ${badge.cls}`}>
+                        {badge.text}
+                      </span>
+                    )}
+                    {item.mention?.topic_label && (
+                      <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full border border-purple-200">
+                        {item.mention.topic_label}
+                      </span>
+                    )}
+                  </div>
                 </button>
               )
             })
@@ -214,9 +293,17 @@ export default function MentionInbox() {
 
             {/* Datos de la mención */}
             <div className="card space-y-3">
-              <div className="flex items-center gap-3 text-sm text-gray-600">
+              <div className="flex items-center gap-3 text-sm text-gray-600 flex-wrap">
                 <User className="w-4 h-4 shrink-0 text-gray-400" />
-                <span>@{mention?.author_username ?? 'anónimo'}</span>
+                <span className="flex items-center gap-1">
+                  @{mention?.author_username ?? 'anónimo'}
+                  {mention?.is_verified && <span title="Cuenta verificada" className="text-blue-500">✅</span>}
+                </span>
+                {mention?.author_followers > 0 && (
+                  <span className="text-xs text-gray-500 flex items-center gap-0.5">
+                    👥 {fmtFollowers(mention.author_followers)} seguidores
+                  </span>
+                )}
                 <span className="text-gray-300">|</span>
                 <Globe className="w-4 h-4 shrink-0 text-gray-400" />
                 <span>{PLATFORM_LABEL[mention?.platform_code] ?? mention?.platform_code}</span>
@@ -258,6 +345,16 @@ export default function MentionInbox() {
                 {mention?.is_hate_speech && (
                   <span className="px-2 py-0.5 rounded-full border bg-red-100 text-red-700 border-red-200 font-medium">
                     Discurso de odio
+                  </span>
+                )}
+                {mention?.topic_label && (
+                  <span className="px-2 py-0.5 rounded-full border bg-purple-100 text-purple-700 border-purple-200 font-medium">
+                    {mention.topic_label}
+                  </span>
+                )}
+                {mention?.acknowledged && (
+                  <span className="px-2 py-0.5 rounded-full border bg-green-100 text-green-700 border-green-200 font-medium">
+                    ✓ Gestionada
                   </span>
                 )}
               </div>

@@ -15,6 +15,7 @@ from app.api.deps import get_current_user, require_analyst
 from app.core.security import decode_token, is_token_blacklisted
 from app.database import SessionLocal, get_db
 from app.models.alert import Alert, AlertRule
+from app.models.bot import AccountProfile
 from app.models.entity import Entity
 from app.models.mention import Mention
 from app.models.user import User
@@ -292,29 +293,44 @@ def get_inbox_count(
 
 @router.get("/inbox")
 def get_inbox(
-    db: Session = Depends(get_db),
-    _=Depends(get_current_user),
+    status:  str           = Query("pending"),   # pending | managed | all
+    sort_by: str           = Query("date"),       # date | urgency | followers
+    topic:   Optional[str] = Query(None),
+    db:      Session       = Depends(get_db),
+    _                      = Depends(get_current_user),
 ):
     """
-    Alertas de tipo negative_mention no atendidas, con datos completos
-    de la mención asociada. Accesible a todos los roles.
+    Alertas de tipo negative_mention con datos completos de la mención asociada.
+    Admite filtros por estado (pending/managed/all), ordenamiento y tema.
+    Accesible a todos los roles.
     """
-    rows = (
+    q = (
         db.query(Alert)
         .join(AlertRule, Alert.rule_id == AlertRule.id)
-        .filter(
-            AlertRule.rule_type == "negative_mention",
-            Alert.acknowledged  == False,
-        )
-        .order_by(Alert.triggered_at.desc())
-        .limit(100)
-        .all()
+        .filter(AlertRule.rule_type == "negative_mention")
     )
+    if status == "pending":
+        q = q.filter(Alert.acknowledged == False)
+    elif status == "managed":
+        q = q.filter(Alert.acknowledged == True)
+
+    if topic:
+        q = q.join(Mention, Alert.mention_id == Mention.id).filter(Mention.topic_label == topic)
+
+    rows = q.order_by(Alert.triggered_at.desc()).limit(200).all()
 
     result = []
     for a in rows:
         entity = db.query(Entity).filter(Entity.id == a.entity_id).first()
         m = db.query(Mention).filter(Mention.id == a.mention_id).first() if a.mention_id else None
+
+        profile = None
+        if m and m.author_username:
+            profile = db.query(AccountProfile).filter(
+                AccountProfile.platform_id == m.platform_id,
+                AccountProfile.username    == m.author_username,
+            ).first()
+
         result.append({
             "id":           str(a.id),
             "entity_id":    str(a.entity_id),
@@ -323,16 +339,33 @@ def get_inbox(
             "message":      a.message,
             "triggered_at": a.triggered_at.isoformat(),
             "mention": {
-                "id":              str(m.id),
-                "content":         m.content,
-                "platform_code":   m.platform_code,
-                "author_username": m.author_username,
-                "sentiment_label": m.sentiment_label,
-                "sentiment_score": float(m.sentiment_score or 0),
-                "urgency_score":   m.urgency_score,
-                "is_hate_speech":  m.is_hate_speech,
-                "url":             m.url,
-                "collected_at":    m.collected_at.isoformat(),
+                "id":               str(m.id),
+                "content":          m.content,
+                "platform_code":    m.platform_code,
+                "author_username":  m.author_username,
+                "sentiment_label":  m.sentiment_label,
+                "sentiment_score":  float(m.sentiment_score or 0),
+                "urgency_score":    m.urgency_score,
+                "is_hate_speech":   m.is_hate_speech,
+                "url":              m.url,
+                "collected_at":     m.collected_at.isoformat(),
+                "topic_label":      m.topic_label,
+                "author_followers": profile.followers_count if profile else None,
+                "is_verified":      profile.verified        if profile else False,
+                "acknowledged":     a.acknowledged,
+                "acknowledged_at":  a.acknowledged_at.isoformat() if a.acknowledged_at else None,
             } if m else None,
         })
+
+    if sort_by == "urgency":
+        result.sort(key=lambda x: (x["mention"] or {}).get("urgency_score") or 0, reverse=True)
+    elif sort_by == "followers":
+        result.sort(
+            key=lambda x: (
+                (x["mention"] or {}).get("author_followers") or 0,
+                (x["mention"] or {}).get("urgency_score") or 0,
+            ),
+            reverse=True,
+        )
+
     return result
