@@ -14,10 +14,8 @@ depends_on = None
 
 
 def upgrade():
-    op.add_column(
-        'keywords',
-        sa.Column('keyword_expression', sa.Text, nullable=True),
-    )
+    # IF NOT EXISTS por si la columna fue aplicada manualmente antes del deploy
+    op.execute("ALTER TABLE keywords ADD COLUMN IF NOT EXISTS keyword_expression TEXT")
 
 
 def downgrade():
