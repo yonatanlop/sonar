@@ -57,6 +57,7 @@ class KeywordCreate(BaseModel):
     keyword: str
     keyword_secondary: Optional[str] = None
     logic_op: str = "AND"
+    keyword_expression: Optional[str] = None
     language: str = "es"
     weight: int = 1
 
@@ -186,6 +187,7 @@ def get_entity(
             {"id": str(k.id), "keyword": k.keyword,
              "keyword_secondary": k.keyword_secondary,
              "logic_op": k.logic_op,
+             "keyword_expression": k.keyword_expression,
              "language": k.language, "weight": k.weight, "active": k.active}
             for k in entity.keywords
         ],
@@ -286,6 +288,7 @@ def add_keyword(
     return {"id": str(keyword.id), "keyword": keyword.keyword,
             "keyword_secondary": keyword.keyword_secondary,
             "logic_op": keyword.logic_op,
+            "keyword_expression": keyword.keyword_expression,
             "language": keyword.language, "weight": keyword.weight}
 
 

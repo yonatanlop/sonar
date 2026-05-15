@@ -54,7 +54,7 @@ export default function EntityDetail() {
   const [influDays, setInfluDays] = useState(7)
 
   // ── Formularios ──
-  const [kwForm,    setKwForm]    = useState({ keyword: '', keyword_secondary: '', logic_op: 'AND', language: 'es', weight: 1 })
+  const [kwForm,    setKwForm]    = useState({ terms: [''], ops: [], language: 'es', weight: 1 })
   const [aliasForm, setAliasForm] = useState('')
   const [faceForm,  setFaceForm]  = useState({ person_name: '', photo_url: '' })
   const [ruleForm,  setRuleForm]  = useState({
@@ -147,13 +147,17 @@ export default function EntityDetail() {
   const addKw = useMutation({
     mutationFn: () => client.post(`/entities/${id}/keywords`, {
       ...kwForm,
-      keyword_secondary: kwForm.keyword_secondary || null,
-      logic_op: kwForm.logic_op,
+      keyword:            kwForm.terms[0] || '',
+      keyword_secondary:  kwForm.terms.length === 2 ? (kwForm.terms[1] || null) : null,
+      logic_op:           kwForm.terms.length === 2 ? (kwForm.ops[0] || 'AND') : 'AND',
+      keyword_expression: kwForm.terms.length > 1
+        ? kwForm.terms.map((t, i) => i === 0 ? t : `${kwForm.ops[i - 1] || 'AND'} ${t}`).join(' ')
+        : null,
     }),
     onSuccess: () => {
       toast.success('Keyword agregada')
       qc.invalidateQueries({ queryKey: ['entity', id] })
-      setKwForm({ keyword: '', keyword_secondary: '', logic_op: 'AND', language: 'es', weight: 1 })
+      setKwForm({ terms: [''], ops: [], language: 'es', weight: 1 })
     },
   })
   const delKw = useMutation({
@@ -722,13 +726,84 @@ export default function EntityDetail() {
           {isAnalyst && (
             <div className="card border-primary-200 border">
               <h2 className="font-semibold mb-4 text-sm">Nueva keyword</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="label">Keyword *</label>
-                  <input className="input" placeholder="Ej: mira"
-                    value={kwForm.keyword}
-                    onChange={e => setKwForm(f => ({ ...f, keyword: e.target.value }))} />
-                </div>
+              {/* Constructor multi-término */}
+              <div className="space-y-2">
+                <label className="label">Términos de búsqueda *</label>
+                {kwForm.terms.map((term, i) => (
+                  <div key={i} className="flex gap-2 items-center">
+                    {/* Selector de operador entre términos */}
+                    {i > 0 && (
+                      <div className="flex rounded-lg border border-gray-300 overflow-hidden shrink-0">
+                        {['AND', 'OR', 'NOT'].map(op => (
+                          <button key={op} type="button"
+                            onClick={() => setKwForm(f => {
+                              const ops = [...f.ops]; ops[i - 1] = op; return { ...f, ops }
+                            })}
+                            className={`px-2 py-1.5 text-xs font-bold transition-colors ${
+                              (kwForm.ops[i - 1] || 'AND') === op
+                                ? op === 'AND' ? 'bg-blue-600 text-white'
+                                : op === 'OR'  ? 'bg-green-600 text-white'
+                                :                'bg-red-600 text-white'
+                                : 'bg-white text-gray-400 hover:bg-gray-100'
+                            }`}
+                          >{op}</button>
+                        ))}
+                      </div>
+                    )}
+                    <input
+                      className="input flex-1"
+                      placeholder={i === 0 ? 'Término principal (ej: mira)' : 'Otro término (ej: Colombia)'}
+                      value={term}
+                      onChange={e => setKwForm(f => {
+                        const terms = [...f.terms]; terms[i] = e.target.value; return { ...f, terms }
+                      })}
+                    />
+                    {i > 0 && (
+                      <button type="button"
+                        onClick={() => setKwForm(f => ({
+                          ...f,
+                          terms: f.terms.filter((_, j) => j !== i),
+                          ops:   f.ops.filter((_, j) => j !== i - 1),
+                        }))}
+                        className="text-gray-300 hover:text-red-500 transition-colors shrink-0">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+
+                <button type="button"
+                  onClick={() => setKwForm(f => ({ ...f, terms: [...f.terms, ''], ops: [...f.ops, 'AND'] }))}
+                  className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 mt-1">
+                  <Plus className="w-3 h-3" /> Agregar término
+                </button>
+
+                {/* Vista previa de la expresión */}
+                {kwForm.terms[0] && (
+                  <div className="mt-2 p-2 bg-gray-50 rounded border border-gray-200">
+                    <p className="text-xs text-gray-500 mb-1">Vista previa:</p>
+                    <p className="text-xs font-mono flex flex-wrap gap-1 items-center">
+                      {kwForm.terms.map((t, i) => t ? (
+                        <span key={i} className="flex items-center gap-1">
+                          {i > 0 && (
+                            <span className={`px-1 rounded font-bold ${
+                              (kwForm.ops[i-1]||'AND') === 'AND' ? 'bg-blue-100 text-blue-700' :
+                              (kwForm.ops[i-1]||'AND') === 'OR'  ? 'bg-green-100 text-green-700' :
+                                                                    'bg-red-100 text-red-700'
+                            }`}>
+                              {(kwForm.ops[i-1]||'AND') === 'AND' ? 'Y' : (kwForm.ops[i-1]||'AND') === 'OR' ? 'O' : 'SIN'}
+                            </span>
+                          )}
+                          <span className="text-gray-700">"{t}"</span>
+                        </span>
+                      ) : null)}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Idioma y Peso */}
+              <div className="grid grid-cols-2 gap-3 mt-3">
                 <div>
                   <label className="label">Idioma</label>
                   <select className="input" value={kwForm.language}
@@ -738,71 +813,19 @@ export default function EntityDetail() {
                     <option value="pt">Portugués</option>
                   </select>
                 </div>
-              </div>
-
-              {/* Operador lógico + segundo término */}
-              <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                <label className="label mb-2">Segundo término <span className="text-gray-400 font-normal">(opcional)</span></label>
-                <div className="flex gap-2 items-start flex-wrap">
-                  {/* Selector de operador */}
-                  <div className="flex rounded-lg border border-gray-300 overflow-hidden shrink-0">
-                    {['AND', 'OR', 'NOT'].map(op => (
-                      <button
-                        key={op}
-                        type="button"
-                        onClick={() => setKwForm(f => ({ ...f, logic_op: op }))}
-                        className={`px-3 py-2 text-xs font-bold transition-colors ${
-                          kwForm.logic_op === op
-                            ? op === 'AND' ? 'bg-blue-600 text-white'
-                            : op === 'OR'  ? 'bg-green-600 text-white'
-                            :                'bg-red-600 text-white'
-                            : 'bg-white text-gray-500 hover:bg-gray-100'
-                        }`}
-                      >
-                        {op}
-                      </button>
-                    ))}
-                  </div>
-                  {/* Campo segundo término */}
-                  <input
-                    className="input flex-1 min-w-0"
-                    placeholder={
-                      kwForm.logic_op === 'AND' ? 'Ej: Colombia (debe contener ambos)' :
-                      kwForm.logic_op === 'OR'  ? 'Ej: partido (contiene uno u otro)' :
-                                                  'Ej: fútbol (excluir si contiene esto)'
-                    }
-                    value={kwForm.keyword_secondary}
-                    onChange={e => setKwForm(f => ({ ...f, keyword_secondary: e.target.value }))}
-                  />
+                <div>
+                  <label className="label">Peso</label>
+                  <select className="input" value={kwForm.weight}
+                    onChange={e => setKwForm(f => ({ ...f, weight: parseInt(e.target.value) }))}>
+                    <option value={1}>1 — Normal</option>
+                    <option value={2}>2 — Importante</option>
+                    <option value={3}>3 — Crítico</option>
+                  </select>
                 </div>
-                {/* Vista previa */}
-                {kwForm.keyword && (
-                  <p className="text-xs mt-2 flex items-center gap-1 font-mono">
-                    <Tag className="w-3 h-3 shrink-0" />
-                    {kwForm.keyword_secondary ? (
-                      kwForm.logic_op === 'AND' ? <><span className="text-gray-600">"{kwForm.keyword}"</span> <span className="bg-blue-100 text-blue-700 px-1 rounded">Y</span> <span className="text-gray-600">"{kwForm.keyword_secondary}"</span></> :
-                      kwForm.logic_op === 'OR'  ? <><span className="text-gray-600">"{kwForm.keyword}"</span> <span className="bg-green-100 text-green-700 px-1 rounded">O</span> <span className="text-gray-600">"{kwForm.keyword_secondary}"</span></> :
-                                                  <><span className="text-gray-600">"{kwForm.keyword}"</span> <span className="bg-red-100 text-red-700 px-1 rounded">SIN</span> <span className="text-gray-600">"{kwForm.keyword_secondary}"</span></>
-                    ) : (
-                      <span className="text-gray-500">"{kwForm.keyword}" — busca menciones con este término</span>
-                    )}
-                  </p>
-                )}
-              </div>
-
-              {/* Peso */}
-              <div className="mt-3">
-                <label className="label">Peso</label>
-                <select className="input" value={kwForm.weight}
-                  onChange={e => setKwForm(f => ({ ...f, weight: parseInt(e.target.value) }))}>
-                  <option value={1}>1 — Normal</option>
-                  <option value={2}>2 — Importante</option>
-                  <option value={3}>3 — Crítico</option>
-                </select>
               </div>
               <button
                 onClick={() => addKw.mutate()}
-                disabled={addKw.isPending || !kwForm.keyword}
+                disabled={addKw.isPending || !kwForm.terms[0]}
                 className="btn-primary mt-3 text-sm">
                 <Plus className="w-4 h-4" />
                 {addKw.isPending ? 'Guardando...' : 'Agregar keyword'}
@@ -818,19 +841,39 @@ export default function EntityDetail() {
                 {entity.keywords.map(kw => (
                   <div key={kw.id} className="flex items-center gap-3 py-3">
                     <Tag className="w-4 h-4 text-gray-400 shrink-0" />
-                    <div className="flex-1 min-w-0 flex items-center flex-wrap gap-1">
-                      <span className="text-sm font-medium text-gray-800">{kw.keyword}</span>
-                      {kw.keyword_secondary && (
-                        <>
-                          <span className={`text-xs font-bold px-1 rounded ${
-                            kw.logic_op === 'OR'  ? 'bg-green-100 text-green-700' :
-                            kw.logic_op === 'NOT' ? 'bg-red-100 text-red-700' :
-                                                    'bg-blue-100 text-blue-700'
-                          }`}>
-                            {kw.logic_op === 'OR' ? 'O' : kw.logic_op === 'NOT' ? 'SIN' : 'Y'}
-                          </span>
-                          <span className="text-xs text-gray-600">"{kw.keyword_secondary}"</span>
-                        </>
+                    <div className="flex-1 min-w-0">
+                      {kw.keyword_expression ? (
+                        /* Expresión multi-término: colorear cada operador */
+                        <span className="text-sm font-mono flex flex-wrap gap-1 items-center">
+                          {kw.keyword_expression.split(/\b(AND|OR|NOT)\b/i).map((part, pi) => {
+                            const p = part.trim()
+                            if (!p) return null
+                            if (/^(AND|OR|NOT)$/i.test(p)) {
+                              const up = p.toUpperCase()
+                              return <span key={pi} className={`px-1 rounded text-xs font-bold ${
+                                up === 'OR'  ? 'bg-green-100 text-green-700' :
+                                up === 'NOT' ? 'bg-red-100 text-red-700' :
+                                               'bg-blue-100 text-blue-700'
+                              }`}>{up === 'AND' ? 'Y' : up === 'OR' ? 'O' : 'SIN'}</span>
+                            }
+                            return <span key={pi} className="text-gray-800">"{p}"</span>
+                          })}
+                        </span>
+                      ) : (
+                        /* Keyword simple */
+                        <span className="text-sm font-medium text-gray-800 flex items-center gap-1 flex-wrap">
+                          {kw.keyword}
+                          {kw.keyword_secondary && (
+                            <>
+                              <span className={`text-xs font-bold px-1 rounded ${
+                                kw.logic_op === 'OR'  ? 'bg-green-100 text-green-700' :
+                                kw.logic_op === 'NOT' ? 'bg-red-100 text-red-700' :
+                                                        'bg-blue-100 text-blue-700'
+                              }`}>{kw.logic_op === 'OR' ? 'O' : kw.logic_op === 'NOT' ? 'SIN' : 'Y'}</span>
+                              <span className="text-gray-600">"{kw.keyword_secondary}"</span>
+                            </>
+                          )}
+                        </span>
                       )}
                     </div>
                     <span className="text-xs text-gray-400">{kw.language.toUpperCase()}</span>

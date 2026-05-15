@@ -186,20 +186,53 @@ def get_active_entities_with_keywords(db: Session) -> list[tuple[Entity, list[Ke
     return result
 
 
+def _eval_expression(text: str, expr: str) -> bool:
+    """Evalúa una expresión booleana multi-término contra un texto.
+    Formato: 'término1 AND término2 OR término3 NOT término4'
+    Evaluación de izquierda a derecha (sin precedencia de operadores).
+    """
+    import re
+    t = text.lower()
+    tokens = re.split(r'\b(AND|OR|NOT)\b', expr, flags=re.IGNORECASE)
+    tokens = [tok.strip() for tok in tokens if tok.strip()]
+
+    result = None
+    pending_op = "AND"
+    for tok in tokens:
+        upper = tok.upper()
+        if upper in ("AND", "OR", "NOT"):
+            pending_op = upper
+        else:
+            match = tok.lower() in t
+            if result is None:
+                result = match
+            elif pending_op == "OR":
+                result = result or match
+            elif pending_op == "NOT":
+                result = result and not match
+            else:  # AND
+                result = result and match
+    return bool(result)
+
+
 def build_twitter_query(kw: "Keyword") -> str:
-    """Construye el término de búsqueda para Twitter aplicando logic_op."""
+    """Construye el término de búsqueda para Twitter.
+    Si hay keyword_expression la usa directamente (Twitter acepta AND/OR/NOT nativo).
+    """
+    expr = getattr(kw, "keyword_expression", None)
+    if expr and expr.strip():
+        return expr.strip()
+
     primary = kw.keyword.strip()
     secondary = (kw.keyword_secondary or "").strip()
     op = getattr(kw, "logic_op", "AND")
 
     if not secondary:
         return primary
-
     if op == "OR":
         return f'({primary} OR {secondary})'
     if op == "NOT":
         return f'{primary} -{secondary}'
-    # AND (default)
     return f'{primary} {secondary}'
 
 
@@ -207,6 +240,11 @@ def keyword_matches_text(text: str, kw: "Keyword") -> bool:
     """Evalúa si un texto cumple con la expresión lógica de la keyword."""
     if not text:
         return False
+
+    expr = getattr(kw, "keyword_expression", None)
+    if expr and expr.strip():
+        return _eval_expression(text, expr)
+
     t = text.lower()
     primary = kw.keyword.strip().lower()
     secondary = (kw.keyword_secondary or "").strip().lower()
@@ -220,10 +258,9 @@ def keyword_matches_text(text: str, kw: "Keyword") -> bool:
 
     has_secondary = secondary in t
     if op == "OR":
-        return True  # primary already found
+        return True
     if op == "NOT":
         return not has_secondary
-    # AND
     return has_secondary
 
 

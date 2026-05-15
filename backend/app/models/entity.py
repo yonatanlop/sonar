@@ -60,6 +60,7 @@ class Keyword(Base):
     keyword: Mapped[str] = mapped_column(String(200), nullable=False)
     keyword_secondary: Mapped[str | None] = mapped_column(String(200), nullable=True)
     logic_op: Mapped[str] = mapped_column(String(3), nullable=False, default="AND")  # AND | OR | NOT
+    keyword_expression: Mapped[str | None] = mapped_column(Text, nullable=True)  # expresión completa, ej: "mira AND Colombia OR partido"
     language: Mapped[str] = mapped_column(String(2), nullable=False, default="es")
     weight: Mapped[int] = mapped_column(SmallInteger, default=1)  # 1=normal 2=importante 3=crítico
     active: Mapped[bool] = mapped_column(Boolean, default=True)
