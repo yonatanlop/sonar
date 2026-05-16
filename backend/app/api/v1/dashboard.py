@@ -122,10 +122,13 @@ def get_dashboard(db: Session = Depends(get_db),
     alert_rows = db.query(Alert).order_by(Alert.triggered_at.desc()).limit(5).all()
     recent_alerts = [
         {
-            "id": str(a.id),
+            "id":          str(a.id),
+            "entity_id":   str(a.entity_id),
             "entity_name": db.query(Entity.name).filter(Entity.id == a.entity_id).scalar() or "—",
-            "message": a.message,
-            "severity": a.severity,
+            "rule_type":   a.rule.rule_type if a.rule else None,
+            "mention_id":  str(a.mention_id) if a.mention_id else None,
+            "message":     a.message,
+            "severity":    a.severity,
             "triggered_at": a.triggered_at.isoformat(),
             "acknowledged": a.acknowledged,
         }

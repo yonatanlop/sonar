@@ -17,7 +17,7 @@ from app.database import SessionLocal, get_db
 from app.models.alert import Alert, AlertRule
 from app.models.bot import AccountProfile
 from app.models.entity import Entity
-from app.models.mention import Mention
+from app.models.mention import Mention, SocialPlatform
 from app.models.user import User
 
 router = APIRouter(prefix="/alerts", tags=["Alertas"])
@@ -59,6 +59,24 @@ def _alert_dict(a: Alert, db: Session) -> dict:
         if anomaly:
             context_explanation = anomaly.context_explanation
 
+    # mención que generó la alerta (si existe)
+    mention_data = None
+    if a.mention_id:
+        m = db.query(Mention).filter(Mention.id == a.mention_id).first()
+        if m:
+            platform = db.query(SocialPlatform).filter(SocialPlatform.id == m.platform_id).first()
+            mention_data = {
+                "id":               str(m.id),
+                "content":          m.content,
+                "author_username":  m.author_username,
+                "platform_name":    platform.name if platform else None,
+                "platform_code":    platform.code if platform else None,
+                "url":              m.url,
+                "sentiment_label":  m.sentiment_label,
+                "urgency_score":    float(m.urgency_score) if m.urgency_score is not None else None,
+                "published_at":     m.published_at.isoformat() if m.published_at else None,
+            }
+
     return {
         "id":                   str(a.id),
         "rule_id":              str(a.rule_id),
@@ -74,6 +92,8 @@ def _alert_dict(a: Alert, db: Session) -> dict:
         "action_notes":         a.action_notes,
         "triggered_at":         a.triggered_at.isoformat(),
         "context_explanation":  context_explanation,
+        "mention_id":           str(a.mention_id) if a.mention_id else None,
+        "mention":              mention_data,
     }
 
 

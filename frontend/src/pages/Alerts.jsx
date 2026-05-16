@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Bell, Check, ChevronDown, ChevronUp, Sparkles, X } from 'lucide-react'
+import { Bell, Check, ChevronDown, ChevronUp, Sparkles, X, MessageSquare } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import toast from 'react-hot-toast'
@@ -35,7 +35,8 @@ export default function Alerts() {
     severity: '', entity_id: '', acknowledged: '', page: 1,
   })
   const [expandedCtx, setExpandedCtx]     = useState(null)
-  const [expandedForm, setExpandedForm]   = useState(null)  // id de alerta con formulario abierto
+  const [expandedMention, setExpandedMention] = useState(null)
+  const [expandedForm, setExpandedForm]   = useState(null)
   const [actionForm, setActionForm]       = useState({ action: '', notes: '' })
 
   const { data, isLoading } = useQuery({
@@ -175,6 +176,54 @@ export default function Alerts() {
                         <X className="w-3.5 h-3.5" /> Cancelar
                       </button>
                     </div>
+                  </div>
+                )}
+
+                {/* Mención que originó la alerta */}
+                {alert.mention && (
+                  <div className="mt-2">
+                    <button
+                      onClick={() => setExpandedMention(expandedMention === alert.id ? null : alert.id)}
+                      className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                      <MessageSquare className="w-3 h-3" />
+                      Ver mención
+                      {expandedMention === alert.id
+                        ? <ChevronUp className="w-3 h-3" />
+                        : <ChevronDown className="w-3 h-3" />}
+                    </button>
+                    {expandedMention === alert.id && (
+                      <div className="mt-2 p-3 bg-blue-50 rounded-lg border border-blue-100 text-xs text-gray-700 space-y-1.5">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {alert.mention.author_username && (
+                            <span className="font-medium text-gray-800">@{alert.mention.author_username}</span>
+                          )}
+                          {alert.mention.platform_name && (
+                            <span className="text-gray-500">· {alert.mention.platform_name}</span>
+                          )}
+                          {alert.mention.sentiment_label && (
+                            <span className={{
+                              very_negative: 'text-red-600 font-semibold',
+                              negative:      'text-orange-500 font-semibold',
+                              neutral:       'text-gray-500',
+                              positive:      'text-green-600 font-semibold',
+                            }[alert.mention.sentiment_label] ?? 'text-gray-500'}>
+                              {alert.mention.sentiment_label.replace('_', ' ')}
+                            </span>
+                          )}
+                          {alert.mention.urgency_score != null && (
+                            <span className="text-gray-500">· urgencia {Math.round(alert.mention.urgency_score)}/100</span>
+                          )}
+                        </div>
+                        <p className="leading-relaxed line-clamp-4">{alert.mention.content}</p>
+                        {alert.mention.url && (
+                          <a href={alert.mention.url} target="_blank" rel="noreferrer"
+                            className="text-blue-500 hover:underline inline-block">
+                            Ver publicación ↗
+                          </a>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
 

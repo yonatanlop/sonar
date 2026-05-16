@@ -218,7 +218,11 @@ export default function Dashboard() {
           <div className="space-y-2">
             {data.recent_alerts.map((alert) => (
               <div key={alert.id}
-                className="flex items-start gap-3 p-3 rounded-lg bg-gray-50 hover:bg-gray-100 cursor-pointer">
+                className="flex items-start gap-3 p-3 rounded-lg bg-gray-50 hover:bg-gray-100 cursor-pointer"
+                onClick={() => setDrawer({
+                  title: `Menciones · ${alert.entity_name}`,
+                  params: { entity_id: alert.entity_id, sentiment: 'negative' },
+                })}>
                 <span className={`badge badge-${alert.severity} shrink-0 mt-0.5`}>
                   {alert.severity.toUpperCase()}
                 </span>
