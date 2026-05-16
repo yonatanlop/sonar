@@ -82,6 +82,7 @@ def list_mentions(
     exclude_duplicates: bool            = Query(False, description="Excluir menciones marcadas como duplicados semánticos"),
     visual_only:        bool            = Query(False, description="Solo menciones con coincidencia visual detectada"),
     bot_filter:        Optional[str]   = Query(None, description="Filtrar por clasificación de bot: bot|suspicious|real|anonymous"),
+    min_bot_score:     Optional[float] = Query(None, ge=0.0, le=1.0, description="Filtrar menciones cuyo autor tiene bot_probability >= valor"),
     country:           Optional[str]   = Query(None, description="Filtrar por país ISO-2 (ej: CO, MX, US)"),
     date_from:         Optional[str]   = Query(None),
     date_to:           Optional[str]   = Query(None),
@@ -100,7 +101,10 @@ def list_mentions(
             query = query.filter(Mention.platform_id == platform_obj.id)
 
     if sentiment:
-        query = query.filter(Mention.sentiment_label == sentiment)
+        if sentiment == 'negative':
+            query = query.filter(Mention.sentiment_label.in_(['negative', 'very_negative']))
+        else:
+            query = query.filter(Mention.sentiment_label == sentiment)
 
     if language:
         query = query.filter(Mention.language == language)
@@ -135,6 +139,20 @@ def list_mentions(
             .exists()
         )
         query = query.filter(bot_subq)
+
+    if min_bot_score is not None:
+        from app.models.bot import AccountProfile as _AP
+        bot_score_subq = (
+            db.query(_AP.id)
+            .filter(
+                _AP.platform_id == Mention.platform_id,
+                _AP.external_user_id == Mention.author_ext_id,
+                _AP.bot_probability >= min_bot_score,
+            )
+            .correlate(Mention)
+            .exists()
+        )
+        query = query.filter(bot_score_subq)
 
     if date_from:
         query = query.filter(Mention.collected_at >= date_from)

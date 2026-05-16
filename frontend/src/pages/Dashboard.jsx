@@ -199,7 +199,7 @@ export default function Dashboard() {
           value={data?.stats?.bots_today?.value}
           delta={data?.stats?.bots_today}
           color="yellow"
-          onClick={() => setDrawer({ title: 'Posibles bots detectados', params: { bot_filter: 'bot' } })} />
+          onClick={() => setDrawer({ title: 'Posibles bots detectados', params: { min_bot_score: 0.7 } })} />
         <StatCard icon={Building2} label="Entidades activas"
           value={data?.stats?.active_entities}
           sub="monitoreadas"
@@ -301,7 +301,7 @@ export default function Dashboard() {
               onEvents={{
                 click: (params) => setDrawer({
                   title: `Bots · ${params.data?.name}`,
-                  params: { bot_filter: 'bot', platform: params.data?.code },
+                  params: { min_bot_score: 0.7, platform: params.data?.code },
                 }),
               }}
             />
