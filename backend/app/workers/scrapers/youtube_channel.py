@@ -72,6 +72,10 @@ class YoutubeChannelScraper:
             datetime.now(timezone.utc) - timedelta(days=DAYS_BACK)
         ).strftime("%Y-%m-%dT%H:%M:%SZ")
 
+        from app.models.entity import Entity as _Entity
+        _ent = self.db.query(_Entity).filter(_Entity.id == ch.entity_id).first()
+        _country_code = _ent.country_code if _ent else None
+
         for kw in keywords:
             try:
                 response = self.yt.search().list(
@@ -115,6 +119,7 @@ class YoutubeChannelScraper:
                     url=f"https://www.youtube.com/watch?v={vid_id}",
                     published_at=published_at,
                     language="es",
+                    country_code=_country_code,
                     reach=0,
                     media_urls=json.dumps([thumb_url]) if thumb_url else None,
                 )

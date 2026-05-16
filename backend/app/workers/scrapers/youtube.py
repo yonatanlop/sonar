@@ -129,6 +129,7 @@ class YouTubeScraper(BaseScraper):
                 url=f"https://www.youtube.com/watch?v={video_id}",
                 published_at=published_at,
                 language="es",
+                country_code=entity.country_code,
                 reach=0,
                 matched_keywords=[keyword_obj],
                 media_urls=media_urls,
@@ -191,6 +192,7 @@ class YouTubeScraper(BaseScraper):
                 url=f"https://www.youtube.com/watch?v={video_id}&lc={comment_id}",
                 published_at=published_at,
                 language="es",
+                country_code=entity.country_code,
                 reach=like_count,
                 matched_keywords=[keyword_obj],
             )

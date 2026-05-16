@@ -107,6 +107,7 @@ class RedditScraper(BaseScraper):
                 author_ext_id=str(post.author.id) if post.author and hasattr(post.author, "id") else None,
                 url=f"https://reddit.com{post.permalink}",
                 published_at=datetime.fromtimestamp(post.created_utc, tz=timezone.utc),
+                country_code=entity.country_code,
                 reach=post.score + post.num_comments,
                 matched_keywords=[keyword_obj],
             )
@@ -154,6 +155,7 @@ class RedditScraper(BaseScraper):
                 author_ext_id=str(comment.author.id) if comment.author and hasattr(comment.author, "id") else None,
                 url=f"https://reddit.com{comment.permalink}",
                 published_at=datetime.fromtimestamp(comment.created_utc, tz=timezone.utc),
+                country_code=entity.country_code,
                 reach=comment.score,
                 matched_keywords=[keyword_obj],
             )

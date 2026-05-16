@@ -161,6 +161,7 @@ class FacebookScraper(BaseScraper):
                 author_ext_id=user_id or None,
                 url=str(post_url) if post_url else None,
                 published_at=pub_at,
+                country_code=entity.country_code,
                 reach=reach,
                 matched_keywords=[keyword_obj],
                 media_urls=media_urls,

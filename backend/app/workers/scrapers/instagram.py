@@ -198,6 +198,7 @@ class InstagramScraper(BaseScraper):
                 author_ext_id=user_id,
                 url=url,
                 published_at=taken_at,
+                country_code=entity.country_code,
                 reach=reach,
                 matched_keywords=[keyword_obj],
                 media_urls=thumb,

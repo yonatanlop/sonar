@@ -245,6 +245,10 @@ async def scrape_feeds(db) -> dict:
         if not feed.entity_id:
             continue
 
+        from app.models.entity import Entity as _Entity
+        feed_entity = db.query(_Entity).filter(_Entity.id == feed.entity_id).first()
+        feed_country = feed_entity.country_code if feed_entity else None
+
         term = feed.term.strip()
         if feed.feed_type == "user":
             query = f"from:{term} since:{since}"
@@ -255,7 +259,8 @@ async def scrape_feeds(db) -> dict:
 
         try:
             saved = await asyncio.wait_for(
-                _scrape_feed_query(tw_api, query, platform.id, feed.entity_id, db),
+                _scrape_feed_query(tw_api, query, platform.id, feed.entity_id, db,
+                                   country_code=feed_country),
                 timeout=TWSCRAPE_TIMEOUT,
             )
             total_saved += saved
@@ -270,7 +275,8 @@ async def scrape_feeds(db) -> dict:
     return {"feeds": len(feeds), "saved": total_saved}
 
 
-async def _scrape_feed_query(api, query: str, platform_id: int, entity_id, db) -> int:
+async def _scrape_feed_query(api, query: str, platform_id: int, entity_id, db,
+                            country_code: str | None = None) -> int:
     """Ejecuta una query de feed y guarda los tweets como menciones."""
     from app.workers.scrapers.base import save_mention, upsert_account_profile
     import json as _json
@@ -344,6 +350,7 @@ async def _scrape_feed_query(api, query: str, platform_id: int, entity_id, db) -
                     url=url,
                     published_at=tweet.date,
                     language=getattr(tweet, "lang", None),
+                    country_code=country_code,
                     reach=reach,
                     media_urls=media_urls,
                     conversation_id=conv_id,
@@ -495,6 +502,7 @@ class TwitterScraper(BaseScraper):
                         url=url,
                         published_at=tweet.date,
                         language=getattr(tweet, "lang", None),
+                        country_code=entity.country_code,
                         reach=reach,
                         matched_keywords=[keyword_obj],
                         media_urls=media_urls,
