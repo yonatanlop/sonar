@@ -347,10 +347,10 @@ export default function Dashboard() {
               {!drawerFetching && drawerError && (
                 <p className="text-center text-red-400 text-sm py-12">Error al cargar menciones</p>
               )}
-              {!drawerFetching && !drawerError && drawerData && (drawerData.mentions?.length ?? 0) === 0 && (
+              {!drawerFetching && !drawerError && drawerData && (drawerData.items?.length ?? 0) === 0 && (
                 <p className="text-center text-gray-400 text-sm py-12">Sin resultados</p>
               )}
-              {!drawerFetching && drawerData?.mentions?.map(m => <MentionRow key={m.id} m={m} />)}
+              {!drawerFetching && drawerData?.items?.map(m => <MentionRow key={m.id} m={m} />)}
             </div>
             <div className="px-5 py-3 border-t border-gray-100 text-center">
               <a href={`/mentions?${new URLSearchParams(
