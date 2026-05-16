@@ -22,7 +22,7 @@ function DeltaBadge({ delta }) {
   )
 }
 
-function StatCard({ icon: Icon, label, value, delta, sub, color = 'primary' }) {
+function StatCard({ icon: Icon, label, value, delta, sub, color = 'primary', onClick }) {
   const colors = {
     primary: 'bg-primary-50 text-primary-600',
     red:     'bg-red-50 text-red-600',
@@ -30,16 +30,49 @@ function StatCard({ icon: Icon, label, value, delta, sub, color = 'primary' }) {
     green:   'bg-green-50 text-green-600',
   }
   return (
-    <div className="card flex items-start gap-4">
+    <div
+      className={`card flex items-start gap-4 ${onClick ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}
+      onClick={onClick}
+    >
       <div className={`rounded-xl p-3 ${colors[color]}`}>
         <Icon className="w-5 h-5" />
       </div>
       <div>
         <p className="text-2xl font-bold text-gray-900">{value ?? '—'}</p>
         <p className="text-sm font-medium text-gray-700">{label}</p>
+        {onClick && <p className="text-xs text-blue-500 mt-0.5">Ver detalle →</p>}
         {delta && <DeltaBadge delta={delta} />}
         {sub && !delta && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
       </div>
+    </div>
+  )
+}
+
+function MentionRow({ m }) {
+  const sentimentColor = {
+    very_negative: 'text-red-600',
+    negative:      'text-orange-500',
+    neutral:       'text-gray-500',
+    positive:      'text-green-600',
+  }[m.sentiment_label] ?? 'text-gray-500'
+
+  return (
+    <div className="border-b border-gray-100 py-3 px-4 hover:bg-gray-50">
+      <div className="flex justify-between items-start gap-2 mb-1">
+        <span className="text-xs font-medium text-gray-700 truncate">
+          @{m.author_username ?? 'anónimo'} · {m.platform_name}
+        </span>
+        <span className={`text-xs font-semibold shrink-0 ${sentimentColor}`}>
+          {m.sentiment_label?.replace('_', ' ')}
+        </span>
+      </div>
+      <p className="text-sm text-gray-800 line-clamp-2">{m.content}</p>
+      {m.url && (
+        <a href={m.url} target="_blank" rel="noreferrer"
+          className="text-xs text-blue-500 hover:underline mt-1 inline-block">
+          Ver publicación ↗
+        </a>
+      )}
     </div>
   )
 }
@@ -48,8 +81,15 @@ const SOV_COLORS = ['#6366f1','#f59e0b','#10b981','#ef4444','#3b82f6','#8b5cf6',
 
 export default function Dashboard() {
   const [sovDays, setSovDays] = useState(7)
-  const { data, isLoading }   = useQuery({ queryKey: ['dashboard'], queryFn: fetchDashboard })
-  const { data: sovData }     = useQuery({ queryKey: ['sov', sovDays], queryFn: () => fetchSOV(sovDays) })
+  const [drawer, setDrawer]   = useState(null)
+
+  const { data, isLoading } = useQuery({ queryKey: ['dashboard'], queryFn: fetchDashboard })
+  const { data: sovData }   = useQuery({ queryKey: ['sov', sovDays], queryFn: () => fetchSOV(sovDays) })
+  const { data: drawerData, isLoading: drawerLoading } = useQuery({
+    queryKey: ['drawer-mentions', drawer?.params],
+    queryFn:  () => client.get('/mentions', { params: { ...drawer.params, page: 1 } }).then(r => r.data),
+    enabled:  !!drawer,
+  })
 
   // Gráfica: menciones por día (últimos 14 días)
   const timelineOption = {
@@ -102,6 +142,7 @@ export default function Dashboard() {
         value: p.bot_pct,
         bots:  p.bots,
         total: p.total,
+        code:  p.code,
         itemStyle: { color: { twitter: '#1DA1F2', reddit: '#FF4500', youtube: '#FF0000', rss: '#FFA500', telegram: '#2CA5E0' }[p.code] ?? '#6B7280' },
       })),
     }],
@@ -152,11 +193,13 @@ export default function Dashboard() {
         <StatCard icon={TrendingDown} label="Menciones negativas"
           value={data?.stats?.negative_pct?.value != null ? data.stats.negative_pct.value + '%' : '—'}
           delta={data?.stats?.negative_pct}
-          color="red" />
+          color="red"
+          onClick={() => setDrawer({ title: 'Menciones negativas', params: { sentiment: 'negative' } })} />
         <StatCard icon={Bot} label="Bots detectados"
           value={data?.stats?.bots_today?.value}
           delta={data?.stats?.bots_today}
-          color="yellow" />
+          color="yellow"
+          onClick={() => setDrawer({ title: 'Posibles bots detectados', params: { bot_filter: 'bot' } })} />
         <StatCard icon={Building2} label="Entidades activas"
           value={data?.stats?.active_entities}
           sub="monitoreadas"
@@ -254,7 +297,14 @@ export default function Dashboard() {
           <h2 className="font-semibold text-gray-800 mb-1">% Bots por plataforma</h2>
           <p className="text-xs text-gray-400 mb-3">Clasificación ML — cuentas analizadas</p>
           {(data?.bots_by_platform?.length ?? 0) > 0 ? (
-            <ReactECharts option={botPlatformOption} style={{ height: 220 }} />
+            <ReactECharts option={botPlatformOption} style={{ height: 220 }}
+              onEvents={{
+                click: (params) => setDrawer({
+                  title: `Bots · ${params.data?.name}`,
+                  params: { bot_filter: 'bot', platform: params.data?.code },
+                }),
+              }}
+            />
           ) : (
             <div className="text-center text-gray-400 py-10 text-sm">
               Sin datos aún — el clasificador corre cada 6h
@@ -263,9 +313,51 @@ export default function Dashboard() {
         </div>
         <div className="card xl:col-span-2">
           <h2 className="font-semibold text-gray-800 mb-4">Top 5 entidades — menciones negativas (últimos 7 días)</h2>
-          <ReactECharts option={topEntitiesOption} style={{ height: 220 }} />
+          <ReactECharts option={topEntitiesOption} style={{ height: 220 }}
+            onEvents={{
+              click: (params) => {
+                const entity = data?.top_entities?.[params.dataIndex]
+                if (!entity) return
+                setDrawer({
+                  title: `Menciones negativas · ${entity.name}`,
+                  params: { sentiment: 'negative', entity_id: entity.entity_id },
+                })
+              },
+            }}
+          />
         </div>
       </div>
+
+      {/* Drawer de detalle */}
+      {drawer && (
+        <>
+          <div className="fixed inset-0 bg-black/30 z-40" onClick={() => setDrawer(null)} />
+          <div className="fixed right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl z-50 flex flex-col">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+              <h3 className="font-semibold text-gray-800 text-base">{drawer.title}</h3>
+              <button onClick={() => setDrawer(null)}
+                className="text-gray-400 hover:text-gray-700 text-2xl leading-none">&times;</button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {drawerLoading && (
+                <p className="text-center text-gray-400 text-sm py-12">Cargando...</p>
+              )}
+              {!drawerLoading && (drawerData?.mentions?.length ?? 0) === 0 && (
+                <p className="text-center text-gray-400 text-sm py-12">Sin resultados</p>
+              )}
+              {drawerData?.mentions?.map(m => <MentionRow key={m.id} m={m} />)}
+            </div>
+            <div className="px-5 py-3 border-t border-gray-100 text-center">
+              <a href={`/mentions?${new URLSearchParams(
+                  Object.fromEntries(Object.entries(drawer.params).filter(([,v]) => v != null))
+                )}`}
+                className="text-sm text-blue-600 hover:underline">
+                Ver todas en Menciones →
+              </a>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }

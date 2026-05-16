@@ -116,7 +116,7 @@ def get_dashboard(db: Session = Depends(get_db),
     ).order_by(func.count(Mention.id).desc()
     ).limit(5).all()
 
-    top_entities = [{"name": r.name, "negative_count": r.negative_count} for r in top_rows]
+    top_entities = [{"entity_id": str(r.id), "name": r.name, "negative_count": r.negative_count} for r in top_rows]
 
     # ── Alertas recientes (últimas 5) ─────────────────────────
     alert_rows = db.query(Alert).order_by(Alert.triggered_at.desc()).limit(5).all()
