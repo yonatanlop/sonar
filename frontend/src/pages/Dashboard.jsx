@@ -85,10 +85,12 @@ export default function Dashboard() {
 
   const { data, isLoading } = useQuery({ queryKey: ['dashboard'], queryFn: fetchDashboard })
   const { data: sovData }   = useQuery({ queryKey: ['sov', sovDays], queryFn: () => fetchSOV(sovDays) })
-  const { data: drawerData, isLoading: drawerLoading } = useQuery({
-    queryKey: ['drawer-mentions', drawer?.params],
+  const drawerKey = drawer ? JSON.stringify(drawer.params) : null
+  const { data: drawerData, isFetching: drawerFetching, isError: drawerError } = useQuery({
+    queryKey: ['drawer-mentions', drawerKey],
     queryFn:  () => client.get('/mentions', { params: { ...drawer.params, page: 1 } }).then(r => r.data),
     enabled:  !!drawer,
+    staleTime: 0,
   })
 
   // Gráfica: menciones por día (últimos 14 días)
@@ -339,13 +341,16 @@ export default function Dashboard() {
                 className="text-gray-400 hover:text-gray-700 text-2xl leading-none">&times;</button>
             </div>
             <div className="flex-1 overflow-y-auto">
-              {drawerLoading && (
+              {drawerFetching && (
                 <p className="text-center text-gray-400 text-sm py-12">Cargando...</p>
               )}
-              {!drawerLoading && (drawerData?.mentions?.length ?? 0) === 0 && (
+              {!drawerFetching && drawerError && (
+                <p className="text-center text-red-400 text-sm py-12">Error al cargar menciones</p>
+              )}
+              {!drawerFetching && !drawerError && drawerData && (drawerData.mentions?.length ?? 0) === 0 && (
                 <p className="text-center text-gray-400 text-sm py-12">Sin resultados</p>
               )}
-              {drawerData?.mentions?.map(m => <MentionRow key={m.id} m={m} />)}
+              {!drawerFetching && drawerData?.mentions?.map(m => <MentionRow key={m.id} m={m} />)}
             </div>
             <div className="px-5 py-3 border-t border-gray-100 text-center">
               <a href={`/mentions?${new URLSearchParams(
