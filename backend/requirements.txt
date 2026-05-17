@@ -51,6 +51,7 @@ pillow==10.3.0
 # ─── Facebook / Instagram (scraping autenticado) ─────────────
 instagrapi>=2.0.0         # Instagram scraping con cuenta propia (sin API oficial)
 facebook-scraper>=0.2.59  # Facebook búsqueda por keyword con cookies de sesión
+lxml-html-clean             # lxml.html.clean separado como paquete independiente en lxml>=5
 
 # ─── Phase 2 ─────────────────────────────────────────────────
 twscrape>=0.14.6          # Scraper Twitter/X (sin API key oficial)
