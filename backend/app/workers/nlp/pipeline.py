@@ -21,7 +21,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app.workers.nlp.language_detector import detect_language
-from app.workers.nlp.sentiment import analyze_sentiment
+from app.workers.nlp.sentiment import analyze_sentiment, analyze_sentiment_groq
 from app.workers.nlp.hate_speech import analyze_hate_speech
 from app.workers.nlp.urgency import compute_urgency_score
 from app.models.mention import Mention
@@ -101,6 +101,21 @@ def process_mention(mention: Mention) -> bool:
         sentiment = analyze_sentiment(text, lang)
         mention.sentiment_label = sentiment["label"]
         mention.sentiment_score = Decimal(str(sentiment["score"]))
+
+        # ── 2b. Segunda pasada Groq (neutral con baja confianza) ─────
+        if sentiment["label"] == "neutral" and float(sentiment["score"]) < 0.70:
+            try:
+                from sqlalchemy import inspect as sa_inspect
+                session = sa_inspect(mention).session
+                entity = session.query(Entity).filter(Entity.id == mention.entity_id).first() if session else None
+                entity_name = entity.name if entity else ""
+                groq_result = analyze_sentiment_groq(text, entity_name)
+                if groq_result and groq_result["label"] != "neutral":
+                    mention.sentiment_label = groq_result["label"]
+                    mention.sentiment_score = Decimal(str(groq_result["score"]))
+                    logger.debug("Groq reclasificó %s: neutral→%s", mention.id, groq_result["label"])
+            except Exception as exc:
+                logger.debug("Groq second pass skipped for %s: %s", mention.id, exc)
 
         # ── 3. Detección de discurso de odio ────────────────
         hate = analyze_hate_speech(text, lang)

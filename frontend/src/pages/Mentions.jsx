@@ -1,9 +1,11 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { ExternalLink, Bot, Flame, Search, SlidersHorizontal, Camera, MessageSquare, MapPin, Users } from 'lucide-react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { ExternalLink, Bot, Flame, Search, SlidersHorizontal, Camera, MessageSquare, MapPin, Users, Flag } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
+import toast from 'react-hot-toast'
 import client from '../api/client'
+import { useAuthStore } from '../store/authStore'
 
 function UrgencyBadge({ score }) {
   if (score == null || score < 30) return null
@@ -47,6 +49,68 @@ const fetchPlatforms      = ()      => client.get('/platforms').then(r => r.data
 const fetchSemanticSearch = (q, eid) =>
   client.get('/mentions/search', { params: { q, ...(eid ? { entity_id: eid } : {}) } }).then(r => r.data)
 
+function FeedbackWidget({ mentionId, currentLabel }) {
+  const [open, setOpen]   = useState(false)
+  const [label, setLabel] = useState(currentLabel)
+  const [notes, setNotes] = useState('')
+  const qc = useQueryClient()
+
+  const feedback = useMutation({
+    mutationFn: ({ label, notes }) =>
+      client.post(`/mentions/${mentionId}/feedback`, { corrected_label: label, notes }),
+    onSuccess: () => {
+      toast.success('Corrección de sentimiento guardada')
+      qc.invalidateQueries({ queryKey: ['mentions'] })
+      setOpen(false)
+      setNotes('')
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.detail ?? 'Error al guardar la corrección')
+    },
+  })
+
+  return (
+    <div className="mt-2">
+      {!open ? (
+        <button
+          onClick={() => { setOpen(true); setLabel(currentLabel) }}
+          className="flex items-center gap-1 text-xs text-gray-400 hover:text-amber-600 transition-colors"
+          title="Corregir clasificación de sentimiento">
+          <Flag className="w-3 h-3" /> Corregir sentimiento
+        </button>
+      ) : (
+        <div className="p-2.5 bg-amber-50 rounded-lg border border-amber-200 space-y-2">
+          <p className="text-xs font-medium text-amber-800">Corrección de sentimiento</p>
+          <select className="input text-xs py-1 w-full" value={label} onChange={e => setLabel(e.target.value)}>
+            <option value="positive">Positivo</option>
+            <option value="neutral">Neutral</option>
+            <option value="negative">Negativo</option>
+            <option value="very_negative">Muy negativo</option>
+          </select>
+          <input
+            className="input text-xs py-1 w-full"
+            placeholder="Nota del analista (opcional)"
+            value={notes}
+            onChange={e => setNotes(e.target.value)}
+          />
+          <div className="flex gap-2">
+            <button
+              className="btn-primary text-xs py-1 flex-1"
+              disabled={feedback.isPending || label === currentLabel}
+              onClick={() => feedback.mutate({ label, notes })}>
+              {feedback.isPending ? 'Guardando…' : 'Guardar'}
+            </button>
+            <button className="btn-secondary text-xs py-1"
+              onClick={() => { setOpen(false); setNotes('') }}>
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 const PLATFORM_ICON = {
   twitter:   '🐦',
   instagram: '📸',
@@ -58,6 +122,7 @@ const PLATFORM_ICON = {
 }
 
 export default function Mentions() {
+  const canFeedback = useAuthStore(s => s.isAnalyst() || s.isAdmin())
   const [filters, setFilters] = useState({
     entity_id: '', platform: '', sentiment: '', language: '', min_urgency: '',
     bot_filter: '', country: '',
@@ -174,6 +239,10 @@ export default function Mentions() {
               )}
             </div>
           </div>
+
+          {canFeedback && (
+            <FeedbackWidget mentionId={m.id} currentLabel={m.sentiment_label} />
+          )}
         </div>
       </div>
     </div>

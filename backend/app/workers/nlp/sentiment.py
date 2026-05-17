@@ -237,3 +237,51 @@ def analyze_sentiment(text: str, lang: str = "es") -> dict:
         return _analyze_local(text, lang)
     else:
         return _analyze_api(text, lang)
+
+
+def analyze_sentiment_groq(text: str, entity_name: str = "") -> Optional[dict]:
+    """
+    Segunda pasada con Groq/Llama para casos dudosos (neutral con baja confianza).
+
+    Solo se llama cuando el modelo principal retornó 'neutral' con score < 0.70.
+    Incluye el contexto de la entidad para mejorar precisión en discurso político.
+
+    Returns:
+        {"label": ..., "score": 0.80, "source": "groq"} o None si falla/no configurado.
+    """
+    from app.core.config import settings
+    if not settings.GROQ_API_KEY:
+        return None
+    try:
+        from groq import Groq
+    except ImportError:
+        logger.debug("Paquete groq no instalado — segunda pasada omitida")
+        return None
+
+    entity_ctx = f' sobre "{entity_name}"' if entity_name else ""
+    prompt = (
+        f"Clasifica el sentimiento de esta publicación de redes sociales{entity_ctx}.\n\n"
+        f"Texto: \"{text[:600]}\"\n\n"
+        f"Criterios:\n"
+        f"- very_negative: tono muy agresivo, ofensivo, difamatorio o muy dañino para la reputación\n"
+        f"- negative: crítico, acusatorio, de denuncia, irónico negativamente o despectivo\n"
+        f"- neutral: informativo sin carga emocional clara\n"
+        f"- positive: favorable, de apoyo o elogioso\n\n"
+        f"Responde ÚNICAMENTE con una palabra: positive, neutral, negative o very_negative"
+    )
+
+    try:
+        client = Groq(api_key=settings.GROQ_API_KEY)
+        response = client.chat.completions.create(
+            model=settings.SUMMARY_MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=10,
+            temperature=0,
+        )
+        label = response.choices[0].message.content.strip().lower().rstrip(".")
+        if label in ("positive", "neutral", "negative", "very_negative"):
+            return {"label": label, "score": 0.80, "source": "groq"}
+        return None
+    except Exception as e:
+        logger.warning(f"Groq second pass error: {e}")
+        return None

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Inbox, ExternalLink, AlertTriangle, AlertCircle,
-  CheckCircle, Clock, ChevronRight, User, Globe, Scale, X, HelpCircle, ChevronDown,
+  CheckCircle, Clock, ChevronRight, User, Globe, Scale, X, HelpCircle, ChevronDown, Flag,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import client from '../api/client'
@@ -79,6 +79,11 @@ export default function MentionInbox() {
   const [sortBy, setSortBy]             = useState('date')
   const [topicFilter, setTopicFilter]   = useState('')
 
+  // Corrección de sentimiento
+  const [feedbackOpen, setFeedbackOpen]   = useState(false)
+  const [feedbackLabel, setFeedbackLabel] = useState('')
+  const [feedbackNotes, setFeedbackNotes] = useState('')
+
   // Modal de escalación jurídica
   const [showEscalate, setShowEscalate] = useState(false)
   const [escTarget, setEscTarget]       = useState('')
@@ -134,10 +139,26 @@ export default function MentionInbox() {
     },
   })
 
+  const submitFeedback = useMutation({
+    mutationFn: ({ mentionId, label, notes }) =>
+      client.post(`/mentions/${mentionId}/feedback`, { corrected_label: label, notes }),
+    onSuccess: () => {
+      toast.success('Corrección de sentimiento guardada')
+      qc.invalidateQueries({ queryKey: ['inbox'] })
+      setFeedbackOpen(false)
+      setFeedbackNotes('')
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.detail ?? 'Error al guardar la corrección')
+    },
+  })
+
   const handleSelect = (item) => {
     setSelected(item)
     setAction('')
     setNotes('')
+    setFeedbackOpen(false)
+    setFeedbackNotes('')
   }
 
   const mention = selected?.mention
@@ -358,6 +379,43 @@ export default function MentionInbox() {
                   </span>
                 )}
               </div>
+
+              {(isAnalyst || isAdmin) && mention?.id && (
+                <div className="border-t border-gray-100 pt-3">
+                  {!feedbackOpen ? (
+                    <button
+                      onClick={() => { setFeedbackOpen(true); setFeedbackLabel(mention.sentiment_label || 'neutral') }}
+                      className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-amber-600 transition-colors">
+                      <Flag className="w-3 h-3" /> Corregir clasificación de sentimiento
+                    </button>
+                  ) : (
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-amber-800">Corrección de sentimiento</p>
+                      <select className="input text-xs py-1 w-full" value={feedbackLabel}
+                        onChange={e => setFeedbackLabel(e.target.value)}>
+                        <option value="positive">Positivo</option>
+                        <option value="neutral">Neutral</option>
+                        <option value="negative">Negativo</option>
+                        <option value="very_negative">Muy negativo</option>
+                      </select>
+                      <input className="input text-xs py-1 w-full"
+                        placeholder="Nota del analista (opcional)"
+                        value={feedbackNotes} onChange={e => setFeedbackNotes(e.target.value)} />
+                      <div className="flex gap-2">
+                        <button className="btn-primary text-xs py-1 flex-1"
+                          disabled={submitFeedback.isPending || feedbackLabel === mention.sentiment_label}
+                          onClick={() => submitFeedback.mutate({ mentionId: mention.id, label: feedbackLabel, notes: feedbackNotes })}>
+                          {submitFeedback.isPending ? 'Guardando…' : 'Guardar corrección'}
+                        </button>
+                        <button className="btn-secondary text-xs py-1"
+                          onClick={() => { setFeedbackOpen(false); setFeedbackNotes('') }}>
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Protocolo de intervención */}

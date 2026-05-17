@@ -1,7 +1,9 @@
 import uuid
+from decimal import Decimal
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
@@ -9,6 +11,15 @@ from app.database import get_db
 from app.models.bot import BotAnalysis, AccountProfile
 from app.models.entity import Entity
 from app.models.mention import Mention, SocialPlatform
+from app.models.sentiment_feedback import SentimentFeedback
+from app.workers.nlp.urgency import compute_urgency_score
+
+VALID_SENTIMENT_LABELS = {"positive", "neutral", "negative", "very_negative"}
+
+
+class FeedbackIn(BaseModel):
+    corrected_label: str
+    notes: Optional[str] = None
 
 router = APIRouter(prefix="/mentions", tags=["Menciones"])
 
@@ -200,3 +211,53 @@ def semantic_search_mentions(
                               entity_id=entity_id, limit=limit)
 
     return {"query": q, "total": len(results), "results": results}
+
+
+# ── Feedback de sentimiento (corrección por analista) ─────────────────────────
+
+@router.post("/{mention_id}/feedback")
+def submit_sentiment_feedback(
+    mention_id: uuid.UUID,
+    body: FeedbackIn,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """
+    Permite a un analista o administrador corregir la etiqueta de sentimiento
+    de una mención. Registra la corrección y recalcula el urgency_score.
+    """
+    if current_user.role not in ("admin", "analyst"):
+        raise HTTPException(status_code=403, detail="Se requiere rol de analista o administrador")
+
+    if body.corrected_label not in VALID_SENTIMENT_LABELS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Etiqueta inválida. Permitidos: {', '.join(sorted(VALID_SENTIMENT_LABELS))}",
+        )
+
+    mention = db.query(Mention).filter(Mention.id == mention_id).first()
+    if not mention:
+        raise HTTPException(status_code=404, detail="Mención no encontrada")
+
+    fb = SentimentFeedback(
+        mention_id=mention_id,
+        original_label=mention.sentiment_label or "neutral",
+        corrected_label=body.corrected_label,
+        analyst_id=current_user.id,
+        notes=body.notes,
+    )
+    db.add(fb)
+
+    mention.sentiment_label = body.corrected_label
+    mention.sentiment_score = Decimal("0.90")
+    mention.urgency_score = compute_urgency_score(
+        sentiment_label=body.corrected_label,
+        sentiment_score=0.90,
+        hate_score=float(mention.hate_score) if mention.hate_score else None,
+        is_hate_speech=mention.is_hate_speech,
+        reach=mention.reach or 0,
+    )
+
+    db.commit()
+    db.refresh(mention)
+    return _mention_dict(mention, db)
