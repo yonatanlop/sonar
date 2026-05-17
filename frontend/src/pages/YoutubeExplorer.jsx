@@ -238,11 +238,13 @@ function AddChannelModal({ onClose, onCreated }) {
       const { data } = await api.post('/youtube-explorer/channels', { handle: handle.trim() })
       onCreated(data)
       toast.success(`Canal ${data.handle} agregado`)
+      if (data.indexor_ok === false) {
+        toast(`Canal agregado. El sistema de indexación no está disponible: ${data.indexor_warning}`, { icon: '⚠️', duration: 7000 })
+      }
       onClose()
     } catch (err) {
       const msg = err?.response?.data?.detail ?? 'Error al agregar canal'
       setError(msg)
-      toast.error('Hubo un error y no se pudo agregar el canal')
     } finally {
       setLoading(false)
     }

@@ -278,12 +278,16 @@ def create_channel(request: Request, data: ChannelCreate, db: Session = Depends(
     existing = db.query(YoutubeChannel).filter(YoutubeChannel.handle == handle).first()
     if existing:
         if not existing.active:
-            ok, _ = _indexor_register_channel(handle)
-            if not ok:
-                raise HTTPException(status_code=400, detail="No se pudo registrar el canal en el sistema de indexación")
+            indexor_ok, indexor_err = _indexor_register_channel(handle)
+            if not indexor_ok:
+                logger.warning("Indexor registration failed for %s: %s", handle, indexor_err)
             existing.active = True
             db.commit()
-            return _channel_dict(existing, db)
+            result = _channel_dict(existing, db)
+            result["indexor_ok"] = indexor_ok
+            if not indexor_ok:
+                result["indexor_warning"] = indexor_err
+            return result
         raise HTTPException(status_code=409, detail=f"El canal '@{handle}' ya está registrado")
 
     resolved = _resolve_channel(handle)
@@ -292,9 +296,9 @@ def create_channel(request: Request, data: ChannelCreate, db: Session = Depends(
     if dup_id:
         raise HTTPException(status_code=409, detail=f"Este canal ya existe como '@{dup_id.handle}'")
 
-    ok, _ = _indexor_register_channel(handle)
-    if not ok:
-        raise HTTPException(status_code=400, detail="No se pudo registrar el canal en el sistema de indexación")
+    indexor_ok, indexor_err = _indexor_register_channel(handle)
+    if not indexor_ok:
+        logger.warning("Indexor registration failed for %s: %s", handle, indexor_err)
 
     ch = YoutubeChannel(
         handle=handle,
@@ -311,7 +315,11 @@ def create_channel(request: Request, data: ChannelCreate, db: Session = Depends(
                {"handle": handle, "channel_name": resolved["channel_name"]})
     db.commit()
     db.refresh(ch)
-    return _channel_dict(ch, db)
+    result = _channel_dict(ch, db)
+    result["indexor_ok"] = indexor_ok
+    if not indexor_ok:
+        result["indexor_warning"] = indexor_err
+    return result
 
 
 @router.patch("/channels/{channel_id}/rizoma")
