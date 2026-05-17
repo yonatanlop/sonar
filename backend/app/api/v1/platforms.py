@@ -540,11 +540,10 @@ def test_facebook_connection(_=Depends(require_admin)):
     try:
         import facebook_scraper as fb
         count = 0
-        gen = fb.search_posts(
+        gen = fb.get_posts_by_search(
             "noticias",
-            pages=1,
+            page_limit=1,
             cookies=cookies,
-            options={"allow_extra_requests": False},
         )
         for _ in gen:
             count += 1

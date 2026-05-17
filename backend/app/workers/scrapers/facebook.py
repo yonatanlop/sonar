@@ -102,14 +102,13 @@ class FacebookScraper(BaseScraper):
         saved = 0
 
         try:
-            posts_gen = fb.search_posts(
+            posts_gen = fb.get_posts_by_search(
                 term,
-                pages=PAGES_PER_SEARCH,
+                page_limit=PAGES_PER_SEARCH,
                 cookies=self._cookies,
-                options={"allow_extra_requests": False},  # sin requests adicionales
             )
         except Exception as e:
-            logger.warning(f"[Facebook] search_posts('{term}') falló: {e}")
+            logger.warning(f"[Facebook] get_posts_by_search('{term}') falló: {e}")
             return 0
 
         for post in posts_gen:
