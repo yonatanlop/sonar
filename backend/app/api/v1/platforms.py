@@ -523,3 +523,41 @@ def delete_facebook_cookies(_=Depends(require_admin)):
         raise HTTPException(status_code=404, detail="No hay cookies configuradas.")
     os.remove(path)
     return {"ok": True, "configured": False}
+
+
+@router.post("/facebook/test")
+def test_facebook_connection(_=Depends(require_admin)):
+    """
+    Prueba real de conectividad: llama a search_posts() con un término genérico
+    y retorna si las cookies funcionan o el error exacto.
+    """
+    from app.workers.scrapers.facebook import _load_cookies
+
+    cookies = _load_cookies(settings.FB_COOKIES_FILE)
+    if not cookies:
+        return {"ok": False, "error": "Archivo de cookies no encontrado en el servidor", "message": "Archivo de cookies no encontrado en el servidor"}
+
+    try:
+        import facebook_scraper as fb
+        count = 0
+        gen = fb.search_posts(
+            "noticias",
+            pages=1,
+            cookies=cookies,
+            options={"allow_extra_requests": False},
+        )
+        for _ in gen:
+            count += 1
+            if count >= 5:
+                break
+        return {"ok": True, "posts_found": count, "message": f"Conexión exitosa — {count} posts encontrados"}
+    except Exception as e:
+        return {"ok": False, "error": str(e), "message": "Error al conectar con Facebook — las cookies pueden haber expirado"}
+
+
+@router.post("/facebook/trigger")
+def trigger_facebook_scrape(_=Depends(require_admin)):
+    """Dispara la tarea de scraping de Facebook inmediatamente (sin esperar el cron)."""
+    from app.workers.tasks.scraping import scrape_facebook
+    task = scrape_facebook.delay()
+    return {"ok": True, "task_id": task.id, "message": "Tarea enviada a la cola"}

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import toast from 'react-hot-toast'
 import {
   RefreshCw, CheckCircle, AlertTriangle, XCircle, Users, Clock,
   BarChart2, Info, ChevronDown, ChevronUp, Plus, Trash2, Zap, Pencil,
@@ -23,6 +24,8 @@ const deleteIgAcc     = (username) => client.delete(`/platforms/instagram/accoun
 
 const saveFbCookies   = (body) => client.post('/platforms/facebook/cookies', body).then(r => r.data)
 const deleteFbCookies = () => client.delete('/platforms/facebook/cookies').then(r => r.data)
+
+const daysSince = (isoStr) => Math.floor((Date.now() - new Date(isoStr)) / 86_400_000)
 
 // ── Subcomponentes ─────────────────────────────────────────────────────────
 
@@ -400,18 +403,30 @@ function InstagramAccountsPanel() {
 
 function FacebookCookiesPanel({ configured, updatedAt }) {
   const qc = useQueryClient()
-  const [open, setOpen]       = useState(false)
-  const [cookies, setCookies] = useState('')
-  const [error, setError]     = useState('')
+  const [open, setOpen]           = useState(false)
+  const [cookies, setCookies]     = useState('')
+  const [error, setError]         = useState('')
+  const [testResult, setTestResult] = useState(null)
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['platforms-status'] })
 
   const saveMut   = useMutation({
     mutationFn: saveFbCookies,
-    onSuccess: () => { setCookies(''); setError(''); setOpen(false); invalidate() },
+    onSuccess: () => { setCookies(''); setError(''); setOpen(false); setTestResult(null); invalidate() },
     onError: (e) => setError(e.response?.data?.detail || 'Error al guardar cookies'),
   })
-  const deleteMut = useMutation({ mutationFn: deleteFbCookies, onSuccess: invalidate })
+  const deleteMut = useMutation({ mutationFn: deleteFbCookies, onSuccess: () => { setTestResult(null); invalidate() } })
+
+  const testMut = useMutation({
+    mutationFn: () => client.post('/platforms/facebook/test').then(r => r.data),
+    onSuccess: (data) => setTestResult(data),
+    onError:   (e)    => setTestResult({ ok: false, message: e.response?.data?.detail ?? 'Error al probar' }),
+  })
+  const triggerMut = useMutation({
+    mutationFn: () => client.post('/platforms/facebook/trigger').then(r => r.data),
+    onSuccess:  () => toast.success('Scraping iniciado — los resultados aparecerán en ~1 minuto'),
+    onError:    (e) => toast.error(e.response?.data?.detail ?? 'Error al iniciar scraping'),
+  })
 
   const handleSave = (e) => {
     e.preventDefault()
@@ -431,14 +446,50 @@ function FacebookCookiesPanel({ configured, updatedAt }) {
       {open && (
         <div className="mt-3 space-y-3">
           {configured && (
-            <div className="flex items-center justify-between bg-green-50 rounded-lg px-3 py-2 text-xs">
-              <span className="text-green-700 font-medium">✓ Cookies configuradas</span>
-              {updatedAt && <span className="text-gray-400">{formatDistanceToNow(new Date(updatedAt), { addSuffix: true, locale: es })}</span>}
-              <button onClick={() => { if (window.confirm('¿Eliminar las cookies de Facebook?')) deleteMut.mutate() }}
-                disabled={deleteMut.isPending}
-                className="p-1 rounded text-red-400 hover:text-red-600 hover:bg-red-50">
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between bg-green-50 rounded-lg px-3 py-2 text-xs">
+                <span className="text-green-700 font-medium">✓ Cookies configuradas</span>
+                {updatedAt && <span className="text-gray-400">{formatDistanceToNow(new Date(updatedAt), { addSuffix: true, locale: es })}</span>}
+                <button onClick={() => { if (window.confirm('¿Eliminar las cookies de Facebook?')) deleteMut.mutate() }}
+                  disabled={deleteMut.isPending}
+                  className="p-1 rounded text-red-400 hover:text-red-600 hover:bg-red-50">
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {updatedAt && daysSince(updatedAt) > 30 && (
+                <div className="flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                  Las cookies tienen {daysSince(updatedAt)} días — pueden haber expirado
+                </div>
+              )}
+
+              {testResult && (
+                <div className={`flex items-start gap-2 text-xs rounded-lg px-3 py-2 ${
+                  testResult.ok ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+                }`}>
+                  {testResult.ok
+                    ? <CheckCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                    : <XCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />}
+                  <span>
+                    {testResult.message}
+                    {!testResult.ok && testResult.error && (
+                      <code className="block mt-0.5 text-[10px] opacity-70 break-all">{testResult.error.slice(0, 120)}</code>
+                    )}
+                  </span>
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <button onClick={() => testMut.mutate()} disabled={testMut.isPending}
+                  className="btn-secondary text-xs py-1.5 flex-1">
+                  {testMut.isPending ? 'Probando…' : '🔌 Probar conexión'}
+                </button>
+                <button onClick={() => triggerMut.mutate()} disabled={triggerMut.isPending}
+                  className="btn-secondary text-xs py-1.5 flex-1">
+                  {triggerMut.isPending ? 'Enviando…' : '▶ Ejecutar ahora'}
+                </button>
+              </div>
             </div>
           )}
 
