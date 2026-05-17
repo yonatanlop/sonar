@@ -163,7 +163,7 @@ def _indexor_register_channel(handle: str) -> tuple[bool, str]:
             headers={"Authorization": f"Bearer {settings.INDEXOR_API_TOKEN}"},
             timeout=15,
         )
-        if resp.status_code == 200:
+        if resp.status_code in (200, 201):
             return True, ""
         logger.error("Indexor register_channel status=%s body=%s", resp.status_code, resp.text[:200])
         return False, f"Indexor respondió con estado {resp.status_code}"
