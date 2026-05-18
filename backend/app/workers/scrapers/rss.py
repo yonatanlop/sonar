@@ -32,13 +32,15 @@ DELAY_BETWEEN_FEEDS = 1   # segundo entre feeds
 
 RSS_SOURCES = {
     "CO": [
-        ("El Tiempo",       "https://www.eltiempo.com/rss/",                       "es"),
-        ("El Colombiano",   "https://www.elcolombiano.com/rss/content_rss.xml",    "es"),
-        ("Semana",          "https://www.semana.com/rss/",                         "es"),
-        ("El Espectador",   "https://www.elespectador.com/arc/outboundfeeds/rss/", "es"),
-        ("La República",    "https://www.larepublica.co/rss/",                     "es"),
-        ("Caracol Radio",   "https://caracol.com.co/rss/feed.xml",                 "es"),
-        ("W Radio",         "https://www.wradio.com.co/rss/feed.xml",              "es"),
+        # El Tiempo — secciones con RSS válido (por sección, 10 artículos c/u)
+        ("El Tiempo - Colombia",  "https://www.eltiempo.com/rss/colombia.xml",  "es"),
+        ("El Tiempo - Política",  "https://www.eltiempo.com/rss/politica.xml",  "es"),
+        ("El Tiempo - Bogotá",    "https://www.eltiempo.com/rss/bogota.xml",    "es"),
+        ("El Tiempo - Economía",  "https://www.eltiempo.com/rss/economia.xml",  "es"),
+        # La República — economía y negocios (60 artículos)
+        ("La República",          "https://www.larepublica.co/rss/",            "es"),
+        # Google News Colombia — agrega El Espectador, Semana, Caracol, W Radio, etc. (100 artículos)
+        ("Google News Colombia",  "https://news.google.com/rss/search?q=Colombia+noticias+politica&hl=es-419&gl=CO&ceid=CO:es-419", "es"),
     ],
     "MX": [
         ("El Universal",    "https://www.eluniversal.com.mx/rss.xml",              "es"),
@@ -75,9 +77,9 @@ RSS_SOURCES = {
 
 # Fuentes globales que se monitoran siempre (sin importar el país de la entidad)
 GLOBAL_SOURCES = [
-    ("BBC Mundo",       "https://feeds.bbci.co.uk/mundo/rss.xml",  "es"),
-    ("CNN Español",     "https://cnnespanol.cnn.com/feed/",         "es"),
-    ("DW Español",      "https://rss.dw.com/rdf/rss-spa-all",       "es"),
+    ("BBC Mundo",            "https://feeds.bbci.co.uk/mundo/rss.xml",                                                       "es"),
+    ("Google News - España", "https://news.google.com/rss/search?q=noticias&hl=es&gl=ES&ceid=ES:es",                        "es"),
+    ("Google News - Mundo",  "https://news.google.com/rss/search?q=Colombia&hl=es-419&gl=CO&ceid=CO:es-419",              "es"),
 ]
 
 
