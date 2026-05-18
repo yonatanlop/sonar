@@ -9,7 +9,7 @@ import { clsx } from 'clsx'
 import { useAuthStore } from '../store/authStore'
 import { useAlertStore } from '../store/alertStore'
 
-const NAV_SECTIONS = (isAdmin, isAnalyst, unread, inbox) => [
+const NAV_SECTIONS = (isAdmin, isAnalyst, isSuperAdmin, unread, inbox) => [
   {
     id:    'monitoreo',
     label: 'MONITOREO',
@@ -46,16 +46,17 @@ const NAV_SECTIONS = (isAdmin, isAnalyst, unread, inbox) => [
     id:    'administracion',
     label: 'ADMINISTRACIÓN',
     items: [
-      { to: '/admin/users',          icon: Users,       label: 'Usuarios' },
-      { to: '/admin/audit',          icon: ScrollText,  label: 'Auditoría' },
-      { to: '/admin/twitter-search', icon: Search,      label: 'Búsqueda Twitter' },
+      { to: '/admin/users',  icon: Users,      label: 'Usuarios' },
+      { to: '/admin/audit',  icon: ScrollText, label: 'Auditoría' },
+      ...(isSuperAdmin ? [{ to: '/admin/twitter-search', icon: Search, label: 'Búsqueda Twitter' }] : []),
     ],
   }] : []),
 ]
 
 export default function Sidebar({ open, onClose }) {
-  const isAdmin   = useAuthStore((s) => s.isAdmin())
-  const isAnalyst = useAuthStore((s) => s.isAnalyst())
+  const isAdmin      = useAuthStore((s) => s.isAdmin())
+  const isAnalyst    = useAuthStore((s) => s.isAnalyst())
+  const isSuperAdmin = useAuthStore((s) => s.isSuperAdmin())
   const unread    = useAlertStore((s) => s.unreadCount)
   const inbox     = useAlertStore((s) => s.inboxCount)
 
@@ -72,7 +73,7 @@ export default function Sidebar({ open, onClose }) {
     localStorage.setItem('sidebar_collapsed', JSON.stringify(next))
   }
 
-  const sections = NAV_SECTIONS(isAdmin, isAnalyst, unread, inbox)
+  const sections = NAV_SECTIONS(isAdmin, isAnalyst, isSuperAdmin, unread, inbox)
 
   return (
     <>

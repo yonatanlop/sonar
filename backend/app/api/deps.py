@@ -39,3 +39,11 @@ def require_analyst(current_user: User = Depends(get_current_user)) -> User:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
                             detail="Se requiere rol de analista o superior")
     return current_user
+
+
+def require_superadmin(current_user: User = Depends(get_current_user)) -> User:
+    """Solo el usuario con is_superadmin=True puede acceder (Administrador SONAR)."""
+    if not getattr(current_user, "is_superadmin", False):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail="Acceso restringido al Administrador SONAR")
+    return current_user

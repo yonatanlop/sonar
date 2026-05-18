@@ -1,15 +1,15 @@
 """
 Búsqueda Twitter por Keyword/Hashtag — API de configuración y control.
-Solo accesible para administradores.
+Solo accesible para el Administrador SONAR (is_superadmin=True).
 """
 from datetime import datetime, timezone
-from typing import Optional
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, require_admin
+from app.api.deps import require_superadmin
 from app.database import get_db
 from app.models.twitter_keyword import TwitterKeywordConfig, TwitterKeywordTerm
 from app.models.user import User
@@ -19,21 +19,28 @@ router = APIRouter(prefix="/twitter-keyword-search", tags=["Twitter Keyword Sear
 
 # ── Schemas ───────────────────────────────────────────────────
 
+class ConditionItem(BaseModel):
+    term: str
+    op:   str = "AND"   # AND | OR | NOT
+
+
 class TermCreate(BaseModel):
-    term:           str
-    term_type:      str            # 'keyword' | 'hashtag'
-    secondary_term: Optional[str] = None   # solo para keywords
-    logic_op:       str           = "AND"  # AND | OR | NOT
+    term:             str
+    term_type:        str                      # 'keyword' | 'hashtag'
+    secondary_term:   Optional[str]   = None   # backward compat (1 condición extra)
+    logic_op:         str             = "AND"
+    extra_conditions: Optional[List[ConditionItem]] = None  # 2+ condiciones extra
 
 
 class TermResponse(BaseModel):
-    id:             int
-    term:           str
-    term_type:      str
-    secondary_term: Optional[str]
-    logic_op:       str
-    is_active:      bool
-    created_at:     Optional[str]
+    id:               int
+    term:             str
+    term_type:        str
+    secondary_term:   Optional[str]
+    logic_op:         str
+    extra_conditions: Optional[list]
+    is_active:        bool
+    created_at:       Optional[str]
 
 
 class StatusResponse(BaseModel):
@@ -49,13 +56,14 @@ class StatusResponse(BaseModel):
 
 def _term_dict(t: TwitterKeywordTerm) -> dict:
     return {
-        "id":             t.id,
-        "term":           t.term,
-        "term_type":      t.term_type,
-        "secondary_term": t.secondary_term,
-        "logic_op":       t.logic_op or "AND",
-        "is_active":      t.is_active,
-        "created_at":     t.created_at.isoformat() if t.created_at else None,
+        "id":               t.id,
+        "term":             t.term,
+        "term_type":        t.term_type,
+        "secondary_term":   t.secondary_term,
+        "logic_op":         t.logic_op or "AND",
+        "extra_conditions": t.extra_conditions,
+        "is_active":        t.is_active,
+        "created_at":       t.created_at.isoformat() if t.created_at else None,
     }
 
 
@@ -87,7 +95,7 @@ def _config_status(db: Session) -> dict:
 @router.get("/status")
 def get_status(
     db: Session = Depends(get_db),
-    _:  User    = Depends(require_admin),
+    _:  User    = Depends(require_superadmin),
 ):
     """Retorna el estado actual de la búsqueda y estadísticas de términos."""
     return _config_status(db)
@@ -96,7 +104,7 @@ def get_status(
 @router.get("/terms")
 def list_terms(
     db: Session = Depends(get_db),
-    _:  User    = Depends(require_admin),
+    _:  User    = Depends(require_superadmin),
 ):
     """Lista todos los términos configurados (activos e inactivos)."""
     terms = db.query(TwitterKeywordTerm).order_by(TwitterKeywordTerm.created_at).all()
@@ -107,7 +115,7 @@ def list_terms(
 def add_term(
     data: TermCreate,
     db:   Session = Depends(get_db),
-    user: User    = Depends(require_admin),
+    user: User    = Depends(require_superadmin),
 ):
     """Agrega un nuevo keyword o hashtag a la lista de búsqueda."""
     if data.term_type not in ("keyword", "hashtag"):
@@ -134,11 +142,16 @@ def add_term(
             return _term_dict(existing)
         raise HTTPException(status_code=409, detail=f"El término '{term_clean}' ya está configurado")
 
+    # extra_conditions tiene prioridad sobre secondary_term si se envían ambos
+    extra = [{"term": c.term.strip(), "op": c.op.upper()} for c in data.extra_conditions
+             if c.term.strip()] if data.extra_conditions else None
+
     t = TwitterKeywordTerm(
         term=term_clean,
         term_type=data.term_type,
-        secondary_term=secondary_clean,
+        secondary_term=secondary_clean if not extra else None,
         logic_op=data.logic_op,
+        extra_conditions=extra,
         is_active=True,
         created_by_id=user.id,
     )
@@ -152,7 +165,7 @@ def add_term(
 def delete_term(
     term_id: int,
     db:      Session = Depends(get_db),
-    _:       User    = Depends(require_admin),
+    _:       User    = Depends(require_superadmin),
 ):
     """Elimina un término de búsqueda."""
     t = db.query(TwitterKeywordTerm).filter(TwitterKeywordTerm.id == term_id).first()
@@ -166,7 +179,7 @@ def delete_term(
 def toggle_term(
     term_id: int,
     db:      Session = Depends(get_db),
-    _:       User    = Depends(require_admin),
+    _:       User    = Depends(require_superadmin),
 ):
     """Activa o desactiva un término sin eliminarlo."""
     t = db.query(TwitterKeywordTerm).filter(TwitterKeywordTerm.id == term_id).first()
@@ -180,7 +193,7 @@ def toggle_term(
 @router.post("/start")
 def start_search(
     db:   Session = Depends(get_db),
-    user: User    = Depends(require_admin),
+    user: User    = Depends(require_superadmin),
 ):
     """Activa manualmente la búsqueda (is_active=True)."""
     terms = db.query(TwitterKeywordTerm).filter(TwitterKeywordTerm.is_active == True).count()
@@ -202,7 +215,7 @@ def start_search(
 @router.post("/stop")
 def stop_search(
     db: Session = Depends(get_db),
-    _:  User    = Depends(require_admin),
+    _:  User    = Depends(require_superadmin),
 ):
     """Detiene la búsqueda (is_active=False)."""
     config = db.query(TwitterKeywordConfig).first()
@@ -217,7 +230,7 @@ def stop_search(
 
 @router.post("/trigger")
 def trigger_search(
-    _: User = Depends(require_admin),
+    _: User = Depends(require_superadmin),
 ):
     """Dispara una ronda de búsqueda inmediatamente (sin esperar el cron)."""
     from app.workers.tasks.scraping import search_twitter_keywords

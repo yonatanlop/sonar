@@ -215,39 +215,52 @@ function ControlButtons({ status, startMut, stopMut, triggerMut, onRefresh }) {
 }
 
 
-const OP_LABELS  = { AND: 'Y', OR: 'O', NOT: 'NO' }
-const OP_COLORS  = { AND: 'bg-blue-100 text-blue-700', OR: 'bg-yellow-100 text-yellow-700', NOT: 'bg-red-100 text-red-700' }
+const OP_COLORS = { AND: 'bg-blue-100 text-blue-700', OR: 'bg-yellow-100 text-yellow-700', NOT: 'bg-red-100 text-red-700' }
 
 function TermLabel({ t }) {
   const primary = t.term_type === 'hashtag' ? `#${t.term}` : `"${t.term}"`
-  if (!t.secondary_term) return <span className="font-medium text-gray-800">{primary}</span>
-  const op = t.logic_op || 'AND'
+
+  // Construir lista de condiciones (extra_conditions tiene prioridad)
+  const conditions = t.extra_conditions?.length
+    ? t.extra_conditions
+    : t.secondary_term ? [{ term: t.secondary_term, op: t.logic_op || 'AND' }] : []
+
   return (
-    <span className="font-medium text-gray-800 flex items-center gap-1 flex-wrap">
+    <span className="font-medium text-gray-800 flex items-center gap-1 flex-wrap text-sm">
       {primary}
-      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${OP_COLORS[op]}`}>{op}</span>
-      &quot;{t.secondary_term}&quot;
+      {conditions.map((c, i) => (
+        <span key={i} className="flex items-center gap-1">
+          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${OP_COLORS[c.op] ?? OP_COLORS.AND}`}>{c.op}</span>
+          &quot;{c.term}&quot;
+        </span>
+      ))}
     </span>
   )
 }
 
+const EMPTY_COND = () => ({ op: 'AND', term: '' })
+
 function TermsPanel({ terms, loading, deleteMut, toggleMut, onAdd }) {
-  const [newTerm, setNewTerm]         = useState('')
-  const [termType, setTermType]       = useState('keyword')
-  const [secondaryTerm, setSecondary] = useState('')
-  const [logicOp, setLogicOp]         = useState('AND')
+  const [newTerm, setNewTerm]   = useState('')
+  const [termType, setTermType] = useState('keyword')
+  const [conditions, setConds]  = useState([])   // [{op, term}]
+
+  const addCond    = () => setConds(c => [...c, EMPTY_COND()])
+  const removeCond = (i) => setConds(c => c.filter((_, j) => j !== i))
+  const updateCond = (i, field, val) => setConds(c => c.map((x, j) => j === i ? { ...x, [field]: val } : x))
 
   const addMut = useMutation({
     mutationFn: () => client.post('/twitter-keyword-search/terms', {
-      term:           newTerm.trim(),
-      term_type:      termType,
-      secondary_term: termType === 'keyword' && secondaryTerm.trim() ? secondaryTerm.trim() : null,
-      logic_op:       logicOp,
+      term:             newTerm.trim(),
+      term_type:        termType,
+      extra_conditions: termType === 'keyword' && conditions.length > 0
+        ? conditions.filter(c => c.term.trim()).map(c => ({ term: c.term.trim(), op: c.op }))
+        : null,
     }).then(r => r.data),
     onSuccess: () => {
       toast.success('Término agregado')
       setNewTerm('')
-      setSecondary('')
+      setConds([])
       onAdd()
     },
     onError: (e) => toast.error(e.response?.data?.detail ?? 'Error al agregar'),
@@ -265,10 +278,11 @@ function TermsPanel({ terms, loading, deleteMut, toggleMut, onAdd }) {
 
       {/* Formulario agregar */}
       <form onSubmit={handleAdd} className="space-y-2">
+        {/* Fila principal */}
         <div className="flex gap-2">
           <select
             value={termType}
-            onChange={(e) => { setTermType(e.target.value); setSecondary('') }}
+            onChange={(e) => { setTermType(e.target.value); setConds([]) }}
             className="input w-32 text-sm"
           >
             <option value="keyword">Keyword</option>
@@ -290,29 +304,36 @@ function TermsPanel({ terms, loading, deleteMut, toggleMut, onAdd }) {
           </button>
         </div>
 
-        {/* Fila de operador lógico — solo para keywords */}
+        {/* Condiciones adicionales (solo keywords) */}
         {termType === 'keyword' && (
-          <div className="flex gap-2 items-center pl-1">
-            <select
-              value={logicOp}
-              onChange={(e) => setLogicOp(e.target.value)}
-              className="input w-28 text-sm"
-            >
-              <option value="AND">AND — y</option>
-              <option value="OR">OR — o</option>
-              <option value="NOT">NOT — excluir</option>
-            </select>
-            <input
-              value={secondaryTerm}
-              onChange={(e) => setSecondary(e.target.value)}
-              placeholder="término adicional (opcional)"
-              className="input flex-1 text-sm"
-            />
-            <span className="text-xs text-gray-400 shrink-0 w-24">
-              {logicOp === 'AND' && 'Ambos presentes'}
-              {logicOp === 'OR'  && 'Cualquiera'}
-              {logicOp === 'NOT' && 'Excluir segundo'}
-            </span>
+          <div className="pl-2 space-y-1.5">
+            {conditions.map((cond, i) => (
+              <div key={i} className="flex gap-2 items-center">
+                <select
+                  value={cond.op}
+                  onChange={(e) => updateCond(i, 'op', e.target.value)}
+                  className="input w-28 text-sm"
+                >
+                  <option value="AND">AND — y</option>
+                  <option value="OR">OR  — o</option>
+                  <option value="NOT">NOT — excluir</option>
+                </select>
+                <input
+                  value={cond.term}
+                  onChange={(e) => updateCond(i, 'term', e.target.value)}
+                  placeholder="término adicional"
+                  className="input flex-1 text-sm"
+                />
+                <button type="button" onClick={() => removeCond(i)}
+                  className="p-1.5 text-gray-400 hover:text-red-500 transition-colors">
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+            <button type="button" onClick={addCond}
+              className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 mt-1">
+              <Plus className="w-3.5 h-3.5" /> Agregar condición
+            </button>
           </div>
         )}
       </form>
@@ -320,9 +341,10 @@ function TermsPanel({ terms, loading, deleteMut, toggleMut, onAdd }) {
       {/* Ejemplos */}
       {termType === 'keyword' && (
         <div className="text-xs text-gray-400 bg-gray-50 rounded-lg px-3 py-2 space-y-0.5">
-          <p><span className="font-medium text-gray-600">AND:</span> "colombia" AND "paz" → tweets con ambas palabras</p>
-          <p><span className="font-medium text-gray-600">OR:</span>  "mira" OR "partido" → tweets con cualquiera</p>
-          <p><span className="font-medium text-gray-600">NOT:</span> "colombia" NOT "guerra" → excluye tweets con "guerra"</p>
+          <p><span className="font-medium text-gray-600">AND:</span> tweets que contengan todos los términos</p>
+          <p><span className="font-medium text-gray-600">OR:</span>  tweets que contengan cualquiera de los términos</p>
+          <p><span className="font-medium text-gray-600">NOT:</span> excluye tweets que contengan ese término</p>
+          <p className="pt-1 text-gray-500">Ej: "MIRA" AND "coalición" NOT "uribismo" → tweets de MIRA sobre coalición sin mencionar uribismo</p>
         </div>
       )}
 

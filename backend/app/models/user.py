@@ -20,6 +20,7 @@ class User(Base):
         Enum("admin", "analyst", "viewer", name="user_role"), nullable=False, default="viewer"
     )
     active: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_superadmin: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # Notificaciones
     telegram_chat_id: Mapped[str | None] = mapped_column(String(50))

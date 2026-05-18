@@ -73,8 +73,9 @@ export const useAuthStore = create((set, get) => ({
     set({ user })
   },
 
-  isAdmin:   () => get().user?.role === 'admin',
-  isAnalyst: () => ['admin', 'analyst'].includes(get().user?.role),
+  isAdmin:      () => get().user?.role === 'admin',
+  isAnalyst:    () => ['admin', 'analyst'].includes(get().user?.role),
+  isSuperAdmin: () => !!get().user?.is_superadmin,
 
   // Verifica existencia Y vigencia del token
   isAuth: () => {

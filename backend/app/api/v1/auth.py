@@ -57,6 +57,7 @@ def login(request: Request,
             "full_name": user.full_name,
             "email": user.email,
             "role": user.role,
+            "is_superadmin": bool(getattr(user, "is_superadmin", False)),
         },
     }
 

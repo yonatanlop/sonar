@@ -24,35 +24,49 @@ SINCE_DATE       = "2026-05-18"  # filtro Twitter-side (reduce tráfico)
 _OP_MAP = {"AND": "SPACE", "OR": "OR", "NOT": "NOT"}
 
 
+def _apply_op(base: str, op: str, next_term: str) -> str:
+    """Combina base + operador + término según sintaxis Twitter."""
+    op = op.upper()
+    quoted = f'"{next_term}"'
+    if op == "OR":
+        return f"{base} OR {quoted}"
+    if op == "NOT":
+        return f"{base} -{quoted}"
+    return f"{base} {quoted}"   # AND: espacio implícito
+
+
 def _build_query(term) -> str:
     """
     Construye la query de Twitter a partir de un TwitterKeywordTerm.
-    Soporta operadores lógicos AND/OR/NOT para keywords con término secundario.
+    Soporta 3+ términos con operadores mixtos via extra_conditions.
+    Sintaxis Twitter:
+      AND → "t1" "t2"         (ambos presentes)
+      OR  → "t1" OR "t2"     (cualquiera)
+      NOT → "t1" -"t2"       (excluye segundo)
     """
     if term.term_type == "hashtag":
         tag = term.term.strip().lstrip("#")
         return f"#{tag} since:{SINCE_DATE} -is:retweet lang:es"
 
-    # Keyword
     primary = f'"{term.term.strip()}"'
     base_filters = f"since:{SINCE_DATE} -is:retweet (lang:es OR lang:en)"
 
-    if not term.secondary_term or not term.secondary_term.strip():
-        return f"{primary} {base_filters}"
+    # extra_conditions: [{"term": "...", "op": "AND|OR|NOT"}, ...]
+    if term.extra_conditions:
+        combined = primary
+        for cond in term.extra_conditions:
+            cond_term = (cond.get("term") or "").strip()
+            cond_op   = (cond.get("op")   or "AND").upper()
+            if cond_term:
+                combined = _apply_op(combined, cond_op, cond_term)
+        return f"{combined} {base_filters}"
 
-    secondary = f'"{term.secondary_term.strip()}"'
-    op = (term.logic_op or "AND").upper()
+    # Backward compat: secondary_term + logic_op (1 condición extra)
+    if term.secondary_term and term.secondary_term.strip():
+        combined = _apply_op(primary, term.logic_op or "AND", term.secondary_term.strip())
+        return f"{combined} {base_filters}"
 
-    if op == "AND":
-        combined = f"{primary} {secondary}"
-    elif op == "OR":
-        combined = f"{primary} OR {secondary}"
-    elif op == "NOT":
-        combined = f"{primary} -{secondary}"
-    else:
-        combined = f"{primary} {secondary}"
-
-    return f"{combined} {base_filters}"
+    return f"{primary} {base_filters}"
 
 
 def _get_or_create_system_entity(db: Session):
