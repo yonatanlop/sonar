@@ -215,16 +215,39 @@ function ControlButtons({ status, startMut, stopMut, triggerMut, onRefresh }) {
 }
 
 
+const OP_LABELS  = { AND: 'Y', OR: 'O', NOT: 'NO' }
+const OP_COLORS  = { AND: 'bg-blue-100 text-blue-700', OR: 'bg-yellow-100 text-yellow-700', NOT: 'bg-red-100 text-red-700' }
+
+function TermLabel({ t }) {
+  const primary = t.term_type === 'hashtag' ? `#${t.term}` : `"${t.term}"`
+  if (!t.secondary_term) return <span className="font-medium text-gray-800">{primary}</span>
+  const op = t.logic_op || 'AND'
+  return (
+    <span className="font-medium text-gray-800 flex items-center gap-1 flex-wrap">
+      {primary}
+      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${OP_COLORS[op]}`}>{op}</span>
+      &quot;{t.secondary_term}&quot;
+    </span>
+  )
+}
+
 function TermsPanel({ terms, loading, deleteMut, toggleMut, onAdd }) {
-  const [newTerm, setNewTerm]     = useState('')
-  const [termType, setTermType]   = useState('keyword')
-  const qc = useQueryClient()
+  const [newTerm, setNewTerm]         = useState('')
+  const [termType, setTermType]       = useState('keyword')
+  const [secondaryTerm, setSecondary] = useState('')
+  const [logicOp, setLogicOp]         = useState('AND')
 
   const addMut = useMutation({
-    mutationFn: () => client.post('/twitter-keyword-search/terms', { term: newTerm.trim(), term_type: termType }).then(r => r.data),
+    mutationFn: () => client.post('/twitter-keyword-search/terms', {
+      term:           newTerm.trim(),
+      term_type:      termType,
+      secondary_term: termType === 'keyword' && secondaryTerm.trim() ? secondaryTerm.trim() : null,
+      logic_op:       logicOp,
+    }).then(r => r.data),
     onSuccess: () => {
       toast.success('Término agregado')
       setNewTerm('')
+      setSecondary('')
       onAdd()
     },
     onError: (e) => toast.error(e.response?.data?.detail ?? 'Error al agregar'),
@@ -241,30 +264,68 @@ function TermsPanel({ terms, loading, deleteMut, toggleMut, onAdd }) {
       <h2 className="font-semibold text-gray-800">Términos de búsqueda</h2>
 
       {/* Formulario agregar */}
-      <form onSubmit={handleAdd} className="flex gap-2">
-        <select
-          value={termType}
-          onChange={(e) => setTermType(e.target.value)}
-          className="input w-32 text-sm"
-        >
-          <option value="keyword">Keyword</option>
-          <option value="hashtag">Hashtag</option>
-        </select>
-        <input
-          value={newTerm}
-          onChange={(e) => setNewTerm(e.target.value)}
-          placeholder={termType === 'hashtag' ? 'colombia (sin #)' : 'palabra clave'}
-          className="input flex-1 text-sm"
-        />
-        <button
-          type="submit"
-          disabled={addMut.isPending || !newTerm.trim()}
-          className="btn-primary flex items-center gap-1.5 text-sm disabled:opacity-40"
-        >
-          <Plus className="w-4 h-4" />
-          {addMut.isPending ? 'Agregando…' : 'Agregar'}
-        </button>
+      <form onSubmit={handleAdd} className="space-y-2">
+        <div className="flex gap-2">
+          <select
+            value={termType}
+            onChange={(e) => { setTermType(e.target.value); setSecondary('') }}
+            className="input w-32 text-sm"
+          >
+            <option value="keyword">Keyword</option>
+            <option value="hashtag">Hashtag</option>
+          </select>
+          <input
+            value={newTerm}
+            onChange={(e) => setNewTerm(e.target.value)}
+            placeholder={termType === 'hashtag' ? 'colombia (sin #)' : 'término principal'}
+            className="input flex-1 text-sm"
+          />
+          <button
+            type="submit"
+            disabled={addMut.isPending || !newTerm.trim()}
+            className="btn-primary flex items-center gap-1.5 text-sm disabled:opacity-40 shrink-0"
+          >
+            <Plus className="w-4 h-4" />
+            {addMut.isPending ? 'Agregando…' : 'Agregar'}
+          </button>
+        </div>
+
+        {/* Fila de operador lógico — solo para keywords */}
+        {termType === 'keyword' && (
+          <div className="flex gap-2 items-center pl-1">
+            <select
+              value={logicOp}
+              onChange={(e) => setLogicOp(e.target.value)}
+              className="input w-28 text-sm"
+            >
+              <option value="AND">AND — y</option>
+              <option value="OR">OR — o</option>
+              <option value="NOT">NOT — excluir</option>
+            </select>
+            <input
+              value={secondaryTerm}
+              onChange={(e) => setSecondary(e.target.value)}
+              placeholder="término adicional (opcional)"
+              className="input flex-1 text-sm"
+            />
+            <span className="text-xs text-gray-400 shrink-0 w-24">
+              {logicOp === 'AND' && 'Ambos presentes'}
+              {logicOp === 'OR'  && 'Cualquiera'}
+              {logicOp === 'NOT' && 'Excluir segundo'}
+            </span>
+          </div>
+        )}
       </form>
+
+      {/* Ejemplos */}
+      {termType === 'keyword' && (
+        <div className="text-xs text-gray-400 bg-gray-50 rounded-lg px-3 py-2 space-y-0.5">
+          <p><span className="font-medium text-gray-600">AND:</span> "colombia" AND "paz" → tweets con ambas palabras</p>
+          <p><span className="font-medium text-gray-600">OR:</span>  "mira" OR "partido" → tweets con cualquiera</p>
+          <p><span className="font-medium text-gray-600">NOT:</span> "colombia" NOT "guerra" → excluye tweets con "guerra"</p>
+        </div>
+      )}
+
 
       {/* Lista de términos */}
       {loading ? (
@@ -288,10 +349,10 @@ function TermsPanel({ terms, loading, deleteMut, toggleMut, onAdd }) {
                 ? <Hash  className="w-4 h-4 text-blue-500 shrink-0" />
                 : <Type  className="w-4 h-4 text-purple-500 shrink-0" />
               }
-              <span className="flex-1 text-sm font-medium text-gray-800">
-                {t.term_type === 'hashtag' ? `#${t.term}` : t.term}
-              </span>
-              <span className={`badge text-xs ${
+              <div className="flex-1 text-sm min-w-0">
+                <TermLabel t={t} />
+              </div>
+              <span className={`badge text-xs shrink-0 ${
                 t.term_type === 'hashtag' ? 'bg-blue-50 text-blue-700' : 'bg-purple-50 text-purple-700'
               }`}>
                 {TERM_TYPE_LABELS[t.term_type]}

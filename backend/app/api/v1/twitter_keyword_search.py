@@ -20,16 +20,20 @@ router = APIRouter(prefix="/twitter-keyword-search", tags=["Twitter Keyword Sear
 # ── Schemas ───────────────────────────────────────────────────
 
 class TermCreate(BaseModel):
-    term:      str
-    term_type: str   # 'keyword' | 'hashtag'
+    term:           str
+    term_type:      str            # 'keyword' | 'hashtag'
+    secondary_term: Optional[str] = None   # solo para keywords
+    logic_op:       str           = "AND"  # AND | OR | NOT
 
 
 class TermResponse(BaseModel):
-    id:        int
-    term:      str
-    term_type: str
-    is_active: bool
-    created_at: Optional[str]
+    id:             int
+    term:           str
+    term_type:      str
+    secondary_term: Optional[str]
+    logic_op:       str
+    is_active:      bool
+    created_at:     Optional[str]
 
 
 class StatusResponse(BaseModel):
@@ -45,11 +49,13 @@ class StatusResponse(BaseModel):
 
 def _term_dict(t: TwitterKeywordTerm) -> dict:
     return {
-        "id":        t.id,
-        "term":      t.term,
-        "term_type": t.term_type,
-        "is_active": t.is_active,
-        "created_at": t.created_at.isoformat() if t.created_at else None,
+        "id":             t.id,
+        "term":           t.term,
+        "term_type":      t.term_type,
+        "secondary_term": t.secondary_term,
+        "logic_op":       t.logic_op or "AND",
+        "is_active":      t.is_active,
+        "created_at":     t.created_at.isoformat() if t.created_at else None,
     }
 
 
@@ -106,15 +112,20 @@ def add_term(
     """Agrega un nuevo keyword o hashtag a la lista de búsqueda."""
     if data.term_type not in ("keyword", "hashtag"):
         raise HTTPException(status_code=422, detail="term_type debe ser 'keyword' o 'hashtag'")
+    if data.logic_op not in ("AND", "OR", "NOT"):
+        raise HTTPException(status_code=422, detail="logic_op debe ser AND, OR o NOT")
 
     term_clean = data.term.strip()
     if not term_clean:
         raise HTTPException(status_code=422, detail="El término no puede estar vacío")
 
-    # Evitar duplicados (por term + term_type)
+    secondary_clean = data.secondary_term.strip() if data.secondary_term else None
+
+    # Evitar duplicados (por term + secondary_term + term_type)
     existing = db.query(TwitterKeywordTerm).filter(
-        TwitterKeywordTerm.term      == term_clean,
-        TwitterKeywordTerm.term_type == data.term_type,
+        TwitterKeywordTerm.term           == term_clean,
+        TwitterKeywordTerm.secondary_term == secondary_clean,
+        TwitterKeywordTerm.term_type      == data.term_type,
     ).first()
     if existing:
         if not existing.is_active:
@@ -126,6 +137,8 @@ def add_term(
     t = TwitterKeywordTerm(
         term=term_clean,
         term_type=data.term_type,
+        secondary_term=secondary_clean,
+        logic_op=data.logic_op,
         is_active=True,
         created_by_id=user.id,
     )

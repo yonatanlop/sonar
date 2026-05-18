@@ -17,6 +17,43 @@ MAX_PER_TERM     = 50   # tweets por término por ejecución
 DELAY_BETWEEN    = 5    # segundos entre términos
 SINCE_DATE       = "2026-05-18"  # filtro Twitter-side (reduce tráfico)
 
+# Operadores lógicos → sintaxis de búsqueda Twitter
+# AND:  "term1" "term2"   (ambas palabras deben aparecer)
+# OR:   "term1" OR "term2" (cualquiera de las dos)
+# NOT:  "term1" -"term2"  (primera sí, segunda no)
+_OP_MAP = {"AND": "SPACE", "OR": "OR", "NOT": "NOT"}
+
+
+def _build_query(term) -> str:
+    """
+    Construye la query de Twitter a partir de un TwitterKeywordTerm.
+    Soporta operadores lógicos AND/OR/NOT para keywords con término secundario.
+    """
+    if term.term_type == "hashtag":
+        tag = term.term.strip().lstrip("#")
+        return f"#{tag} since:{SINCE_DATE} -is:retweet lang:es"
+
+    # Keyword
+    primary = f'"{term.term.strip()}"'
+    base_filters = f"since:{SINCE_DATE} -is:retweet (lang:es OR lang:en)"
+
+    if not term.secondary_term or not term.secondary_term.strip():
+        return f"{primary} {base_filters}"
+
+    secondary = f'"{term.secondary_term.strip()}"'
+    op = (term.logic_op or "AND").upper()
+
+    if op == "AND":
+        combined = f"{primary} {secondary}"
+    elif op == "OR":
+        combined = f"{primary} OR {secondary}"
+    elif op == "NOT":
+        combined = f"{primary} -{secondary}"
+    else:
+        combined = f"{primary} {secondary}"
+
+    return f"{combined} {base_filters}"
+
 
 def _get_or_create_system_entity(db: Session):
     """Devuelve la entidad sistema 'Búsqueda Twitter Global', creándola si no existe."""
@@ -99,11 +136,9 @@ async def search_keywords(db: Session) -> dict:
     total_saved = 0
 
     for t in terms:
-        term_clean = t.term.strip().lstrip("#")
-        if t.term_type == "hashtag":
-            query = f"#{term_clean} since:{SINCE_DATE} -is:retweet lang:es"
-        else:
-            query = f'"{t.term.strip()}" since:{SINCE_DATE} -is:retweet (lang:es OR lang:en)'
+        query = _build_query(t)
+        if not query:
+            continue
 
         try:
             saved = await asyncio.wait_for(
