@@ -222,13 +222,22 @@ export default function MediaSearch() {
   const searchByUrl = useMutation({
     mutationFn: (data) => api.post('/media-search/by-url', data).then(r => r.data),
     onSuccess: (data) => { setResult(data); if (data.total_results === 0) toast('Sin resultados encontrados') },
-    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al buscar'),
+    onError: (e) => {
+      const detail = e?.response?.data?.detail
+      toast.error(typeof detail === 'string' ? detail : 'Error al buscar')
+    },
   })
 
   const searchByUpload = useMutation({
-    mutationFn: (formData) => api.post('/media-search/by-upload', formData).then(r => r.data),
+    mutationFn: (formData) => api.post('/media-search/by-upload', formData, {
+      headers: { 'Content-Type': undefined },
+    }).then(r => r.data),
     onSuccess: (data) => { setResult(data); if (data.total_results === 0) toast('Sin resultados encontrados') },
-    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al buscar'),
+    onError: (e) => {
+      const detail = e?.response?.data?.detail
+      const msg = Array.isArray(detail) ? detail.map(d => d.msg).join(', ') : (detail || 'Error al buscar')
+      toast.error(msg)
+    },
   })
 
   const searchFromMention = useMutation({
