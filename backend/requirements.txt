@@ -72,3 +72,7 @@ geopy>=2.4.0              # Geocodificación texto → country_code con Nominati
 dlib>=19.24.0
 face-recognition>=1.3.0
 requests>=2.32.0          # Descarga de imágenes desde URLs de menciones
+
+# ─── Módulo 8: Búsqueda Inversa de Imágenes ─────────────────────────────────
+imagehash>=4.3.1          # pHash/dHash perceptual — depende de pillow y scipy (ya instalados)
+# opencv-python>=4.9.0   # Opcional: extracción de frames de video (sin esto solo GIF/APNG)

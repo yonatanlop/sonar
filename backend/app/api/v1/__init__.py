@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1 import auth, users, dashboard, entities, platforms, mentions, alerts, reports, chat, twitter_feeds, youtube_explorer, audit, rizoma, legal, twitter_keyword_search
+from app.api.v1 import auth, users, dashboard, entities, platforms, mentions, alerts, reports, chat, twitter_feeds, youtube_explorer, audit, rizoma, legal, twitter_keyword_search, media_search
 
 router = APIRouter(prefix="/api/v1")
 router.include_router(auth.router)
@@ -17,3 +17,4 @@ router.include_router(audit.router)
 router.include_router(rizoma.router)
 router.include_router(legal.router)
 router.include_router(twitter_keyword_search.router)
+router.include_router(media_search.router)

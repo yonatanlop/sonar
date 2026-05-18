@@ -5,6 +5,7 @@ Programadas en celery_app.py (Beat):
   - extract_ner               → cada hora
   - generate_embeddings       → cada 30 min
   - analyze_visual_mentions   → cada 30 min (solo si FACE_RECOGNITION_ENABLED=true)
+  - compute_image_phash       → cada 30 min (Módulo 8: búsqueda inversa de imágenes)
 """
 import logging
 
@@ -128,6 +129,34 @@ def analyze_visual_mentions(self):
         return result
     except Exception as exc:
         logger.error(f"[Visual Task] Fallo: {exc}", exc_info=True)
+        raise self.retry(exc=exc)
+    finally:
+        db.close()
+
+
+@celery_app.task(
+    name="app.workers.tasks.nlp.compute_image_phash",
+    bind=True,
+    max_retries=1,
+    default_retry_delay=300,
+    soft_time_limit=300,
+    time_limit=360,
+)
+def compute_image_phash(self):
+    """
+    Módulo 8 — Búsqueda Inversa de Imágenes.
+    Calcula y guarda image_phash para menciones con media_urls que aún no tienen pHash.
+    Procesa lotes de 50 menciones por ejecución. Corre cada 30 min vía Beat.
+    """
+    db = SessionLocal()
+    try:
+        from app.services.media_search import run_phash_computation
+        result = run_phash_computation(db)
+        logger.info(f"[pHash Task] {result}")
+        return result
+    except Exception as exc:
+        db.rollback()
+        logger.error(f"[pHash Task] Fallo: {exc}", exc_info=True)
         raise self.retry(exc=exc)
     finally:
         db.close()

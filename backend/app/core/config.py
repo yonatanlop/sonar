@@ -99,6 +99,11 @@ class Settings(BaseSettings):
     FACE_DISTANCE_THRESHOLD: float = 0.55   # distancia máxima para match (0=exacto, 1=muy diferente)
     FACES_DIR: str = "/app/storage/faces"   # ruta base de fotos de referencia
 
+    # Módulo 8 — Búsqueda Inversa de Imágenes (todas opcionales)
+    GOOGLE_CLOUD_API_KEY: str = ""   # Google Cloud Vision Web Detection (1 000 req/mes gratis)
+    TINEYE_API_KEY: str = ""         # TinEye Reverse Image Search (100 búsquedas/mes gratis)
+    BING_SEARCH_KEY: str = ""        # Bing Visual Search Azure (1 000 req/mes gratis)
+
     # Entorno
     ENVIRONMENT: str = "development"
     FRONTEND_URL: str = "http://localhost:3000"

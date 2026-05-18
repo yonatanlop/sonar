@@ -127,6 +127,11 @@ celery_app.conf.beat_schedule = {
         "task": "app.workers.tasks.analytics.compute_trends",
         "schedule": crontab(hour=0, minute=30),  # diario a las 00:30
     },
+    # ── Módulo 8: Búsqueda Inversa — cómputo de pHash incremental ────
+    "compute-image-phash": {
+        "task": "app.workers.tasks.nlp.compute_image_phash",
+        "schedule": crontab(minute="*/30"),
+    },
     # ── Búsqueda Twitter por Keyword/Hashtag ──────────────────────
     # activate-twitter-keyword-search: activa automáticamente a las 8 PM hora Colombia
     # timezone="America/Bogota" en celery_app.conf → crontab(hour=20) = 8 PM COT exacto

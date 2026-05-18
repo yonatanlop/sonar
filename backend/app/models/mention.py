@@ -75,6 +75,8 @@ class Mention(Base):
     media_urls: Mapped[str | None] = mapped_column(Text, nullable=True)           # JSON array de URLs
     visual_match: Mapped[bool | None] = mapped_column(Boolean, nullable=True)     # NULL=sin analizar
     visual_match_names: Mapped[str | None] = mapped_column(Text, nullable=True)   # JSON array de nombres
+    # módulo 8: búsqueda inversa de imágenes
+    image_phash: Mapped[str | None] = mapped_column(String(64), nullable=True)    # pHash hex de primera imagen
     # v2 módulo 6.1: embedding semántico 384 dims (pgvector)
     embedding: Mapped[None] = mapped_column(
         __import__("pgvector.sqlalchemy", fromlist=["Vector"]).Vector(384),
