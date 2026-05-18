@@ -40,11 +40,11 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(minute="*/20"),  # cada 20 min
     },
     # ── Phase 2: Twitter/X ────────────────────────────────────
-    # Corre cada 40 min para dejar ventana libre al Twitter Explorer.
-    # Con 2 cuentas, reducir frecuencia evita agotar el rate limit de SearchTimeline.
+    # Corre cada 5 min. El task decide si ejecutar según cuentas activas:
+    #   1 cuenta → cada 30 min | 2 → 15 min | 3 → 10 min | 4+ → 5 min
     "scrape-twitter": {
         "task": "app.workers.tasks.scraping.scrape_twitter",
-        "schedule": crontab(minute="0,40"),  # minutos 0 y 40
+        "schedule": crontab(minute="*/5"),
     },
     # ── Facebook e Instagram ──────────────────────────────────────
     "scrape-instagram": {

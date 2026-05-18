@@ -85,6 +85,39 @@ def scrape_rss(self):
         raise self.retry(exc=exc)
 
 
+REDIS_TWITTER_LAST_RUN = "twitter:entity_scrape_last_run"
+
+
+def _twitter_dynamic_interval() -> tuple[int, int]:
+    """
+    Calcula el intervalo óptimo de scraping según cuentas activas en el pool.
+    Retorna (intervalo_minutos, cuentas_activas).
+    Fórmula: max(5, 30 // cuentas_activas)
+      1 cuenta  → 30 min
+      2 cuentas → 15 min
+      3 cuentas → 10 min
+      4 cuentas →  7 min → 5 min
+      5+ cuentas → 5 min
+    """
+    import asyncio as _asyncio
+    try:
+        from app.workers.scrapers.twitter import TwitterScraper
+        db = SessionLocal()
+        try:
+            inst = TwitterScraper.__new__(TwitterScraper)
+            inst.db = db
+            api  = inst._build_api()
+            accounts = _asyncio.run(api.pool.get_all())
+            active_n = max(1, len([a for a in accounts if getattr(a, "active", True)]))
+        finally:
+            db.close()
+    except Exception:
+        return 30, 1  # fallback conservador si no se puede leer el pool
+
+    interval = max(5, 30 // active_n)
+    return interval, active_n
+
+
 @celery_app.task(
     name="app.workers.tasks.scraping.scrape_twitter",
     bind=True,
@@ -94,14 +127,42 @@ def scrape_rss(self):
 def scrape_twitter(self):
     """
     Scraping de Twitter/X usando twscrape.
-    Requiere cuentas configuradas previamente:
-        docker compose exec backend python scripts/add_twitter_account.py
+    El beat corre cada 5 min; este task decide si ejecutar o saltar
+    según cuántas cuentas activas haya en el pool (intervalo dinámico).
     """
+    import redis as _redis
+    from app.core.config import settings
+
     try:
+        interval_min, active_accounts = _twitter_dynamic_interval()
+
+        r = _redis.from_url(settings.REDIS_URL, decode_responses=True)
+        last_run_str = r.get(REDIS_TWITTER_LAST_RUN)
+
+        if last_run_str:
+            elapsed = (datetime.now(timezone.utc) - datetime.fromisoformat(last_run_str)).total_seconds() / 60
+            if elapsed < interval_min:
+                remaining = round(interval_min - elapsed, 1)
+                logger.debug(
+                    f"[Twitter] Saltando — {remaining} min para próxima ejecución "
+                    f"(intervalo: {interval_min} min, cuentas activas: {active_accounts})"
+                )
+                return {
+                    "status": "skipped",
+                    "reason": "rate_management",
+                    "interval_min": interval_min,
+                    "active_accounts": active_accounts,
+                    "next_in_min": remaining,
+                }
+
+        # Registrar timestamp antes de ejecutar
+        r.set(REDIS_TWITTER_LAST_RUN, datetime.now(timezone.utc).isoformat())
+        logger.info(f"[Twitter] Ejecutando scraping — intervalo dinámico: {interval_min} min ({active_accounts} cuentas activas)")
+
         from app.workers.scrapers.twitter import TwitterScraper
         return _run_scraper(TwitterScraper, "Twitter")
+
     except RuntimeError as exc:
-        # twscrape no instalado o sin cuentas configuradas
         logger.warning(f"[Twitter] {exc}")
         return {"status": "skipped", "reason": str(exc)}
     except Exception as exc:
