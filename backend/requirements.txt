@@ -75,4 +75,4 @@ requests>=2.32.0          # Descarga de imágenes desde URLs de menciones
 
 # ─── Módulo 8: Búsqueda Inversa de Imágenes ─────────────────────────────────
 imagehash>=4.3.1          # pHash/dHash perceptual — depende de pillow y scipy (ya instalados)
-# opencv-python>=4.9.0   # Opcional: extracción de frames de video (sin esto solo GIF/APNG)
+opencv-python-headless>=4.9.0  # extracción de frames de video para Módulo 8
