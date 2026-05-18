@@ -226,9 +226,7 @@ export default function MediaSearch() {
   })
 
   const searchByUpload = useMutation({
-    mutationFn: (formData) => api.post('/media-search/by-upload', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    }).then(r => r.data),
+    mutationFn: (formData) => api.post('/media-search/by-upload', formData).then(r => r.data),
     onSuccess: (data) => { setResult(data); if (data.total_results === 0) toast('Sin resultados encontrados') },
     onError: (e) => toast.error(e?.response?.data?.detail || 'Error al buscar'),
   })
