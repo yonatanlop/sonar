@@ -9,6 +9,7 @@ import hashlib
 import json
 import logging
 import time
+import urllib.parse
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from typing import Optional
@@ -102,6 +103,14 @@ class RSSScraper(BaseScraper):
         sources = list(GLOBAL_SOURCES)
         if entity.country_code and entity.country_code in RSS_SOURCES:
             sources += RSS_SOURCES[entity.country_code]
+
+        # Feed Google News específico para la entidad (máxima relevancia)
+        gn_query = urllib.parse.quote(entity.name)
+        cc = entity.country_code or "CO"
+        lang_map = {"CO": "es-419", "MX": "es-419", "AR": "es-419", "ES": "es"}
+        hl = lang_map.get(cc, "es-419")
+        gn_url = f"https://news.google.com/rss/search?q={gn_query}&hl={hl}&gl={cc}&ceid={cc}:{hl}"
+        sources.append((f"Google News - {entity.name}", gn_url, "es"))
 
         for source_name, feed_url, lang in sources:
             try:
