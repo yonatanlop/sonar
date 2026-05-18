@@ -37,6 +37,8 @@ RSS_SOURCES = {
         ("Semana",          "https://www.semana.com/rss/",                         "es"),
         ("El Espectador",   "https://www.elespectador.com/arc/outboundfeeds/rss/", "es"),
         ("La República",    "https://www.larepublica.co/rss/",                     "es"),
+        ("Caracol Radio",   "https://caracol.com.co/rss/feed.xml",                 "es"),
+        ("W Radio",         "https://www.wradio.com.co/rss/feed.xml",              "es"),
     ],
     "MX": [
         ("El Universal",    "https://www.eluniversal.com.mx/rss.xml",              "es"),
