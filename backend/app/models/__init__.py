@@ -13,6 +13,7 @@ from app.models.legal_escalation import LegalEscalation
 # YoutubeChannel must be imported before YtKeywordHit (bidirectional back_populates)
 from app.models.youtube_channel import YoutubeChannel, YoutubeChannelKeyword
 from app.models.yt_keyword_hit import YtKeywordHit
+from app.models.twitter_keyword import TwitterKeywordConfig, TwitterKeywordTerm
 
 __all__ = [
     "User", "AuditLog",
@@ -29,4 +30,5 @@ __all__ = [
     "LegalEscalation",
     "YoutubeChannel", "YoutubeChannelKeyword",
     "YtKeywordHit",
+    "TwitterKeywordConfig", "TwitterKeywordTerm",
 ]

@@ -18,9 +18,10 @@ import YoutubeExplorer  from './pages/YoutubeExplorer'
 import Compare         from './pages/Compare'
 import ResponseTool    from './pages/ResponseTool'
 import MentionInbox    from './pages/MentionInbox'
-import Audit          from './pages/Audit'
-import Rizoma         from './pages/Rizoma'
-import LegalInbox     from './pages/LegalInbox'
+import Audit                from './pages/Audit'
+import Rizoma               from './pages/Rizoma'
+import LegalInbox           from './pages/LegalInbox'
+import TwitterKeywordSearch from './pages/TwitterKeywordSearch'
 
 export default function App() {
   return (
@@ -56,8 +57,9 @@ export default function App() {
 
             {/* Solo admin */}
             <Route element={<AdminRoute />}>
-              <Route path="/admin/users"     element={<Users />} />
-              <Route path="/admin/audit"     element={<Audit />} />
+              <Route path="/admin/users"          element={<Users />} />
+              <Route path="/admin/audit"          element={<Audit />} />
+              <Route path="/admin/twitter-search" element={<TwitterKeywordSearch />} />
             </Route>
           </Route>
         </Route>

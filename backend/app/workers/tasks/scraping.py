@@ -345,3 +345,65 @@ def cleanup_old_mentions():
         return {"status": "error", "error": str(e)}
     finally:
         db.close()
+
+
+@celery_app.task(name="app.workers.tasks.scraping.activate_twitter_keyword_search")
+def activate_twitter_keyword_search():
+    """
+    Beat a las 8 PM COT: activa la búsqueda de keywords si hay términos configurados
+    y aún no está activa. Luego dispara la primera ejecución inmediatamente.
+    """
+    db = SessionLocal()
+    try:
+        from app.models.twitter_keyword import TwitterKeywordConfig, TwitterKeywordTerm
+        config = db.query(TwitterKeywordConfig).first()
+        terms  = db.query(TwitterKeywordTerm).filter(TwitterKeywordTerm.is_active == True).count()
+        if config and terms > 0 and not config.is_active:
+            config.is_active    = True
+            config.activated_at = datetime.now(timezone.utc)
+            config.stopped_at   = None
+            db.commit()
+            logger.info("[TwitterKeyword] Búsqueda activada automáticamente a las 8 PM COT")
+        # Disparar primera ejecución aunque ya estuviera activa
+        search_twitter_keywords.delay()
+        return {"status": "activated", "terms": terms}
+    except Exception as e:
+        db.rollback()
+        logger.error(f"[TwitterKeyword] Error en activación: {e}", exc_info=True)
+        return {"status": "error", "error": str(e)}
+    finally:
+        db.close()
+
+
+@celery_app.task(
+    name="app.workers.tasks.scraping.search_twitter_keywords",
+    bind=True,
+    max_retries=2,
+    default_retry_delay=120,
+)
+def search_twitter_keywords(self):
+    """
+    Cada 10 min: ejecuta búsqueda de keywords/hashtags si is_active=True.
+    No-op silencioso si la búsqueda está desactivada.
+    """
+    import asyncio as _asyncio
+
+    try:
+        from app.workers.scrapers.twitter_keyword import search_keywords
+        db = SessionLocal()
+        try:
+            result = _asyncio.run(search_keywords(db))
+            db.commit()
+            logger.info(f"[TwitterKeyword] Ronda completada: {result}")
+            return {"status": "ok", **result}
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+    except RuntimeError as exc:
+        logger.warning(f"[TwitterKeyword] {exc}")
+        return {"status": "skipped", "reason": str(exc)}
+    except Exception as exc:
+        logger.error(f"[TwitterKeyword] Fallo, reintentando: {exc}", exc_info=True)
+        raise self.retry(exc=exc)

@@ -127,4 +127,16 @@ celery_app.conf.beat_schedule = {
         "task": "app.workers.tasks.analytics.compute_trends",
         "schedule": crontab(hour=0, minute=30),  # diario a las 00:30
     },
+    # ── Búsqueda Twitter por Keyword/Hashtag ──────────────────────
+    # activate-twitter-keyword-search: activa automáticamente a las 8 PM hora Colombia
+    # timezone="America/Bogota" en celery_app.conf → crontab(hour=20) = 8 PM COT exacto
+    "activate-twitter-keyword-search": {
+        "task": "app.workers.tasks.scraping.activate_twitter_keyword_search",
+        "schedule": crontab(hour=20, minute=0),
+    },
+    # search-twitter-keywords: runda recurrente cada 10 min, no-op si is_active=False
+    "search-twitter-keywords": {
+        "task": "app.workers.tasks.scraping.search_twitter_keywords",
+        "schedule": crontab(minute="*/10"),
+    },
 }
