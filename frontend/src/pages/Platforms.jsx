@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import {
   RefreshCw, CheckCircle, AlertTriangle, XCircle, Users, Clock,
-  BarChart2, Info, ChevronDown, ChevronUp, Plus, Trash2, Zap, Pencil,
+  BarChart2, Info, ChevronDown, ChevronUp, Plus, Trash2, Zap, Pencil, RotateCcw,
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -15,6 +15,7 @@ const fetchTwAccounts = () => client.get('/platforms/twitter/accounts').then(r =
 const addTwAccount    = (body) => client.post('/platforms/twitter/accounts', body).then(r => r.data)
 const updateTwAccount = ({ username, ...body }) => client.put(`/platforms/twitter/accounts/${username}`, body).then(r => r.data)
 const activateTwAcc   = (username) => client.post(`/platforms/twitter/accounts/${username}/activate`).then(r => r.data)
+const reactivateTwAcc = (username) => client.post(`/platforms/twitter/accounts/${username}/reactivate`).then(r => r.data)
 const deleteTwAcc     = (username) => client.delete(`/platforms/twitter/accounts/${username}`).then(r => r.data)
 
 const fetchIgAccounts = () => client.get('/platforms/instagram/accounts').then(r => r.data)
@@ -56,6 +57,23 @@ function StatBox({ label, value }) {
   )
 }
 
+const TW_STATUS_CFG = {
+  activa:     { cls: 'text-green-700 bg-green-50 border-green-200',   label: 'Activa' },
+  cooldown:   { cls: 'text-yellow-700 bg-yellow-50 border-yellow-200', label: 'Cooldown' },
+  error_auth: { cls: 'text-orange-700 bg-orange-50 border-orange-200', label: 'Error auth' },
+  error:      { cls: 'text-red-700 bg-red-50 border-red-200',          label: 'Error' },
+  inactiva:   { cls: 'text-gray-600 bg-gray-100 border-gray-200',      label: 'Inactiva' },
+}
+
+function TwAccountBadge({ status }) {
+  const cfg = TW_STATUS_CFG[status] || { cls: 'text-gray-600 bg-gray-100 border-gray-200', label: status || '?' }
+  return (
+    <span className={`inline-flex items-center text-[10px] font-semibold border rounded-full px-2 py-0.5 ${cfg.cls}`}>
+      {cfg.label}
+    </span>
+  )
+}
+
 // ── Panel de gestión de cuentas Twitter ────────────────────────────────────
 
 const EMPTY_FORM = { username: '', email: '', password: '', email_password: '', cookies_json: '' }
@@ -94,8 +112,13 @@ function TwitterAccountsPanel() {
     onError: (e) => setError(e.response?.data?.detail || 'Error al actualizar la cuenta'),
   })
 
-  const activateMut = useMutation({ mutationFn: activateTwAcc, onSuccess: invalidate })
-  const deleteMut   = useMutation({ mutationFn: deleteTwAcc,   onSuccess: invalidate })
+  const activateMut   = useMutation({ mutationFn: activateTwAcc,   onSuccess: invalidate })
+  const reactivateMut = useMutation({
+    mutationFn: reactivateTwAcc,
+    onSuccess: () => { toast.success('Cuenta reactivada'); invalidate() },
+    onError: (e) => toast.error(e.response?.data?.detail || 'Error al reactivar'),
+  })
+  const deleteMut = useMutation({ mutationFn: deleteTwAcc, onSuccess: invalidate })
 
   const handleAdd = (e) => {
     e.preventDefault()
@@ -156,38 +179,70 @@ function TwitterAccountsPanel() {
           {accounts.map(acc => (
             <div key={acc.username} className="space-y-2">
               {/* Fila de cuenta */}
-              <div className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2 text-xs min-w-0">
-                <span className={`w-2 h-2 rounded-full shrink-0 ${acc.active ? 'bg-green-500' : 'bg-red-400'}`} />
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-gray-700 truncate">@{acc.username}</p>
-                  <p className="text-gray-400 truncate">{acc.email}</p>
-                </div>
-                {acc.has_cookies && <span title="Tiene cookies" className="shrink-0">🍪</span>}
+              <div className="bg-gray-50 rounded-lg px-3 py-2 text-xs space-y-1.5">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${acc.active ? 'bg-green-500' : 'bg-red-400'}`} />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-gray-700 truncate">@{acc.username}</p>
+                    <p className="text-gray-400 truncate">{acc.email}</p>
+                  </div>
+                  {acc.has_cookies && <span title="Tiene cookies" className="shrink-0">🍪</span>}
 
-                {/* Botones siempre visibles */}
-                <div className="flex items-center gap-1 shrink-0">
-                  {!acc.active && (
-                    <button onClick={() => activateMut.mutate(acc.username)}
-                      disabled={activateMut.isPending}
-                      title="Activar cuenta"
-                      className="p-1 rounded text-green-600 hover:bg-green-50 transition-colors">
-                      <Zap className="w-3.5 h-3.5" />
+                  {/* Botones siempre visibles */}
+                  <div className="flex items-center gap-1 shrink-0">
+                    {acc.can_reactivate && (
+                      <button onClick={() => reactivateMut.mutate(acc.username)}
+                        disabled={reactivateMut.isPending}
+                        title="Reactivar cuenta (limpia error y bloqueos)"
+                        className="p-1 rounded text-blue-600 hover:bg-blue-50 transition-colors">
+                        <RotateCcw className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    {!acc.active && !acc.can_reactivate && (
+                      <button onClick={() => activateMut.mutate(acc.username)}
+                        disabled={activateMut.isPending}
+                        title="Activar cuenta"
+                        className="p-1 rounded text-green-600 hover:bg-green-50 transition-colors">
+                        <Zap className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => editingAcc === acc.username ? setEditingAcc(null) : startEdit(acc)}
+                      title="Editar cookies / contraseña"
+                      className={`p-1 rounded transition-colors ${editingAcc === acc.username ? 'text-primary-600 bg-primary-50' : 'text-gray-400 hover:text-primary-600 hover:bg-primary-50'}`}>
+                      <Pencil className="w-3.5 h-3.5" />
                     </button>
-                  )}
-                  <button
-                    onClick={() => editingAcc === acc.username ? setEditingAcc(null) : startEdit(acc)}
-                    title="Editar cookies / contraseña"
-                    className={`p-1 rounded transition-colors ${editingAcc === acc.username ? 'text-primary-600 bg-primary-50' : 'text-gray-400 hover:text-primary-600 hover:bg-primary-50'}`}>
-                    <Pencil className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => { if (window.confirm(`¿Eliminar @${acc.username} del pool?`)) deleteMut.mutate(acc.username) }}
-                    disabled={deleteMut.isPending}
-                    title="Eliminar cuenta"
-                    className="p-1 rounded text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors">
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                    <button
+                      onClick={() => { if (window.confirm(`¿Eliminar @${acc.username} del pool?`)) deleteMut.mutate(acc.username) }}
+                      disabled={deleteMut.isPending}
+                      title="Eliminar cuenta"
+                      className="p-1 rounded text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
+
+                {/* Estado + razón */}
+                {acc.status && (
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <TwAccountBadge status={acc.status} />
+                    {acc.reason && (
+                      <span className="text-gray-500 text-[10px] leading-tight">{acc.reason}</span>
+                    )}
+                  </div>
+                )}
+
+                {/* Stats */}
+                {(acc.requests_total > 0 || acc.last_used) && (
+                  <div className="flex flex-wrap gap-3 text-[10px] text-gray-400">
+                    {acc.requests_total > 0 && (
+                      <span>{acc.requests_total.toLocaleString()} búsquedas</span>
+                    )}
+                    {acc.last_used && (
+                      <span>últ. uso {formatDistanceToNow(new Date(acc.last_used), { addSuffix: true, locale: es })}</span>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Formulario de edición inline */}
