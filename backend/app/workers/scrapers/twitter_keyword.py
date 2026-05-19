@@ -160,7 +160,7 @@ async def search_keywords(db: Session) -> dict:
                     tw_api, query, platform.id, entity.id, db,
                     country_code="CO",
                 ),
-                timeout=30,
+                timeout=15,
             )
             total_saved += saved
             logger.info("[TwitterKeyword] '%s' → %d nuevos tweets", t.term, saved)

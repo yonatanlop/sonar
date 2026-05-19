@@ -139,9 +139,9 @@ celery_app.conf.beat_schedule = {
         "task": "app.workers.tasks.scraping.activate_twitter_keyword_search",
         "schedule": crontab(hour=20, minute=0),
     },
-    # search-twitter-keywords: runda recurrente cada 10 min, no-op si is_active=False
+    # search-twitter-keywords: runda recurrente cada 20 min, no-op si is_active=False
     "search-twitter-keywords": {
         "task": "app.workers.tasks.scraping.search_twitter_keywords",
-        "schedule": crontab(minute="*/10"),
+        "schedule": crontab(minute="*/20"),
     },
 }
