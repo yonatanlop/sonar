@@ -25,7 +25,7 @@ class Entity(Base):
     entity_type_id: Mapped[int] = mapped_column(Integer, ForeignKey("entity_types.id"), nullable=False)
     country_code: Mapped[str | None] = mapped_column(String(2), ForeignKey("countries.code"))
     description: Mapped[str | None] = mapped_column(Text)
-    photo_url: Mapped[str | None] = mapped_column(String(500))
+    photo_url: Mapped[str | None] = mapped_column(Text)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     monitoring_type: Mapped[str | None] = mapped_column(String(20), nullable=True)
     created_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
