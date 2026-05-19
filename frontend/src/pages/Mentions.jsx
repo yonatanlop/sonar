@@ -212,6 +212,9 @@ export default function Mentions() {
             {m.is_hate_speech && (
               <span className="badge bg-red-100 text-red-700">Discurso de odio</span>
             )}
+            {m.is_attended && (
+              <span className="badge bg-green-100 text-green-700">✓ Atendida</span>
+            )}
             <span className="text-xs text-gray-400">{m.entity_name}</span>
 
             <div className="flex items-center gap-3 ml-auto">

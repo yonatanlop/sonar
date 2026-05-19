@@ -124,9 +124,9 @@ export default function MentionInbox() {
       toast.success('Tratamiento guardado')
       qc.invalidateQueries({ queryKey: ['inbox'] })
       qc.invalidateQueries({ queryKey: ['inbox-count'] })
+      qc.invalidateQueries({ queryKey: ['mentions'] })
       // Actualizar badge en sidebar
-      const remaining = items.filter(i => i.id !== id).length
-      setInboxCount(remaining > 0 ? remaining - 1 : 0)
+      setInboxCount(n => Math.max(0, n - 1))
       // Seleccionar el siguiente ítem
       const idx = items.findIndex(i => i.id === id)
       const next = items[idx + 1] ?? items[idx - 1] ?? null

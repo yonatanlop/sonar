@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.database import get_db
+from app.models.alert import Alert as AlertModel
 from app.models.bot import BotAnalysis, AccountProfile
 from app.models.entity import Entity
 from app.models.mention import Mention, SocialPlatform
@@ -80,6 +81,10 @@ def _mention_dict(m: Mention, db: Session) -> dict:
         "media_urls":         m.media_urls,
         "visual_match":       m.visual_match,
         "visual_match_names": m.visual_match_names,
+        "is_attended":        (db.query(AlertModel)
+                                 .filter(AlertModel.mention_id == m.id,
+                                         AlertModel.acknowledged == True)
+                                 .first()) is not None,
     }
 
 
