@@ -24,13 +24,18 @@ export default function Reports() {
     country_code: '', date_from: '', date_to: '',
   })
 
-  const { data: reports  = [], refetch } = useQuery({ queryKey: ['reports'],  queryFn: fetchReports  })
-  const { data: entities = [] }          = useQuery({ queryKey: ['entities'], queryFn: fetchEntities })
+  const { data: reports  = [], refetch } = useQuery({
+    queryKey: ['reports'],
+    queryFn:  fetchReports,
+    refetchInterval: (query) =>
+      query.state.data?.some(r => !r.file_path) ? 5000 : false,
+  })
+  const { data: entities = [] } = useQuery({ queryKey: ['entities'], queryFn: fetchEntities })
 
   const generate = useMutation({
     mutationFn: (body) => client.post('/reports', body),
     onSuccess: () => {
-      toast.success('Reporte generado exitosamente')
+      toast.success('Generando PDF, disponible en unos segundos…')
       refetch()
       setShowForm(false)
     },
@@ -151,9 +156,15 @@ export default function Reports() {
                 Generado por {report.created_by_name}
               </p>
             </div>
-            <button onClick={() => download(report)} className="btn-secondary text-sm shrink-0">
-              <Download className="w-4 h-4" /> Descargar
-            </button>
+            {report.file_path ? (
+              <button onClick={() => download(report)} className="btn-secondary text-sm shrink-0">
+                <Download className="w-4 h-4" /> Descargar
+              </button>
+            ) : (
+              <span className="flex items-center gap-1.5 text-sm text-gray-400 shrink-0 pr-1">
+                <Loader className="w-4 h-4 animate-spin" /> Generando PDF…
+              </span>
+            )}
           </div>
         ))}
       </div>

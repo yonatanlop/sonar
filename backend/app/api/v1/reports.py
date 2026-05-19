@@ -60,7 +60,9 @@ def _report_dict(r: Report, db: Session) -> dict:
 
 def _generate_pdf_task(report_id: str):
     """Tarea en background que genera el PDF y actualiza file_path en BD."""
+    import logging
     from app.reports.generator import generate_report
+    logger = logging.getLogger(__name__)
     db = SessionLocal()
     try:
         report = db.query(Report).filter(Report.id == report_id).first()
@@ -69,6 +71,9 @@ def _generate_pdf_task(report_id: str):
         file_path = generate_report(report, db)
         report.file_path = file_path
         db.commit()
+        logger.info(f"PDF generado: {file_path}")
+    except Exception as exc:
+        logger.error(f"Error generando PDF para reporte {report_id}: {exc}", exc_info=True)
     finally:
         db.close()
 
