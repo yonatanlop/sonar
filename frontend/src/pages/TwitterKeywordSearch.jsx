@@ -244,10 +244,15 @@ function TermsPanel({ terms, loading, deleteMut, toggleMut, onAdd }) {
   const [newTerm, setNewTerm]   = useState('')
   const [termType, setTermType] = useState('keyword')
   const [conditions, setConds]  = useState([])   // [{op, term}]
+  const [filterText, setFilterText] = useState('')
 
   const addCond    = () => setConds(c => [...c, EMPTY_COND()])
   const removeCond = (i) => setConds(c => c.filter((_, j) => j !== i))
   const updateCond = (i, field, val) => setConds(c => c.map((x, j) => j === i ? { ...x, [field]: val } : x))
+
+  const filteredTerms = filterText
+    ? terms.filter(t => t.term.toLowerCase().includes(filterText.toLowerCase()))
+    : terms
 
   const addMut = useMutation({
     mutationFn: () => client.post('/twitter-keyword-search/terms', {
@@ -349,6 +354,19 @@ function TermsPanel({ terms, loading, deleteMut, toggleMut, onAdd }) {
       )}
 
 
+      {/* Buscador */}
+      {!loading && terms.length > 0 && (
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+          <input
+            value={filterText}
+            onChange={e => setFilterText(e.target.value)}
+            placeholder="Buscar término agregado..."
+            className="input text-sm w-full pl-9"
+          />
+        </div>
+      )}
+
       {/* Lista de términos */}
       {loading ? (
         <div className="space-y-2">
@@ -361,9 +379,13 @@ function TermsPanel({ terms, loading, deleteMut, toggleMut, onAdd }) {
           <Search className="w-8 h-8 mx-auto mb-2 opacity-40" />
           <p className="text-sm">No hay términos configurados</p>
         </div>
+      ) : filteredTerms.length === 0 ? (
+        <div className="text-center py-6 text-gray-400">
+          <p className="text-sm">Sin resultados para &ldquo;{filterText}&rdquo;</p>
+        </div>
       ) : (
         <ul className="space-y-1.5">
-          {terms.map(t => (
+          {filteredTerms.map(t => (
             <li key={t.id} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border ${
               t.is_active ? 'border-gray-200 bg-white' : 'border-dashed border-gray-200 bg-gray-50 opacity-60'
             }`}>

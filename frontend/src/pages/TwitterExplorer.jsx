@@ -222,11 +222,13 @@ export default function TwitterExplorer() {
   // Filtros
   const [dateFrom, setDateFrom]       = useState('')
   const [dateTo, setDateTo]           = useState('')
+  const [feedFilter, setFeedFilter]   = useState('')
 
-  // Agrupación visual
-  const users    = feeds.filter((f) => f.feed_type === 'user')
-  const hashtags = feeds.filter((f) => f.feed_type === 'hashtag')
-  const keywords = feeds.filter((f) => f.feed_type === 'keyword')
+  // Agrupación visual (con filtro de búsqueda)
+  const _match = (f) => !feedFilter || f.query.toLowerCase().includes(feedFilter.toLowerCase())
+  const users    = feeds.filter((f) => f.feed_type === 'user'     && _match(f))
+  const hashtags = feeds.filter((f) => f.feed_type === 'hashtag'  && _match(f))
+  const keywords = feeds.filter((f) => f.feed_type === 'keyword'  && _match(f))
 
   // ── Cargar feeds ──────────────────────────────────────────────
   const loadFeeds = useCallback(async () => {
@@ -329,6 +331,18 @@ export default function TwitterExplorer() {
             </button>
           </div>
 
+          {!loadingFeeds && feeds.length > 0 && (
+            <div className="px-2 pt-2 relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+              <input
+                value={feedFilter}
+                onChange={e => setFeedFilter(e.target.value)}
+                placeholder="Buscar monitor..."
+                className="w-full text-xs border border-gray-200 rounded-lg py-1.5 pl-7 pr-2 focus:outline-none focus:ring-1 focus:ring-sky-400"
+              />
+            </div>
+          )}
+
           <div className="flex-1 overflow-y-auto p-2 space-y-3">
             {loadingFeeds ? (
               <p className="text-xs text-gray-400 text-center pt-4">Cargando...</p>
@@ -345,6 +359,9 @@ export default function TwitterExplorer() {
               </div>
             ) : (
               <>
+                {users.length === 0 && hashtags.length === 0 && keywords.length === 0 && feedFilter && (
+                  <p className="text-xs text-gray-400 text-center pt-4">Sin resultados</p>
+                )}
                 {users.length > 0 && (
                   <div>
                     <p className="text-xs text-gray-400 px-3 mb-1 font-medium">Usuarios</p>

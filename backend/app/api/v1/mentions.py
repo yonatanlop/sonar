@@ -4,6 +4,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
@@ -173,7 +174,7 @@ def list_mentions(
 
     total  = query.count()
     items  = (query
-              .order_by(Mention.collected_at.desc())
+              .order_by(func.coalesce(Mention.published_at, Mention.collected_at).desc())
               .offset((page - 1) * PAGE_SIZE)
               .limit(PAGE_SIZE)
               .all())

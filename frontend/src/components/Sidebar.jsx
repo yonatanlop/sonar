@@ -15,9 +15,9 @@ const NAV_SECTIONS = (isAdmin, isAnalyst, isSuperAdmin, unread, inbox) => [
     label: 'MONITOREO',
     items: [
       { to: '/',         icon: LayoutDashboard,  label: 'Dashboard' },
-      { to: '/entities', icon: Building2,         label: 'Entidades' },
+      { to: '/entities', icon: Building2,         label: 'Líderes/Instituciones/Keywords' },
       { to: '/mentions', icon: MessageSquare,     label: 'Menciones' },
-      { to: '/compare',  icon: GitCompareArrows,  label: 'Comparar Entidades' },
+      { to: '/compare',  icon: GitCompareArrows,  label: 'Comparar alertas' },
     ],
   },
   {
