@@ -263,7 +263,7 @@ class TwitterAccountUpdate(BaseModel):
 
 
 def _sqlite_accounts() -> list[dict]:
-    """Lee todas las cuentas del pool directamente desde SQLite."""
+    """Lee todas las cuentas del pool con diagnóstico de estado."""
     db_path = settings.TWITTER_ACCOUNTS_DB
     if not os.path.exists(db_path):
         return []
@@ -272,20 +272,74 @@ def _sqlite_accounts() -> list[dict]:
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
     try:
-        cur.execute("SELECT username, email, active, cookies FROM accounts")
+        cur.execute("SELECT username, email, active, cookies, error_msg, locks, stats, last_used FROM accounts")
         rows = cur.fetchall()
     except Exception:
         rows = []
     conn.close()
-    return [
-        {
-            "username":    r["username"],
-            "email":       r["email"],
-            "active":      bool(r["active"]),
-            "has_cookies": bool(r["cookies"]),
-        }
-        for r in rows
-    ]
+
+    now = datetime.now(timezone.utc)
+    result = []
+    for r in rows:
+        active    = bool(r["active"])
+        error_msg = r["error_msg"] or ""
+        last_used = r["last_used"] or ""
+
+        try:
+            locks = json.loads(r["locks"] or "{}")
+        except Exception:
+            locks = {}
+        try:
+            stats = json.loads(r["stats"] or "{}")
+        except Exception:
+            stats = {}
+
+        # Determinar cooldown: hay lock en el futuro
+        cooldown_until = None
+        for lock_time_str in locks.values():
+            try:
+                lt = datetime.fromisoformat(lock_time_str).replace(tzinfo=timezone.utc)
+                if lt > now:
+                    cooldown_until = lock_time_str
+            except Exception:
+                pass
+
+        # Clasificar estado y razón
+        if active and not cooldown_until:
+            status = "activa"
+            reason = "Operando normalmente"
+            can_reactivate = False
+        elif active and cooldown_until:
+            status = "cooldown"
+            reason = f"Rate-limit temporal — disponible aprox. {cooldown_until[:16]} UTC"
+            can_reactivate = False
+        elif not active and ("authenticate" in error_msg.lower() or "(32)" in error_msg or "(135)" in error_msg or "(326)" in error_msg):
+            status = "error_auth"
+            reason = "Credenciales inválidas o sesión revocada — actualiza cookies o contraseña"
+            can_reactivate = True
+        elif not active and error_msg:
+            status = "error"
+            reason = f"Error de Twitter: {error_msg}"
+            can_reactivate = True
+        else:
+            status = "inactiva"
+            reason = "Sesión expirada o cuenta posiblemente suspendida por Twitter"
+            can_reactivate = True
+
+        result.append({
+            "username":        r["username"],
+            "email":           r["email"],
+            "active":          active,
+            "status":          status,
+            "reason":          reason,
+            "can_reactivate":  can_reactivate,
+            "error_msg":       error_msg or None,
+            "cooldown_until":  cooldown_until,
+            "requests_total":  stats.get("SearchTimeline", 0),
+            "last_used":       last_used[:19] if last_used else None,
+            "has_cookies":     bool(r["cookies"]),
+        })
+    return result
 
 
 async def _twscrape_add(username, email, password, email_password, cookies_str):
@@ -375,6 +429,32 @@ def activate_twitter_account(username: str, _=Depends(require_admin)):
     if not os.path.exists(settings.TWITTER_ACCOUNTS_DB):
         raise HTTPException(status_code=404, detail="No hay base de datos de cuentas.")
     _sqlite_set_active(username, 1)
+    return {"ok": True, "accounts": _sqlite_accounts()}
+
+
+@router.post("/twitter/accounts/{username}/reactivate")
+def reactivate_twitter_account(username: str, _=Depends(require_admin)):
+    """
+    Intenta reactivar una cuenta inactiva: limpia error_msg y locks,
+    y la marca como activa. Si Twitter la rechaza volverá a quedar
+    inactiva con el error actualizado en el próximo uso.
+    """
+    if not os.path.exists(settings.TWITTER_ACCOUNTS_DB):
+        raise HTTPException(status_code=404, detail="No hay base de datos de cuentas.")
+    import sqlite3
+    conn = sqlite3.connect(settings.TWITTER_ACCOUNTS_DB)
+    cur = conn.execute(
+        "SELECT username FROM accounts WHERE lower(username) = lower(?)", (username,)
+    )
+    if not cur.fetchone():
+        conn.close()
+        raise HTTPException(status_code=404, detail="Cuenta no encontrada.")
+    conn.execute(
+        "UPDATE accounts SET active=1, error_msg=NULL, locks='{}' WHERE lower(username)=lower(?)",
+        (username,),
+    )
+    conn.commit()
+    conn.close()
     return {"ok": True, "accounts": _sqlite_accounts()}
 
 
