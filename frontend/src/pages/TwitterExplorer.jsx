@@ -320,10 +320,10 @@ export default function TwitterExplorer() {
       </div>
 
       {/* Cuerpo: panel dividido */}
-      <div className="flex-1 flex gap-4 min-h-0">
+      <div className="flex-1 flex flex-col md:flex-row gap-4 min-h-0">
 
         {/* ── Panel izquierdo: lista de feeds ── */}
-        <div className="w-64 shrink-0 bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+        <div className="w-full md:w-64 shrink-0 max-h-52 md:max-h-none bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
           <div className="px-3 py-2.5 border-b border-gray-100 flex items-center justify-between">
             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Monitores</span>
             <button onClick={loadFeeds} className="text-gray-400 hover:text-gray-600" title="Actualizar lista">

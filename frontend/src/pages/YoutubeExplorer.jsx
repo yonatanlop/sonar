@@ -485,10 +485,10 @@ export default function YoutubeExplorer() {
       </div>
 
       {/* Layout de dos paneles */}
-      <div className="flex gap-4 flex-1 min-h-0">
+      <div className="flex flex-col md:flex-row gap-4 flex-1 min-h-0">
 
         {/* Panel izquierdo — Canales */}
-        <div className="w-64 shrink-0 flex flex-col gap-3">
+        <div className="w-full md:w-64 shrink-0 flex flex-col gap-3">
           {isAnalyst && (
             <button
               className="btn-primary w-full flex items-center justify-center gap-2"
@@ -498,7 +498,7 @@ export default function YoutubeExplorer() {
             </button>
           )}
 
-          <div className="card p-2 flex-1 overflow-y-auto space-y-0.5">
+          <div className="card p-2 max-h-44 md:max-h-none md:flex-1 overflow-y-auto space-y-0.5">
             {chLoading && (
               <p className="text-sm text-gray-400 text-center py-6">Cargando...</p>
             )}

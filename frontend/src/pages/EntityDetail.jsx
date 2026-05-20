@@ -1055,7 +1055,7 @@ export default function EntityDetail() {
             <div className="text-center text-gray-400 py-8">Cargando influencers...</div>
           ) : influencersData?.items?.length > 0 ? (
             <div className="card overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="min-w-[500px] w-full text-sm">
                 <thead>
                   <tr className="text-xs text-gray-500 border-b">
                     <th className="text-left pb-2 font-medium">#</th>

@@ -84,7 +84,7 @@ export default function GeoMap() {
           {/* Tabla de países */}
           <div className="card overflow-x-auto">
             <h2 className="font-semibold text-gray-800 mb-4">Distribución por país</h2>
-            <table className="w-full text-sm">
+            <table className="min-w-[500px] w-full text-sm">
               <thead>
                 <tr className="text-xs text-gray-500 border-b">
                   <th className="text-left pb-2 font-medium">#</th>

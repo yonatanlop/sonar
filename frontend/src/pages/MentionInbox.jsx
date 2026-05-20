@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Inbox, ExternalLink, AlertTriangle, AlertCircle,
-  CheckCircle, Clock, ChevronRight, User, Globe, Scale, X, HelpCircle, ChevronDown, Flag,
+  CheckCircle, Clock, ChevronRight, ChevronLeft, User, Globe, Scale, X, HelpCircle, ChevronDown, Flag,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import client from '../api/client'
@@ -167,7 +167,7 @@ export default function MentionInbox() {
     <div className="flex h-[calc(100vh-4rem)] gap-0 -m-6 overflow-hidden">
 
       {/* ── Lista izquierda ─────────────────────────────────── */}
-      <div className="w-full md:w-80 lg:w-96 border-r border-gray-200 flex flex-col bg-white shrink-0">
+      <div className={`${selected ? 'hidden md:flex' : 'flex'} w-full md:w-80 lg:w-96 border-r border-gray-200 flex-col bg-white shrink-0`}>
         <div className="px-4 py-4 border-b border-gray-100 space-y-3">
           <div className="flex items-center gap-2">
             <Inbox className="w-5 h-5 text-primary-600" />
@@ -282,7 +282,7 @@ export default function MentionInbox() {
       </div>
 
       {/* ── Panel de tratamiento ─────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto bg-gray-50">
+      <div className={`${!selected ? 'hidden md:flex' : 'flex'} flex-1 flex-col overflow-y-auto bg-gray-50`}>
         {!selected ? (
           <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-3">
             <Inbox className="w-12 h-12 text-gray-300" />
@@ -290,6 +290,13 @@ export default function MentionInbox() {
             <p className="text-xs">Haz clic en un ítem de la lista para tratarlo</p>
           </div>
         ) : (
+          <>
+          <button
+            className="md:hidden flex items-center gap-1.5 px-4 py-3 text-sm text-primary-600 font-medium border-b border-gray-200 bg-white shrink-0"
+            onClick={() => setSelected(null)}
+          >
+            <ChevronLeft className="w-4 h-4" /> Volver a la bandeja
+          </button>
           <div className="max-w-2xl mx-auto p-6 space-y-5">
 
             {/* Cabecera */}
@@ -585,6 +592,7 @@ export default function MentionInbox() {
             </div>
           </div>
         </div>
+          </>
       )}
     </div>
   )

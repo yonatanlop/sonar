@@ -163,10 +163,10 @@ export default function Users() {
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
                 <th className="text-left px-5 py-3 font-medium text-gray-600">Usuario</th>
-                <th className="text-left px-5 py-3 font-medium text-gray-600">Email</th>
+                <th className="hidden sm:table-cell text-left px-5 py-3 font-medium text-gray-600">Email</th>
                 <th className="text-left px-5 py-3 font-medium text-gray-600">Rol</th>
                 <th className="text-left px-5 py-3 font-medium text-gray-600">Estado</th>
-                <th className="text-left px-5 py-3 font-medium text-gray-600">Último acceso</th>
+                <th className="hidden md:table-cell text-left px-5 py-3 font-medium text-gray-600">Último acceso</th>
                 <th className="px-5 py-3" />
               </tr>
             </thead>
@@ -184,7 +184,7 @@ export default function Users() {
                       </div>
                     </div>
                   </td>
-                  <td className="px-5 py-3 text-gray-600">{user.email}</td>
+                  <td className="hidden sm:table-cell px-5 py-3 text-gray-600">{user.email}</td>
                   <td className="px-5 py-3">
                     <span className={`badge ${ROLE_COLOR[user.role]}`}>{ROLE_LABEL[user.role]}</span>
                   </td>
@@ -193,7 +193,7 @@ export default function Users() {
                       {user.active ? 'Activo' : 'Inactivo'}
                     </span>
                   </td>
-                  <td className="px-5 py-3 text-gray-400 text-xs">
+                  <td className="hidden md:table-cell px-5 py-3 text-gray-400 text-xs">
                     {user.last_login ? new Date(user.last_login).toLocaleDateString('es') : 'Nunca'}
                   </td>
                   <td className="px-5 py-3 text-right">
