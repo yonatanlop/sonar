@@ -525,6 +525,7 @@ export default function MentionInbox() {
             )}
 
           </div>
+          </>
         )}
       </div>
 
@@ -592,7 +593,6 @@ export default function MentionInbox() {
             </div>
           </div>
         </div>
-          </>
       )}
     </div>
   )
