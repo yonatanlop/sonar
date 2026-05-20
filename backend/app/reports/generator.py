@@ -310,6 +310,136 @@ def _generate_entity(report, db) -> str:
         for r in top_influencer_rows
     ]
 
+    # ── Enriquecimiento: datos granulares ────────────────────────────────────
+    from sqlalchemy.types import Date as SADate
+    from collections import defaultdict
+    from app.models.alert import AlertRule
+
+    # 1. Timeline diaria de menciones por sentimiento
+    timeline_raw = (
+        db.query(
+            func.cast(func.coalesce(Mention.published_at, Mention.collected_at), SADate).label('day'),
+            Mention.sentiment_label,
+            func.count(Mention.id).label('cnt'),
+        )
+        .filter(Mention.entity_id == entity.id,
+                Mention.collected_at.between(dt_from, dt_to))
+        .group_by(
+            func.cast(func.coalesce(Mention.published_at, Mention.collected_at), SADate),
+            Mention.sentiment_label,
+        )
+        .order_by(func.cast(func.coalesce(Mention.published_at, Mention.collected_at), SADate))
+        .all()
+    )
+    daily_counts = defaultdict(lambda: {'negative': 0, 'neutral': 0, 'positive': 0})
+    for row in timeline_raw:
+        if row.day is None:
+            continue
+        sl  = row.sentiment_label or ''
+        key = ('negative' if sl in ('negative', 'very_negative')
+               else sl if sl in ('neutral', 'positive') else None)
+        if key:
+            daily_counts[str(row.day)][key] += row.cnt
+    tl_keys           = sorted(daily_counts.keys())
+    from datetime import datetime as _dt
+    timeline_dates    = [_dt.strptime(d, '%Y-%m-%d').strftime('%d/%b') for d in tl_keys]
+    timeline_negative = [daily_counts[d]['negative'] for d in tl_keys]
+    timeline_neutral  = [daily_counts[d]['neutral']  for d in tl_keys]
+    timeline_positive = [daily_counts[d]['positive'] for d in tl_keys]
+    chart_timeline    = make_timeline_bar(timeline_dates, timeline_negative,
+                                         timeline_neutral, timeline_positive) if tl_keys else ""
+
+    # 2. Desglose plataforma × sentimiento
+    plat_sent_rows = (
+        db.query(SocialPlatform.name, Mention.sentiment_label, func.count(Mention.id).label('cnt'))
+        .join(SocialPlatform, Mention.platform_id == SocialPlatform.id)
+        .filter(Mention.entity_id == entity.id,
+                Mention.collected_at.between(dt_from, dt_to))
+        .group_by(SocialPlatform.name, Mention.sentiment_label)
+        .all()
+    )
+    _ps = defaultdict(lambda: {'very_negative': 0, 'negative': 0, 'neutral': 0, 'positive': 0, 'total': 0})
+    for r in plat_sent_rows:
+        _ps[r.name]['total'] += r.cnt
+        if r.sentiment_label:
+            _ps[r.name][r.sentiment_label] += r.cnt
+    platform_detail = []
+    for pname in sorted(_ps, key=lambda x: -_ps[x]['total']):
+        d   = _ps[pname]
+        neg = d['negative'] + d['very_negative']
+        platform_detail.append({
+            'name':     pname,
+            'total':    d['total'],
+            'neg_count': neg,
+            'neg_pct':  round(neg / d['total'] * 100, 1) if d['total'] else 0,
+            'neutral':  d['neutral'],
+            'positive': d['positive'],
+        })
+
+    # 3. Métricas adicionales
+    unique_authors = (
+        db.query(func.count(Mention.author_ext_id.distinct()))
+        .filter(Mention.entity_id == entity.id,
+                Mention.collected_at.between(dt_from, dt_to),
+                Mention.author_ext_id.isnot(None))
+        .scalar() or 0
+    )
+    duplicate_count = (
+        db.query(func.count(Mention.id))
+        .filter(Mention.entity_id == entity.id,
+                Mention.collected_at.between(dt_from, dt_to),
+                Mention.is_duplicate == True)  # noqa: E712
+        .scalar() or 0
+    )
+    high_urgency_count = (
+        db.query(func.count(Mention.id))
+        .filter(Mention.entity_id == entity.id,
+                Mention.collected_at.between(dt_from, dt_to),
+                Mention.urgency_score >= 0.7,
+                Mention.urgency_score.isnot(None))
+        .scalar() or 0
+    )
+
+    # 4. Top menciones positivas por alcance
+    top_positive_mentions = (
+        db.query(Mention)
+        .filter(Mention.entity_id == entity.id,
+                Mention.collected_at.between(dt_from, dt_to),
+                Mention.sentiment_label == 'positive')
+        .order_by(Mention.reach.desc())
+        .limit(5)
+        .all()
+    )
+
+    # 5. Desglose de alertas por tipo de regla
+    alert_type_rows = (
+        db.query(AlertRule.rule_type, Alert.severity, func.count(Alert.id).label('cnt'))
+        .join(AlertRule, Alert.rule_id == AlertRule.id)
+        .filter(Alert.entity_id == entity.id,
+                Alert.triggered_at.between(dt_from, dt_to))
+        .group_by(AlertRule.rule_type, Alert.severity)
+        .order_by(func.count(Alert.id).desc())
+        .all()
+    )
+    alert_type_data = [
+        {'type': r.rule_type.replace('_', ' ').title(), 'severity': r.severity, 'count': r.cnt}
+        for r in alert_type_rows
+    ]
+
+    # 6. Distribución de temas (condicional)
+    topic_rows = (
+        db.query(Mention.topic_label, func.count(Mention.id).label('cnt'))
+        .filter(Mention.entity_id == entity.id,
+                Mention.collected_at.between(dt_from, dt_to),
+                Mention.topic_label.isnot(None),
+                Mention.topic_label != '')
+        .group_by(Mention.topic_label)
+        .order_by(func.count(Mention.id).desc())
+        .limit(10)
+        .all()
+    )
+    topic_data = [{'topic': r.topic_label, 'count': r.cnt} for r in topic_rows]
+
     # Risk score (simple)
     risk_score = min(100, int(neg_pct * 0.7 + (bot_count / max(total, 1) * 100) * 0.3))
     risk_label = "ALTO" if risk_score >= 66 else "MEDIO" if risk_score >= 36 else "BAJO"
@@ -342,11 +472,22 @@ def _generate_entity(report, db) -> str:
         "alerts": alerts,
         "chart_sentiment": chart_sentiment,
         "chart_platforms": chart_platforms,
-        "chart_tiers":     chart_tiers,
-        "tier_data":       tier_data,
-        "verified_count":  verified_count,
-        "top_influencers": top_influencers,
-        "ai_narrative":    ai_narrative,
+        "chart_tiers":          chart_tiers,
+        "tier_data":            tier_data,
+        "verified_count":       verified_count,
+        "top_influencers":      top_influencers,
+        "ai_narrative":         ai_narrative,
+        "chart_timeline":       chart_timeline,
+        "timeline_dates":       timeline_dates,
+        "timeline_negative":    timeline_negative,
+        "timeline_positive":    timeline_positive,
+        "platform_detail":      platform_detail,
+        "unique_authors":       unique_authors,
+        "duplicate_count":      duplicate_count,
+        "high_urgency_count":   high_urgency_count,
+        "top_positive_mentions": top_positive_mentions,
+        "alert_type_data":      alert_type_data,
+        "topic_data":           topic_data,
     }
 
     filename = f"entidad_{entity.id}_{date_from}_{date_to}.pdf"

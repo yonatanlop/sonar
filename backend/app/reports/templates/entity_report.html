@@ -74,6 +74,20 @@ relacionada y se generaron <strong>{{ stats.alert_count }}</strong> alertas dura
     <div class="metric-label">Alertas generadas</div>
   </div>
 </div>
+<div class="metrics" style="margin-top:8pt;">
+  <div class="metric-card">
+    <div class="metric-value" style="color:#7c3aed;">{{ unique_authors }}</div>
+    <div class="metric-label">Autores únicos</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-value" style="color:#dc2626;">{{ high_urgency_count }}</div>
+    <div class="metric-label">Urgencia alta (≥0.7)</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-value" style="color:#9ca3af;">{{ duplicate_count }}</div>
+    <div class="metric-label">Duplicados filtrados</div>
+  </div>
+</div>
 
 <div class="charts-row">
   {% if chart_sentiment %}
@@ -87,6 +101,63 @@ relacionada y se generaron <strong>{{ stats.alert_count }}</strong> alertas dura
   </div>
   {% endif %}
 </div>
+
+{% if chart_timeline %}
+<h3>Evolución Diaria de Menciones</h3>
+<div class="chart">
+  <img src="data:image/png;base64,{{ chart_timeline }}" alt="Evolución diaria" />
+</div>
+{% endif %}
+
+{% if platform_detail %}
+<h3>Desglose por Plataforma y Sentimiento</h3>
+<table>
+  <thead>
+    <tr>
+      <th>Plataforma</th>
+      <th style="text-align:right;">Total</th>
+      <th style="text-align:right;">Neg. + Muy neg.</th>
+      <th style="text-align:right;">% Negativo</th>
+      <th style="text-align:right;">Neutral</th>
+      <th style="text-align:right;">Positivo</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for p in platform_detail %}
+    <tr>
+      <td>{{ p.name }}</td>
+      <td style="text-align:right;font-weight:600;">{{ p.total }}</td>
+      <td style="text-align:right;color:#dc2626;">{{ p.neg_count }}</td>
+      <td style="text-align:right;color:#dc2626;font-weight:600;">{{ p.neg_pct }}%</td>
+      <td style="text-align:right;color:#6b7280;">{{ p.neutral }}</td>
+      <td style="text-align:right;color:#16a34a;">{{ p.positive }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+{% if topic_data %}
+<h3>Temas Más Mencionados</h3>
+<table>
+  <thead>
+    <tr>
+      <th>Tema</th>
+      <th style="text-align:right;">Menciones</th>
+      <th style="text-align:right;">% del total</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for t in topic_data %}
+    <tr>
+      <td>{{ t.topic }}</td>
+      <td style="text-align:right;">{{ t.count }}</td>
+      <td style="text-align:right;">{{ ((t.count / stats.total * 100) | round(1)) if stats.total > 0 else 0 }}%</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
 
 <!-- ANÁLISIS DE AUDIENCIA E INFLUENCIA -->
 {% if tier_data %}
@@ -179,9 +250,49 @@ relacionada y se generaron <strong>{{ stats.alert_count }}</strong> alertas dura
 {% endfor %}
 {% endif %}
 
+{% if top_positive_mentions %}
+<h3 style="color:#16a34a;margin-top:14pt;">Menciones con Mayor Alcance Positivo</h3>
+<p style="font-size:9pt;color:#6b7280;">Las menciones positivas con mayor potencial de amplificación:</p>
+{% for m in top_positive_mentions %}
+<div class="mention positive">
+  <div class="mention-header">
+    <span class="badge badge-positive">positivo</span>
+    &nbsp; @{{ m.author_username or '—' }} &nbsp;·&nbsp;
+    {{ m.published_at.strftime('%d/%m/%Y %H:%M') if m.published_at else '—' }}
+    &nbsp;·&nbsp; Alcance: {{ m.reach }}
+  </div>
+  <div class="mention-content">{{ m.content[:300] }}{% if m.content|length > 300 %}…{% endif %}</div>
+</div>
+{% endfor %}
+{% endif %}
+
 <!-- ALERTAS DEL PERÍODO -->
 {% if alerts %}
 <h1>5. Alertas Generadas</h1>
+
+{% if alert_type_data %}
+<h3>Resumen por Tipo de Alerta</h3>
+<table>
+  <thead>
+    <tr>
+      <th>Tipo</th>
+      <th>Severidad</th>
+      <th style="text-align:right;">Cantidad</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for at in alert_type_data %}
+    <tr>
+      <td>{{ at.type }}</td>
+      <td><span class="badge badge-{{ at.severity }}">{{ at.severity.upper() }}</span></td>
+      <td style="text-align:right;font-weight:600;">{{ at.count }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+<h3 style="margin-top:12pt;">Detalle de Alertas</h3>
 <table>
   <thead>
     <tr>
