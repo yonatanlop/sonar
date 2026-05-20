@@ -88,9 +88,82 @@ relacionada y se generaron <strong>{{ stats.alert_count }}</strong> alertas dura
   {% endif %}
 </div>
 
+<!-- ANÁLISIS DE AUDIENCIA E INFLUENCIA -->
+{% if tier_data %}
+<h1>3. Análisis de Audiencia e Influencia</h1>
+<p>Distribución de las menciones según el nivel de audiencia de las cuentas autoras.</p>
+
+<div class="metrics">
+  <div class="metric-card">
+    <div class="metric-value" style="color:#6366f1;">{{ verified_count }}</div>
+    <div class="metric-label">Menciones de cuentas verificadas</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-value" style="color:#6366f1;">{{ top_influencers|length }}</div>
+    <div class="metric-label">Influencers con ≥3K seguidores</div>
+  </div>
+</div>
+
+{% if chart_tiers %}
+<div style="text-align:center; margin:12pt 0;">
+  <img src="data:image/png;base64,{{ chart_tiers }}" alt="Distribución por nivel de audiencia" style="max-width:100%;" />
+</div>
+{% endif %}
+
+<table>
+  <thead>
+    <tr>
+      <th>Nivel de audiencia</th>
+      <th>Menciones</th>
+      <th>% del total</th>
+      <th>Alcance total</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for t in tier_data %}
+    {% if t.count > 0 %}
+    <tr>
+      <td>{{ t.tier }}</td>
+      <td>{{ t.count }}</td>
+      <td>{{ ((t.count / stats.total * 100) | round(1)) if stats.total > 0 else 0 }}%</td>
+      <td>{{ "{:,}".format(t.reach) }}</td>
+    </tr>
+    {% endif %}
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if top_influencers %}
+<h2 style="font-size:11pt; margin-top:14pt; margin-bottom:4pt;">Cuentas con Mayor Audiencia</h2>
+<p style="font-size:9pt; color:#6b7280; margin-bottom:8pt;">Cuentas con 3.000 o más seguidores que mencionaron la entidad en el período.</p>
+<table>
+  <thead>
+    <tr>
+      <th>@Cuenta</th>
+      <th>Seguidores</th>
+      <th>Verificada</th>
+      <th>Menciones</th>
+      <th>Alcance total</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for inf in top_influencers %}
+    <tr>
+      <td>@{{ inf.username or '—' }}</td>
+      <td>{{ "{:,}".format(inf.followers) }}</td>
+      <td>{% if inf.verified %}<span style="color:#2563eb; font-weight:bold;">✓</span>{% else %}—{% endif %}</td>
+      <td>{{ inf.mention_count }}</td>
+      <td>{{ "{:,}".format(inf.total_reach) }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% endif %}
+
 <!-- MENCIONES MÁS RELEVANTES -->
 {% if top_mentions %}
-<h1>3. Menciones de Mayor Impacto</h1>
+<h1>4. Menciones de Mayor Impacto</h1>
 <p>Las siguientes menciones negativas registraron el mayor alcance durante el período:</p>
 
 {% for m in top_mentions %}
@@ -108,7 +181,7 @@ relacionada y se generaron <strong>{{ stats.alert_count }}</strong> alertas dura
 
 <!-- ALERTAS DEL PERÍODO -->
 {% if alerts %}
-<h1>4. Alertas Generadas</h1>
+<h1>5. Alertas Generadas</h1>
 <table>
   <thead>
     <tr>
@@ -134,7 +207,7 @@ relacionada y se generaron <strong>{{ stats.alert_count }}</strong> alertas dura
 {% endif %}
 
 <!-- CONCLUSIONES -->
-<h1>5. Conclusiones</h1>
+<h1>6. Conclusiones</h1>
 <p style="color:#9ca3af; font-style:italic;">[El analista puede agregar sus conclusiones en este espacio antes de generar el reporte final.]</p>
 
 <div class="signature">

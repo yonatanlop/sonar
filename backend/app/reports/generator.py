@@ -71,6 +71,22 @@ def make_timeline_bar(dates: list, negative: list, neutral: list, positive: list
     return fig_to_b64(fig)
 
 
+def make_tiers_chart(tier_data: list) -> str:
+    visible = [t for t in tier_data if t['tier'] != 'Sin datos' and t['count'] > 0]
+    if not visible:
+        return ""
+    names  = [t['tier']  for t in visible]
+    counts = [t['count'] for t in visible]
+    fig, ax = plt.subplots(figsize=(8, 3.5))
+    bars = ax.barh(names, counts, color='#6366f1')
+    ax.bar_label(bars, padding=4, fontsize=8)
+    ax.set_xlabel('Menciones', fontsize=9)
+    ax.set_title('Distribución por Nivel de Audiencia', fontsize=11, fontweight='bold')
+    ax.grid(axis='x', alpha=0.3)
+    fig.tight_layout()
+    return fig_to_b64(fig)
+
+
 def make_platforms_bar(platforms: list) -> str:
     if not platforms:
         return ""
@@ -167,10 +183,10 @@ def _get_sentiment_data(entity_id, date_from, date_to, db) -> dict:
 
 
 def _generate_entity(report, db) -> str:
-    from sqlalchemy import func
+    from sqlalchemy import func, case, and_
     from app.models.entity import Entity
     from app.models.mention import Mention, SocialPlatform
-    from app.models.bot import BotAnalysis
+    from app.models.bot import BotAnalysis, AccountProfile
     from app.models.alert import Alert
 
     entity = db.query(Entity).filter(Entity.id == report.entity_id).first()
@@ -222,6 +238,78 @@ def _generate_entity(report, db) -> str:
         BotAnalysis.analyzed_at.between(dt_from, dt_to),
     ).scalar() or 0
 
+    # Distribución por tier de audiencia (outerjoin Mention ↔ AccountProfile)
+    TIER_ORDER = ['Micro (0–500)', 'Pequeña (500–3K)', 'Media (3K–10K)',
+                  'Macro (10K–30K)', 'Masiva (30K+)', 'Sin datos']
+    tier_expr = case(
+        (AccountProfile.followers_count == None, 'Sin datos'),
+        (AccountProfile.followers_count < 500,   'Micro (0–500)'),
+        (AccountProfile.followers_count < 3000,  'Pequeña (500–3K)'),
+        (AccountProfile.followers_count < 10000, 'Media (3K–10K)'),
+        (AccountProfile.followers_count < 30000, 'Macro (10K–30K)'),
+        else_='Masiva (30K+)',
+    )
+    tier_rows = (
+        db.query(
+            tier_expr.label('tier'),
+            func.count(Mention.id).label('count'),
+            func.coalesce(func.sum(Mention.reach), 0).label('reach'),
+        )
+        .outerjoin(AccountProfile, and_(
+            AccountProfile.platform_id      == Mention.platform_id,
+            AccountProfile.external_user_id == Mention.author_ext_id,
+        ))
+        .filter(Mention.entity_id == entity.id,
+                Mention.collected_at.between(dt_from, dt_to))
+        .group_by(tier_expr)
+        .all()
+    )
+    tier_data = sorted(
+        [{'tier': r.tier, 'count': r.count, 'reach': int(r.reach)} for r in tier_rows],
+        key=lambda x: TIER_ORDER.index(x['tier']) if x['tier'] in TIER_ORDER else 99,
+    )
+
+    # Menciones de cuentas verificadas
+    verified_count = (
+        db.query(func.count(Mention.id))
+        .join(AccountProfile, and_(
+            AccountProfile.platform_id      == Mention.platform_id,
+            AccountProfile.external_user_id == Mention.author_ext_id,
+        ))
+        .filter(Mention.entity_id == entity.id,
+                Mention.collected_at.between(dt_from, dt_to),
+                AccountProfile.verified == True)
+        .scalar() or 0
+    )
+
+    # Top influencers (cuentas con ≥3K seguidores)
+    top_influencer_rows = (
+        db.query(
+            Mention.author_username,
+            AccountProfile.followers_count,
+            AccountProfile.verified,
+            func.count(Mention.id).label('mention_count'),
+            func.coalesce(func.sum(Mention.reach), 0).label('total_reach'),
+        )
+        .join(AccountProfile, and_(
+            AccountProfile.platform_id      == Mention.platform_id,
+            AccountProfile.external_user_id == Mention.author_ext_id,
+        ))
+        .filter(Mention.entity_id == entity.id,
+                Mention.collected_at.between(dt_from, dt_to),
+                AccountProfile.followers_count >= 3000)
+        .group_by(Mention.author_username, AccountProfile.followers_count, AccountProfile.verified)
+        .order_by(AccountProfile.followers_count.desc())
+        .limit(15)
+        .all()
+    )
+    top_influencers = [
+        {'username': r.author_username, 'followers': r.followers_count or 0,
+         'verified': bool(r.verified), 'mention_count': r.mention_count,
+         'total_reach': int(r.total_reach)}
+        for r in top_influencer_rows
+    ]
+
     # Risk score (simple)
     risk_score = min(100, int(neg_pct * 0.7 + (bot_count / max(total, 1) * 100) * 0.3))
     risk_label = "ALTO" if risk_score >= 66 else "MEDIO" if risk_score >= 36 else "BAJO"
@@ -230,6 +318,7 @@ def _generate_entity(report, db) -> str:
     # Gráficas
     chart_sentiment = make_sentiment_pie(sentiment)
     chart_platforms = make_platforms_bar(platforms)
+    chart_tiers     = make_tiers_chart(tier_data)
 
     # Narrativa IA
     ai_narrative = _generate_ai_narrative(
@@ -253,7 +342,11 @@ def _generate_entity(report, db) -> str:
         "alerts": alerts,
         "chart_sentiment": chart_sentiment,
         "chart_platforms": chart_platforms,
-        "ai_narrative": ai_narrative,
+        "chart_tiers":     chart_tiers,
+        "tier_data":       tier_data,
+        "verified_count":  verified_count,
+        "top_influencers": top_influencers,
+        "ai_narrative":    ai_narrative,
     }
 
     filename = f"entidad_{entity.id}_{date_from}_{date_to}.pdf"
