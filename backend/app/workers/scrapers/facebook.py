@@ -17,7 +17,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.models.entity import Entity, Keyword
-from app.workers.scrapers.base import BaseScraper, build_search_terms, save_mention, upsert_account_profile
+from app.workers.scrapers.base import BaseScraper, keyword_matches_text, save_mention, upsert_account_profile
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +58,11 @@ class FacebookScraper(BaseScraper):
     def __init__(self, db: Session):
         super().__init__(db)
         from app.core.config import settings
+        import facebook_scraper as fb_module
+        # mbasic.facebook.com sirve HTML estático sin JS — evita el redirect
+        # a www.facebook.com que bloquea el scraper con "navegador incompatible"
+        fb_module.set_noscript(True)
+
         self._cookies = _load_cookies(settings.FB_COOKIES_FILE)
 
         if not self._cookies:
@@ -69,20 +74,25 @@ class FacebookScraper(BaseScraper):
 
     def scrape_entity(self, entity: Entity, keywords: list[Keyword]) -> int:
         from app.core.config import settings
-        saved_total  = 0
-        since        = datetime.now(timezone.utc) - timedelta(days=settings.FB_LOOKBACK_DAYS)
-        search_terms = build_search_terms(entity, keywords)
+        saved_total = 0
+        since       = datetime.now(timezone.utc) - timedelta(days=settings.FB_LOOKBACK_DAYS)
 
-        for term, keyword_obj in search_terms:
+        # Facebook search solo acepta términos simples — los operadores AND/OR
+        # de Twitter no funcionan aquí. Usamos keyword.keyword y aplicamos
+        # keyword_matches_text() como post-filtro (igual que Reddit).
+        seen_terms: set[str] = set()
+        for keyword_obj in keywords:
+            term = keyword_obj.keyword.strip()
+            if not term or term in seen_terms:
+                continue
+            seen_terms.add(term)
             try:
                 saved = self._search_keyword(term, entity, keyword_obj, since)
                 saved_total += saved
-                logger.debug(f"[Facebook] '{term}' → {saved} nuevos posts para {entity.name}")
             except RuntimeError:
                 raise   # propaga errores de configuración (cookies inválidas)
             except Exception as e:
                 logger.warning(f"[Facebook] Error buscando '{term}': {e}")
-
             time.sleep(DELAY_BETWEEN_SEARCHES)
 
         return saved_total
@@ -99,7 +109,8 @@ class FacebookScraper(BaseScraper):
         except ImportError:
             raise RuntimeError("facebook-scraper no instalado. Ejecuta: pip install facebook-scraper>=0.2.59")
 
-        saved = 0
+        saved      = 0
+        raw_count  = 0
 
         try:
             posts_gen = fb.get_posts_by_search(
@@ -108,10 +119,18 @@ class FacebookScraper(BaseScraper):
                 cookies=self._cookies,
             )
         except Exception as e:
+            msg = str(e)
+            if "400" in msg or "Bad Request" in msg:
+                logger.error(
+                    "[Facebook] Sesión inválida (400 Bad Request). "
+                    "Renueva fb_cookies.json exportando desde facebook.com con Cookie-Editor."
+                )
+                raise RuntimeError("Facebook: sesión inválida — renueva fb_cookies.json")
             logger.warning(f"[Facebook] get_posts_by_search('{term}') falló: {e}")
             return 0
 
         for post in posts_gen:
+            raw_count += 1
             # Filtrar por fecha
             post_time = post.get("time")
             if post_time:
@@ -124,11 +143,15 @@ class FacebookScraper(BaseScraper):
             else:
                 pub_at = None
 
-            post_id  = str(post.get("post_id") or post.get("post_url") or "")
+            post_id = str(post.get("post_id") or post.get("post_url") or "")
             if not post_id:
                 continue
 
-            text     = post.get("text") or post.get("post_text") or ""
+            text = post.get("text") or post.get("post_text") or ""
+
+            # Post-filtro: verificar que el contenido realmente contiene la keyword
+            if not keyword_matches_text(text, keyword_obj):
+                continue
             post_url = post.get("post_url") or post.get("link") or ""
             username = post.get("username") or post.get("user_id") or ""
             user_id  = str(post.get("user_id") or "")
@@ -168,4 +191,5 @@ class FacebookScraper(BaseScraper):
             if mention:
                 saved += 1
 
+        logger.info(f"[Facebook] '{term}' → {raw_count} posts recibidos, {saved} guardados")
         return saved
