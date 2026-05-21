@@ -23,6 +23,7 @@ import Rizoma               from './pages/Rizoma'
 import LegalInbox           from './pages/LegalInbox'
 import TwitterKeywordSearch from './pages/TwitterKeywordSearch'
 import MediaSearch          from './pages/MediaSearch'
+import ReplyAccounts       from './pages/ReplyAccounts'
 
 export default function App() {
   return (
@@ -59,9 +60,10 @@ export default function App() {
 
             {/* Solo admin */}
             <Route element={<AdminRoute />}>
-              <Route path="/admin/users"          element={<Users />} />
-              <Route path="/admin/audit"          element={<Audit />} />
-              <Route path="/admin/twitter-search" element={<TwitterKeywordSearch />} />
+              <Route path="/admin/users"           element={<Users />} />
+              <Route path="/admin/audit"           element={<Audit />} />
+              <Route path="/admin/twitter-search"  element={<TwitterKeywordSearch />} />
+              <Route path="/admin/reply-accounts"  element={<ReplyAccounts />} />
             </Route>
           </Route>
         </Route>
