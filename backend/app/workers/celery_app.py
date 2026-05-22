@@ -149,4 +149,9 @@ celery_app.conf.beat_schedule = {
         "task": "app.workers.tasks.scraping.search_twitter_keywords",
         "schedule": crontab(minute="*/20"),
     },
+    # Detecta automáticamente cuando una cuenta de respuesta interactuó con un post
+    "check-reply-interactions": {
+        "task": "app.workers.tasks.scraping.check_reply_account_interactions",
+        "schedule": crontab(minute="*/30"),
+    },
 }

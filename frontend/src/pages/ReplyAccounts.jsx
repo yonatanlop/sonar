@@ -148,7 +148,7 @@ export default function ReplyAccounts() {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         <div className="card text-center">
           <p className="text-2xl font-bold text-primary-700">{stats.active_accounts ?? '—'}</p>
           <p className="text-xs text-gray-500 mt-0.5">Cuentas activas</p>
@@ -160,6 +160,10 @@ export default function ReplyAccounts() {
         <div className="card text-center">
           <p className="text-2xl font-bold text-green-700">{stats.posts_covered ?? '—'}</p>
           <p className="text-xs text-gray-500 mt-0.5">Posts atendidos</p>
+        </div>
+        <div className="card text-center">
+          <p className="text-2xl font-bold text-blue-700">{stats.auto_detected_total ?? '—'}</p>
+          <p className="text-xs text-gray-500 mt-0.5">Detectadas auto</p>
         </div>
         <div className="card text-center">
           <p className="text-lg font-bold text-purple-700 truncate">
@@ -192,6 +196,7 @@ export default function ReplyAccounts() {
                   <th className="text-left px-5 py-3 font-medium text-gray-600">Cuenta</th>
                   <th className="hidden sm:table-cell text-left px-5 py-3 font-medium text-gray-600">Descripción</th>
                   <th className="text-right px-5 py-3 font-medium text-gray-600">Respuestas</th>
+                  <th className="hidden md:table-cell text-right px-5 py-3 font-medium text-gray-600">Auto det.</th>
                   <th className="hidden md:table-cell text-right px-5 py-3 font-medium text-gray-600">Posts</th>
                   <th className="hidden lg:table-cell text-left px-5 py-3 font-medium text-gray-600">Última respuesta</th>
                   <th className="text-left px-5 py-3 font-medium text-gray-600">Estado</th>
@@ -219,6 +224,9 @@ export default function ReplyAccounts() {
                     </td>
                     <td className="px-5 py-3 text-right font-semibold text-gray-900">
                       {account.total_replies}
+                    </td>
+                    <td className="hidden md:table-cell px-5 py-3 text-right text-blue-600 font-medium">
+                      {account.auto_detected_count ?? 0}
                     </td>
                     <td className="hidden md:table-cell px-5 py-3 text-right text-gray-600">
                       {account.unique_posts_covered}
@@ -297,6 +305,7 @@ export default function ReplyAccounts() {
                 <thead>
                   <tr className="text-xs text-gray-500 border-b">
                     <th className="text-left pb-2 font-medium">Fecha respuesta</th>
+                    <th className="text-left pb-2 font-medium">Origen</th>
                     <th className="text-left pb-2 font-medium">Post original</th>
                     <th className="text-left pb-2 font-medium">Contenido de la respuesta</th>
                     <th className="text-left pb-2 font-medium">Registrado por</th>
@@ -308,6 +317,16 @@ export default function ReplyAccounts() {
                     <tr key={reply.id} className="hover:bg-gray-50">
                       <td className="py-3 text-gray-500 text-xs whitespace-nowrap pr-3">
                         {fmtDate(reply.replied_at)}
+                        {reply.response_time_hours != null && (
+                          <p className="text-gray-400 mt-0.5">+{reply.response_time_hours}h</p>
+                        )}
+                      </td>
+                      <td className="py-3 pr-3 whitespace-nowrap">
+                        {reply.auto_detected ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">Auto</span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-500">Manual</span>
+                        )}
                       </td>
                       <td className="py-3 pr-4 max-w-[200px]">
                         {reply.mention ? (
@@ -325,7 +344,7 @@ export default function ReplyAccounts() {
                         <p className="text-gray-800 text-xs line-clamp-3">{reply.content}</p>
                       </td>
                       <td className="py-3 text-xs text-gray-400 whitespace-nowrap">
-                        @{reply.logged_by_username}
+                        {reply.logged_by_username ? `@${reply.logged_by_username}` : <span className="italic">sistema</span>}
                       </td>
                       <td className="py-3">
                         {reply.external_reply_url && (

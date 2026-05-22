@@ -4,7 +4,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy import func
+from sqlalchemy import extract, func
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, require_admin, require_analyst
@@ -58,6 +58,24 @@ def _account_with_stats(account: ReplyAccount, db: Session) -> dict:
         .filter(MentionReply.reply_account_id == account.id)
         .scalar()
     )
+    auto_detected_count = (
+        db.query(func.count(MentionReply.id))
+        .filter(MentionReply.reply_account_id == account.id,
+                MentionReply.auto_detected == True)  # noqa: E712
+        .scalar() or 0
+    )
+    avg_secs = (
+        db.query(
+            func.avg(extract("epoch", MentionReply.replied_at - Mention.published_at))
+        )
+        .join(Mention, MentionReply.mention_id == Mention.id)
+        .filter(
+            MentionReply.reply_account_id == account.id,
+            Mention.published_at.isnot(None),
+        )
+        .scalar()
+    )
+    avg_response_time_hours = round(float(avg_secs) / 3600, 1) if avg_secs else None
     return {
         "id": str(account.id),
         "username": account.username,
@@ -72,6 +90,9 @@ def _account_with_stats(account: ReplyAccount, db: Session) -> dict:
         "total_replies": total_replies,
         "unique_posts_covered": unique_posts,
         "last_reply_at": last_reply,
+        "auto_detected_count": auto_detected_count,
+        "manual_count": total_replies - auto_detected_count,
+        "avg_response_time_hours": avg_response_time_hours,
     }
 
 
@@ -87,13 +108,20 @@ def _reply_detail(reply: MentionReply, db: Session) -> dict:
             "platform": plat_name,
             "url": m.url,
         }
-    logged_by_username = reply.logger.username if reply.logger else "—"
+    logged_by_username = reply.logger.username if reply.logger else None
+    response_time_hours = None
+    if reply.mention and reply.mention.published_at:
+        delta_secs = (reply.replied_at - reply.mention.published_at).total_seconds()
+        if delta_secs >= 0:
+            response_time_hours = round(delta_secs / 3600, 1)
     return {
         "id": str(reply.id),
         "content": reply.content,
         "replied_at": reply.replied_at,
         "logged_at": reply.logged_at,
         "external_reply_url": reply.external_reply_url,
+        "auto_detected": reply.auto_detected,
+        "response_time_hours": response_time_hours,
         "mention": mention_data,
         "logged_by_username": logged_by_username,
     }
@@ -116,6 +144,12 @@ def get_stats(db: Session = Depends(get_db),
         .scalar() or 0
     )
 
+    auto_detected_total = (
+        db.query(func.count(MentionReply.id))
+        .filter(MentionReply.auto_detected == True)  # noqa: E712
+        .scalar() or 0
+    )
+
     # Cuenta más activa
     top_row = (
         db.query(ReplyAccount.username,
@@ -133,6 +167,7 @@ def get_stats(db: Session = Depends(get_db),
         "active_accounts": active_accounts,
         "total_replies": total_replies,
         "posts_covered": posts_covered,
+        "auto_detected_total": auto_detected_total,
         "top_account": top_account,
     }
 

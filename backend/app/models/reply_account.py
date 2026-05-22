@@ -47,9 +47,11 @@ class MentionReply(Base):
     content: Mapped[str] = mapped_column(Text, nullable=False)
     replied_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     external_reply_url: Mapped[str | None] = mapped_column(String(1000))
-    logged_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True),
-                                                  ForeignKey("users.id"),
-                                                  nullable=False)
+    external_reply_id: Mapped[str | None] = mapped_column(String(50), index=True)
+    auto_detected: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    logged_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True),
+                                                         ForeignKey("users.id"),
+                                                         nullable=True)
     logged_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),
                                                  server_default=func.now(),
                                                  nullable=False)

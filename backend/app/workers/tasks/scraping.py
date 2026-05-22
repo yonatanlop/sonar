@@ -468,3 +468,122 @@ def search_twitter_keywords(self):
     except Exception as exc:
         logger.error(f"[TwitterKeyword] Fallo, reintentando: {exc}", exc_info=True)
         raise self.retry(exc=exc)
+
+
+@celery_app.task(
+    name="app.workers.tasks.scraping.check_reply_account_interactions",
+    bind=True,
+    max_retries=1,
+    default_retry_delay=300,
+)
+def check_reply_account_interactions(self):
+    """
+    Detecta automáticamente cuando una cuenta de respuesta interactuó con
+    un post monitorizado en Twitter. Busca los tweets recientes de cada cuenta
+    activa y vincula las respuestas a las menciones existentes en la BD.
+    """
+    import asyncio as _asyncio
+
+    try:
+        db = SessionLocal()
+        try:
+            result = _asyncio.run(_detect_reply_interactions(db))
+            db.commit()
+            logger.info(f"[ReplyTracker] Completado: {result}")
+            return {"status": "ok", **result}
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+    except RuntimeError as exc:
+        logger.warning(f"[ReplyTracker] {exc}")
+        return {"status": "skipped", "reason": str(exc)}
+    except Exception as exc:
+        logger.error(f"[ReplyTracker] Fallo: {exc}", exc_info=True)
+        raise self.retry(exc=exc)
+
+
+async def _detect_reply_interactions(db) -> dict:
+    """
+    Para cada ReplyAccount activa de Twitter, busca sus respuestas recientes
+    y las vincula con las menciones monitorizadas en la BD.
+    """
+    from datetime import timedelta, timezone
+    from app.core.config import settings
+    from app.models.mention import Mention, SocialPlatform
+    from app.models.reply_account import MentionReply, ReplyAccount
+    from app.workers.scrapers.twitter import TwitterScraper
+
+    platform = db.query(SocialPlatform).filter(SocialPlatform.code == "twitter").first()
+    if not platform:
+        return {"detected": 0, "reason": "twitter platform not found"}
+
+    accounts = db.query(ReplyAccount).filter(
+        ReplyAccount.active == True,        # noqa: E712
+        ReplyAccount.platform_id == platform.id,
+    ).all()
+
+    if not accounts:
+        return {"detected": 0, "reason": "no active twitter reply accounts"}
+
+    scraper = TwitterScraper.__new__(TwitterScraper)
+    scraper.db = db
+    api = scraper._build_api()
+
+    tw_accounts = await api.pool.get_all()
+    active_tw = [a for a in tw_accounts if getattr(a, "active", True)]
+    if not active_tw:
+        return {"detected": 0, "reason": "no active twitter scraper accounts"}
+
+    since = (datetime.now(timezone.utc) - timedelta(days=2)).strftime("%Y-%m-%d")
+    total_detected = 0
+
+    for account in accounts:
+        try:
+            query = f"from:{account.username} filter:replies since:{since}"
+            async for tweet in api.search(query, limit=50):
+                replied_to_id = getattr(tweet, "inReplyToTweetId", None)
+                if not replied_to_id:
+                    continue
+
+                tweet_id_str = str(tweet.id)
+
+                # Deduplicar: ya procesado este tweet
+                if db.query(MentionReply).filter(
+                    MentionReply.external_reply_id == tweet_id_str
+                ).first():
+                    continue
+
+                # Buscar la mención original en la BD
+                mention = db.query(Mention).filter(
+                    Mention.external_id == f"tw_{replied_to_id}",
+                    Mention.platform_id == platform.id,
+                ).first()
+
+                if not mention:
+                    continue
+
+                reply = MentionReply(
+                    reply_account_id=account.id,
+                    mention_id=mention.id,
+                    content=(tweet.rawContent or "")[:2000],
+                    replied_at=tweet.date,
+                    external_reply_url=(
+                        f"https://twitter.com/{account.username}/status/{tweet.id}"
+                    ),
+                    external_reply_id=tweet_id_str,
+                    auto_detected=True,
+                    logged_by=None,
+                )
+                db.add(reply)
+                db.flush()
+                total_detected += 1
+                logger.info(
+                    f"[ReplyTracker] @{account.username} respondió a tw_{replied_to_id}"
+                )
+
+        except Exception as e:
+            logger.warning(f"[ReplyTracker] Error chequeando @{account.username}: {e}")
+
+    return {"detected": total_detected, "accounts_checked": len(accounts)}
