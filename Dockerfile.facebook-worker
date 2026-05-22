@@ -1,0 +1,2 @@
+FROM ghcr.io/yonatanlop/sonar-backend:2.5
+RUN apt-get update && pip install playwright && playwright install --with-deps chromium && rm -rf /var/lib/apt/lists/*

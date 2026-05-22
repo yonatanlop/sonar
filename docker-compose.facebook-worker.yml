@@ -15,13 +15,18 @@ version: "3.9"
 
 services:
   worker-facebook:
-    image: ghcr.io/yonatanlop/sonar-backend:2.5
+    build:
+      context: .
+      dockerfile: Dockerfile.facebook-worker
+    image: sonar-worker-facebook:local
     container_name: sonar_worker_facebook
     restart: unless-stopped
     env_file: .env.facebook-worker
     volumes:
       # Carpeta local con fb_cookies.json
       - ./storage:/app/storage
+      # Montar scrapers para aplicar cambios sin rebuilds
+      - ./backend/app/workers/scrapers:/app/app/workers/scrapers
     # Consume SOLO la queue "facebook" — no interfiere con el worker de Oracle
     command: celery -A app.workers.celery_app worker --loglevel=info --concurrency=1 --queues=facebook
     extra_hosts:
