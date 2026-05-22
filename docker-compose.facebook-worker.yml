@@ -1,0 +1,29 @@
+version: "3.9"
+
+# ══════════════════════════════════════════════════════════════
+#  SONAR — Worker de Facebook (PC local con IP residencial)
+#
+#  REQUISITOS PREVIOS:
+#    1. Túnel SSH activo hacia Oracle (ver tunnel-facebook.ps1)
+#    2. Archivo .env.facebook-worker con las credenciales
+#    3. storage/fb_cookies.json copiado desde Oracle
+#
+#  Uso:
+#    docker compose -f docker-compose.facebook-worker.yml up -d
+#    docker compose -f docker-compose.facebook-worker.yml logs -f
+# ══════════════════════════════════════════════════════════════
+
+services:
+  worker-facebook:
+    image: ghcr.io/yonatanlop/sonar-backend:2.5
+    container_name: sonar_worker_facebook
+    restart: unless-stopped
+    env_file: .env.facebook-worker
+    volumes:
+      # Carpeta local con fb_cookies.json
+      - ./storage:/app/storage
+    # Consume SOLO la queue "facebook" — no interfiere con el worker de Oracle
+    command: celery -A app.workers.celery_app worker --loglevel=info --concurrency=1 --queues=facebook
+    extra_hosts:
+      # Permite que el contenedor acceda al host Windows donde corre el túnel SSH
+      - "host.docker.internal:host-gateway"

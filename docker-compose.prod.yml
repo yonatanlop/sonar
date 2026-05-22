@@ -27,6 +27,9 @@ services:
       -c wal_buffers=4MB
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    # Expuesto solo en localhost para el túnel SSH del worker externo (Facebook)
+    ports:
+      - "127.0.0.1:5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 10s
@@ -43,6 +46,9 @@ services:
     container_name: sonar_redis
     restart: unless-stopped
     command: redis-server --maxmemory 50mb --maxmemory-policy allkeys-lru
+    # Expuesto solo en localhost para el túnel SSH del worker externo (Facebook)
+    ports:
+      - "127.0.0.1:6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -90,7 +96,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: celery -A app.workers.celery_app worker --loglevel=warning --concurrency=1 --max-memory-per-child=200000
+    command: celery -A app.workers.celery_app worker --loglevel=warning --concurrency=1 --max-memory-per-child=200000 --exclude-queues=facebook
     deploy:
       resources:
         limits:

@@ -23,6 +23,11 @@ celery_app.conf.update(
     timezone="America/Bogota",
     enable_utc=True,
     task_track_started=True,
+    # Enruta scrape_facebook a una queue separada para que pueda
+    # ser consumida por un worker con IP residencial (no datacenter)
+    task_routes={
+        "app.workers.tasks.scraping.scrape_facebook": {"queue": "facebook"},
+    },
 )
 
 # ── Tareas programadas (Beat) ──────────────────────────────────
