@@ -22,7 +22,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.models.entity import Entity, Keyword
-from app.workers.scrapers.base import BaseScraper, keyword_matches_text, save_mention, upsert_account_profile
+from app.workers.scrapers.base import BaseScraper, keyword_matches_text, save_mention
 
 logger = logging.getLogger(__name__)
 
@@ -187,7 +187,6 @@ class FacebookScraper(BaseScraper):
                     if any(x in href for x in ["/posts/", "story_fbid", "pfbid", "/videos/"]):
                         post_url = href
                         break
-                # Fallback: primer enlace interno del card
                 if not post_url:
                     for a in card.query_selector_all("a[href]"):
                         href = a.get_attribute("href") or ""
@@ -212,30 +211,30 @@ class FacebookScraper(BaseScraper):
                         reactions = _parse_reach_number(t)
                 reach = reactions + shares
 
-                if username:
-                    upsert_account_profile(
+                # Guardar mención dentro de un savepoint para que un error
+                # en un post no corrompa la sesión completa
+                try:
+                    sp = self.db.begin_nested()
+                    mention = save_mention(
                         db=self.db,
                         platform_id=self.platform.id,
-                        username=username,
-                        external_user_id=None,
+                        entity_id=entity.id,
+                        external_id=f"fb_{post_id}",
+                        content=text[:2000],
+                        author_username=username or None,
+                        author_ext_id=None,
+                        url=post_url or None,
+                        published_at=None,
+                        country_code=entity.country_code,
+                        reach=reach,
+                        matched_keywords=[keyword_obj],
                     )
-
-                mention = save_mention(
-                    db=self.db,
-                    platform_id=self.platform.id,
-                    entity_id=entity.id,
-                    external_id=f"fb_{post_id}",
-                    content=text[:2000],
-                    author_username=username or None,
-                    author_ext_id=None,
-                    url=post_url or None,
-                    published_at=None,   # Facebook ofusca timestamps en el DOM
-                    country_code=entity.country_code,
-                    reach=reach,
-                    matched_keywords=[keyword_obj],
-                )
-                if mention:
-                    saved += 1
+                    sp.commit()
+                    if mention:
+                        saved += 1
+                except Exception as card_err:
+                    sp.rollback()
+                    logger.debug(f"[Facebook] Error guardando post '{post_id}': {card_err}")
 
         except Exception as e:
             logger.error(f"[Facebook] Error en _search_keyword('{term}'): {e}", exc_info=True)
