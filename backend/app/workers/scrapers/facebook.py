@@ -58,10 +58,6 @@ class FacebookScraper(BaseScraper):
     def __init__(self, db: Session):
         super().__init__(db)
         from app.core.config import settings
-        import facebook_scraper as fb_module
-        # mbasic.facebook.com sirve HTML estático sin JS — evita el redirect
-        # a www.facebook.com que bloquea el scraper con "navegador incompatible"
-        fb_module.set_noscript(True)
 
         self._cookies = _load_cookies(settings.FB_COOKIES_FILE)
 
