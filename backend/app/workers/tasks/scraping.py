@@ -315,6 +315,29 @@ def scrape_facebook(self):
 
 
 @celery_app.task(
+    name="app.workers.tasks.scraping.scrape_tiktok",
+    bind=True,
+    max_retries=1,
+    default_retry_delay=600,
+)
+def scrape_tiktok(self):
+    """
+    Scraping de TikTok por keyword y entidad usando TikTokApi + Playwright.
+    Requiere TIKTOK_MS_TOKEN con el valor de la cookie msToken de tiktok.com.
+    Se ejecuta en el worker local (IP residencial).
+    """
+    try:
+        from app.workers.scrapers.tiktok import TikTokScraper
+        return _run_scraper(TikTokScraper, "TikTok")
+    except RuntimeError as exc:
+        logger.warning(f"[TikTok] {exc}")
+        return {"status": "skipped", "reason": str(exc)}
+    except Exception as exc:
+        logger.error(f"[TikTok] Fallo, reintentando: {exc}", exc_info=True)
+        raise self.retry(exc=exc)
+
+
+@celery_app.task(
     name="app.workers.tasks.scraping.scrape_twitter_feeds",
     bind=True,
     max_retries=2,

@@ -94,6 +94,12 @@ class Settings(BaseSettings):
     FB_COOKIES_FILE: str = "/app/storage/fb_cookies.json"
     FB_LOOKBACK_DAYS: int = 3        # días hacia atrás para filtrar posts recientes
 
+    # TikTok (TikTokApi v6 + Playwright — worker local con IP residencial)
+    # Obtener ms_token: tiktok.com → DevTools → Application → Cookies → msToken
+    TIKTOK_MS_TOKEN: str = ""
+    TIKTOK_LOOKBACK_DAYS: int = 3
+    TIKTOK_MAX_RESULTS: int = 30
+
     # Módulo 7 — Reconocimiento Visual
     FACE_RECOGNITION_ENABLED: bool = False  # activar en .env cuando haya fotos de referencia
     FACE_DISTANCE_THRESHOLD: float = 0.55   # distancia máxima para match (0=exacto, 1=muy diferente)

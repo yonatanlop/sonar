@@ -96,7 +96,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: celery -A app.workers.celery_app worker --loglevel=warning --concurrency=1 --max-memory-per-child=200000 --exclude-queues=facebook
+    command: celery -A app.workers.celery_app worker --loglevel=warning --concurrency=1 --max-memory-per-child=200000 --exclude-queues=facebook,tiktok
     deploy:
       resources:
         limits:

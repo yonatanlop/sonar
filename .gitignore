@@ -43,6 +43,8 @@ twitter_cookies.json
 
 # Archivos sensibles adicionales
 .env.v2
+.env.facebook-worker
+.env.tiktok-worker
 backend/accounts.db
 cookie_sonar.json
 cookies_yonatanlop86.json

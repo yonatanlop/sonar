@@ -56,7 +56,8 @@ lxml-html-clean             # lxml.html.clean separado como paquete independient
 # ─── Phase 2 ─────────────────────────────────────────────────
 twscrape>=0.14.6          # Scraper Twitter/X (sin API key oficial)
 xclienttransaction>=1.0.2  # Genera x-client-transaction-id requerido por Twitter GraphQL
-# playwright>=1.44.0      ← Scraping avanzado (Phase 3)
+# playwright>=1.44.0      ← Solo en Dockerfile.facebook-worker (worker local)
+# TikTokApi>=6.0.0        ← Solo en Dockerfile.facebook-worker (worker local)
 
 # ─── v2: IA / Agentes ────────────────────────────────────────
 groq>=0.9.0               # LLM gratuito: Llama 3.1 vía Groq API (14,400 tok/min free tier)

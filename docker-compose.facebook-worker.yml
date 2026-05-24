@@ -1,16 +1,19 @@
 version: "3.9"
 
 # ══════════════════════════════════════════════════════════════
-#  SONAR — Worker de Facebook (PC local con IP residencial)
+#  SONAR — Workers locales con IP residencial
+#    · worker-facebook  — Facebook scraping (Playwright + cookies)
+#    · worker-tiktok    — TikTok scraping   (TikTokApi + ms_token)
 #
 #  REQUISITOS PREVIOS:
 #    1. Túnel SSH activo hacia Oracle (ver tunnel-facebook.ps1)
-#    2. Archivo .env.facebook-worker con las credenciales
-#    3. storage/fb_cookies.json copiado desde Oracle
+#    2. .env.facebook-worker con credenciales de Facebook
+#    3. .env.tiktok-worker con TIKTOK_MS_TOKEN
+#    4. storage/fb_cookies.json copiado desde Oracle
 #
 #  Uso:
 #    docker compose -f docker-compose.facebook-worker.yml up -d
-#    docker compose -f docker-compose.facebook-worker.yml logs -f
+#    docker compose -f docker-compose.facebook-worker.yml logs -f worker-tiktok
 # ══════════════════════════════════════════════════════════════
 
 services:
@@ -23,12 +26,22 @@ services:
     restart: unless-stopped
     env_file: .env.facebook-worker
     volumes:
-      # Carpeta local con fb_cookies.json
       - ./storage:/app/storage
-      # Montar scrapers para aplicar cambios sin rebuilds
       - ./backend/app/workers/scrapers:/app/app/workers/scrapers
-    # Consume SOLO la queue "facebook" — no interfiere con el worker de Oracle
     command: celery -A app.workers.celery_app worker --loglevel=info --concurrency=1 --queues=facebook
     extra_hosts:
-      # Permite que el contenedor acceda al host Windows donde corre el túnel SSH
       - "host.docker.internal:host-gateway"
+
+  worker-tiktok:
+    image: sonar-worker-facebook:local   # misma imagen — ya tiene Playwright + TikTokApi
+    container_name: sonar_worker_tiktok
+    restart: unless-stopped
+    env_file: .env.tiktok-worker
+    volumes:
+      - ./storage:/app/storage
+      - ./backend/app/workers/scrapers:/app/app/workers/scrapers
+    command: celery -A app.workers.celery_app worker --loglevel=info --concurrency=1 --queues=tiktok
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - worker-facebook

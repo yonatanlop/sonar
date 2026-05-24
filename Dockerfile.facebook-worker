@@ -1,2 +1,5 @@
 FROM ghcr.io/yonatanlop/sonar-backend:2.5
-RUN apt-get update && pip install playwright && playwright install --with-deps chromium && rm -rf /var/lib/apt/lists/*
+RUN apt-get update \
+    && pip install playwright TikTokApi \
+    && playwright install --with-deps chromium \
+    && rm -rf /var/lib/apt/lists/*

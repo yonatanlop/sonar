@@ -27,6 +27,7 @@ celery_app.conf.update(
     # ser consumida por un worker con IP residencial (no datacenter)
     task_routes={
         "app.workers.tasks.scraping.scrape_facebook": {"queue": "facebook"},
+        "app.workers.tasks.scraping.scrape_tiktok":   {"queue": "tiktok"},
     },
 )
 
@@ -153,5 +154,10 @@ celery_app.conf.beat_schedule = {
     "check-reply-interactions": {
         "task": "app.workers.tasks.scraping.check_reply_account_interactions",
         "schedule": crontab(minute="*/30"),
+    },
+    # ── TikTok ───────────────────────────────────────────────────
+    "scrape-tiktok": {
+        "task": "app.workers.tasks.scraping.scrape_tiktok",
+        "schedule": crontab(minute="*/30"),  # cada 30 min
     },
 }
