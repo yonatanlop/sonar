@@ -29,6 +29,7 @@ services:
       - ./storage:/app/storage
       - ./backend/app/workers/scrapers:/app/app/workers/scrapers
       - ./backend/app/workers/tasks:/app/app/workers/tasks
+      - ./backend/app/core:/app/app/core
     command: celery -A app.workers.celery_app worker --loglevel=info --concurrency=1 --queues=facebook
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -42,6 +43,7 @@ services:
       - ./storage:/app/storage
       - ./backend/app/workers/scrapers:/app/app/workers/scrapers
       - ./backend/app/workers/tasks:/app/app/workers/tasks
+      - ./backend/app/core:/app/app/core
     command: celery -A app.workers.celery_app worker --loglevel=info --concurrency=1 --queues=tiktok
     extra_hosts:
       - "host.docker.internal:host-gateway"
