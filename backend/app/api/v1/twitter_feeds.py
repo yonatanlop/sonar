@@ -221,6 +221,7 @@ def get_feed_mentions(
     sentiment: Optional[str] = Query(None, description="positive|neutral|negative|very_negative"),
     date_from: Optional[str] = Query(None, description="YYYY-MM-DD"),
     date_to:   Optional[str] = Query(None, description="YYYY-MM-DD"),
+    q:         Optional[str] = Query(None, min_length=2, description="Buscar texto en tweets"),
     page:      int           = Query(1, ge=1),
     db:        Session       = Depends(get_db),
     _:         User          = Depends(get_current_user),
@@ -241,20 +242,22 @@ def get_feed_mentions(
 
     twitter_platform = db.query(SocialPlatform).filter(SocialPlatform.code == "twitter").first()
 
-    q = db.query(Mention).filter(
+    qs = db.query(Mention).filter(
         Mention.entity_id == feed.entity_id,
     )
     if twitter_platform:
-        q = q.filter(Mention.platform_id == twitter_platform.id)
+        qs = qs.filter(Mention.platform_id == twitter_platform.id)
     if sentiment:
-        q = q.filter(Mention.sentiment_label == sentiment)
+        qs = qs.filter(Mention.sentiment_label == sentiment)
     if date_from:
-        q = q.filter(Mention.published_at >= datetime.fromisoformat(date_from).replace(tzinfo=timezone.utc))
+        qs = qs.filter(Mention.published_at >= datetime.fromisoformat(date_from).replace(tzinfo=timezone.utc))
     if date_to:
-        q = q.filter(Mention.published_at <= datetime.fromisoformat(date_to).replace(tzinfo=timezone.utc))
+        qs = qs.filter(Mention.published_at <= datetime.fromisoformat(date_to).replace(tzinfo=timezone.utc))
+    if q:
+        qs = qs.filter(Mention.content.ilike(f"%{q}%"))
 
-    total = q.count()
-    mentions_db = q.order_by(Mention.published_at.desc()).offset((page - 1) * 20).limit(20).all()
+    total = qs.count()
+    mentions_db = qs.order_by(Mention.published_at.desc()).offset((page - 1) * 20).limit(20).all()
 
     def _m_dict(m: Mention) -> dict:
         urgency = float(m.urgency_score) if m.urgency_score is not None else 0

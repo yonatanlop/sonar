@@ -223,6 +223,7 @@ export default function TwitterExplorer() {
   const [dateFrom, setDateFrom]       = useState('')
   const [dateTo, setDateTo]           = useState('')
   const [feedFilter, setFeedFilter]   = useState('')
+  const [searchQ, setSearchQ]         = useState('')
 
   // Agrupación visual (con filtro de búsqueda)
   const _match = (f) => !feedFilter || f.query.toLowerCase().includes(feedFilter.toLowerCase())
@@ -249,8 +250,9 @@ export default function TwitterExplorer() {
     setLoadingMentions(true)
     try {
       const params = { page: pg }
-      if (dateFrom) params.date_from = dateFrom
-      if (dateTo)   params.date_to   = dateTo
+      if (dateFrom)               params.date_from = dateFrom
+      if (dateTo)                 params.date_to   = dateTo
+      if (searchQ.trim().length >= 2) params.q     = searchQ.trim()
       const { data } = await api.get(`/twitter-feeds/${feedId}/mentions`, { params })
       setMentions(data.mentions)
       setTotal(data.total)
@@ -259,11 +261,11 @@ export default function TwitterExplorer() {
     } finally {
       setLoadingMentions(false)
     }
-  }, [dateFrom, dateTo])
+  }, [dateFrom, dateTo, searchQ])
 
   useEffect(() => {
     if (selectedFeed) loadMentions(selectedFeed.id, 1)
-  }, [selectedFeed, dateFrom, dateTo, loadMentions])
+  }, [selectedFeed, dateFrom, dateTo, searchQ, loadMentions])
 
   // ── Handlers ──────────────────────────────────────────────────
   function handleSelectFeed(feed) {
@@ -295,6 +297,7 @@ export default function TwitterExplorer() {
   function resetFilters() {
     setDateFrom('')
     setDateTo('')
+    setSearchQ('')
   }
 
   // ── Render ────────────────────────────────────────────────────
@@ -432,6 +435,17 @@ export default function TwitterExplorer() {
                 </div>
                 <div className="ml-auto flex flex-wrap items-center gap-2">
                   <Filter className="w-3.5 h-3.5 text-gray-400" />
+                  {/* Búsqueda por texto */}
+                  <div className="relative">
+                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none" />
+                    <input
+                      type="text"
+                      value={searchQ}
+                      onChange={(e) => setSearchQ(e.target.value)}
+                      placeholder="Buscar en tweets..."
+                      className="text-xs border border-gray-200 rounded-lg pl-6 pr-2 py-1.5 w-40 focus:outline-none focus:ring-1 focus:ring-sky-300"
+                    />
+                  </div>
                   <input
                     type="date"
                     value={dateFrom}
@@ -446,7 +460,7 @@ export default function TwitterExplorer() {
                     className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-sky-300"
                     placeholder="Hasta"
                   />
-                  {(dateFrom || dateTo) && (
+                  {(dateFrom || dateTo || searchQ) && (
                     <button
                       onClick={resetFilters}
                       className="text-xs text-sky-500 hover:underline"
