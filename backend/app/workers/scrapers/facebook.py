@@ -96,6 +96,81 @@ def _parse_reach_number(text: str) -> int:
     return int(num)
 
 
+def _diagnose_fb_page(page, term: str) -> None:
+    """
+    Cuando falta [role="feed"], inspecciona la página para distinguir entre:
+    sesión expirada, checkpoint, bloqueo temporal, o búsqueda sin resultados.
+    Guarda un screenshot en /app/storage/fb_debug_<ts>.png para revisión visual.
+    """
+    current_url = page.url
+
+    # ── 1. Redirección a login ───────────────────────────────────
+    if "login" in current_url or page.query_selector('input[name="email"]'):
+        logger.error(
+            f"[Facebook] SESIÓN EXPIRADA — redirigido a login. "
+            f"URL: {current_url}. Actualiza fb_cookies.json."
+        )
+        return
+
+    # ── 2. Checkpoint / captcha / 2FA ────────────────────────────
+    if "checkpoint" in current_url or "two_step" in current_url:
+        logger.error(
+            f"[Facebook] CHECKPOINT DETECTADO — Facebook exige verificación adicional. "
+            f"URL: {current_url}. Abre facebook.com en el navegador y completa la verificación."
+        )
+        return
+
+    # ── 3. Bloqueo temporal ("temporarily blocked" / "bloqueado") ─
+    body_text = ""
+    try:
+        body_text = (page.query_selector("body") or page).inner_text().lower()
+    except Exception:
+        pass
+
+    block_keywords = ["temporarily blocked", "bloqueado temporalmente", "rate limit",
+                      "you're blocked", "te hemos bloqueado", "unusual activity"]
+    if any(kw in body_text for kw in block_keywords):
+        logger.error(
+            f"[Facebook] BLOQUEO TEMPORAL detectado para '{term}'. "
+            "Facebook detectó actividad inusual. Esperar 30–60 min antes del próximo scrape."
+        )
+        return
+
+    # ── 4. Sin resultados (feed existe pero vacío) ───────────────
+    no_results_selectors = [
+        '[aria-label="No results found"]',
+        '[data-testid="no_results"]',
+    ]
+    for sel in no_results_selectors:
+        if page.query_selector(sel):
+            logger.info(f"[Facebook] '{term}' — sin resultados (búsqueda válida pero vacía)")
+            return
+
+    no_results_phrases = ["no hay resultados", "no results found", "sin resultados"]
+    if any(p in body_text for p in no_results_phrases):
+        logger.info(f"[Facebook] '{term}' — sin resultados (búsqueda válida pero vacía)")
+        return
+
+    # ── 5. Caso desconocido — registrar título + screenshot ──────
+    try:
+        title = page.title()
+    except Exception:
+        title = "(no disponible)"
+
+    logger.warning(
+        f"[Facebook] Feed no encontrado para '{term}'. "
+        f"Título: '{title}' | URL: {current_url}"
+    )
+
+    try:
+        ts = int(time.time())
+        screenshot_path = f"/app/storage/fb_debug_{ts}.png"
+        page.screenshot(path=screenshot_path, full_page=False)
+        logger.warning(f"[Facebook] Screenshot guardado en {screenshot_path} para diagnóstico")
+    except Exception as ss_err:
+        logger.debug(f"[Facebook] No se pudo guardar screenshot: {ss_err}")
+
+
 class FacebookScraper(BaseScraper):
     """
     Scraper de Facebook usando Playwright con cookies de sesión.
@@ -157,7 +232,7 @@ class FacebookScraper(BaseScraper):
             try:
                 page.wait_for_selector('[role="feed"]', timeout=12000)
             except Exception:
-                logger.warning(f"[Facebook] Feed no encontrado para '{term}' — posible bloqueo o sesión expirada")
+                _diagnose_fb_page(page, term)
                 return 0
 
             page.wait_for_timeout(PAGE_LOAD_WAIT_MS)
