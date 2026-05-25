@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ExternalLink, Bot, Flame, Search, SlidersHorizontal, Camera, MessageSquare, MapPin, Users, Flag, EyeOff } from 'lucide-react'
+import { ExternalLink, Bot, Flame, Search, SlidersHorizontal, Camera, MessageSquare, MapPin, Users, Flag, EyeOff, X } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import toast from 'react-hot-toast'
@@ -111,6 +111,15 @@ function FeedbackWidget({ mentionId, currentLabel }) {
   )
 }
 
+function FilterSection({ label, children }) {
+  return (
+    <div>
+      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">{label}</p>
+      <div className="flex flex-wrap gap-2">{children}</div>
+    </div>
+  )
+}
+
 const PLATFORM_ICON = {
   twitter:   '🐦',
   instagram: '📸',
@@ -127,6 +136,17 @@ export default function Mentions() {
   const [filters, setFilters] = useState({
     entity_id: '', platform: '', sentiment: '', language: '', min_urgency: '',
     bot_filter: '', country: '', followers_range: '',
+    date_from: '', date_to: '',
+    exclude_duplicates: false, visual_only: false, page: 1,
+  })
+
+  const hasActiveFilters = Object.entries(filters).some(
+    ([k, v]) => k !== 'page' && v !== '' && v !== false
+  )
+  const resetFilters = () => setFilters({
+    entity_id: '', platform: '', sentiment: '', language: '', min_urgency: '',
+    bot_filter: '', country: '', followers_range: '',
+    date_from: '', date_to: '',
     exclude_duplicates: false, visual_only: false, page: 1,
   })
 
@@ -307,20 +327,22 @@ export default function Mentions() {
       {searchMode === 'filters' ? (
         <>
           {/* Panel de filtros */}
-          <div className="card py-4">
-            <div className="flex flex-wrap gap-3">
+          <div className="card py-5 space-y-4">
+
+            <FilterSection label="Entidad & Plataforma">
               <select className="input w-auto" value={filters.entity_id}
                 onChange={e => setFilter('entity_id', e.target.value)}>
                 <option value="">Todas las entidades</option>
                 {entities.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
               </select>
-
               <select className="input w-auto" value={filters.platform}
                 onChange={e => setFilter('platform', e.target.value)}>
                 <option value="">Todas las plataformas</option>
                 {platforms.map(p => <option key={p.code} value={p.code}>{p.name}</option>)}
               </select>
+            </FilterSection>
 
+            <FilterSection label="Contenido">
               <select className="input w-auto" value={filters.sentiment}
                 onChange={e => setFilter('sentiment', e.target.value)}>
                 <option value="">Todos los sentimientos</option>
@@ -329,14 +351,12 @@ export default function Mentions() {
                 <option value="neutral">Neutral</option>
                 <option value="positive">Positivo</option>
               </select>
-
               <select className="input w-auto" value={filters.language}
                 onChange={e => setFilter('language', e.target.value)}>
                 <option value="">Todos los idiomas</option>
                 <option value="es">Español</option>
                 <option value="en">Inglés</option>
               </select>
-
               <select className="input w-auto" value={filters.min_urgency}
                 onChange={e => setFilter('min_urgency', e.target.value)}>
                 <option value="">Todas las urgencias</option>
@@ -344,8 +364,6 @@ export default function Mentions() {
                 <option value="60">🔴 Alta o mayor (≥60)</option>
                 <option value="80">🔥 Solo críticas (≥80)</option>
               </select>
-
-              {/* Filtro bots */}
               <select className="input w-auto" value={filters.bot_filter}
                 onChange={e => setFilter('bot_filter', e.target.value)}>
                 <option value="">Todos los autores</option>
@@ -354,8 +372,6 @@ export default function Mentions() {
                 <option value="real">✅ Solo cuentas reales</option>
                 <option value="anonymous">🕵️ Solo anónimos</option>
               </select>
-
-              {/* Filtro seguidores */}
               <select className="input w-auto" value={filters.followers_range}
                 onChange={e => setFilter('followers_range', e.target.value)}>
                 <option value="">Todos los seguidores</option>
@@ -366,18 +382,27 @@ export default function Mentions() {
                 <option value="10001-50000">10 001 – 50 000</option>
                 <option value="50000+">&gt; 50 000</option>
               </select>
-
-              {/* Filtro país */}
-              <input
-                className="input w-28"
-                placeholder="País (CO)"
-                maxLength={2}
+              <input className="input w-28" placeholder="País (CO)" maxLength={2}
                 value={filters.country}
                 onChange={e => setFilter('country', e.target.value.toUpperCase())}
-                title="Filtrar por código de país ISO-2 (ej: CO, MX, US)"
-              />
+                title="Código de país ISO-2 (ej: CO, MX, US)" />
+            </FilterSection>
 
-              <div className="flex items-center gap-4 ml-auto flex-wrap">
+            <FilterSection label="Período">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs text-gray-500">Desde</span>
+                <input type="date" className="input w-auto"
+                  value={filters.date_from}
+                  onChange={e => setFilter('date_from', e.target.value)} />
+                <span className="text-xs text-gray-500">Hasta</span>
+                <input type="date" className="input w-auto"
+                  value={filters.date_to}
+                  onChange={e => setFilter('date_to', e.target.value)} />
+              </div>
+            </FilterSection>
+
+            <div className="flex items-center justify-between flex-wrap gap-3 pt-1 border-t border-gray-100">
+              <div className="flex items-center gap-4 flex-wrap">
                 <label className="flex items-center gap-2 cursor-pointer select-none">
                   <span className="text-xs text-gray-600">Sin duplicados</span>
                   <button type="button" role="switch"
@@ -406,7 +431,14 @@ export default function Mentions() {
                   </button>
                 </label>
               </div>
+              {hasActiveFilters && (
+                <button onClick={resetFilters}
+                  className="flex items-center gap-1 text-xs text-gray-400 hover:text-red-500 transition-colors">
+                  <X className="w-3 h-3" /> Limpiar filtros
+                </button>
+              )}
             </div>
+
           </div>
 
           <div className="text-xs text-gray-400">
