@@ -2,12 +2,12 @@ import uuid
 from decimal import Decimal
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, require_analyst
 from app.database import get_db
 from app.models.alert import Alert as AlertModel
 from app.models.bot import BotAnalysis, AccountProfile
@@ -17,6 +17,13 @@ from app.models.sentiment_feedback import SentimentFeedback
 from app.workers.nlp.urgency import compute_urgency_score
 
 VALID_SENTIMENT_LABELS = {"positive", "neutral", "negative", "very_negative"}
+
+
+def _parse_followers_range(r: str) -> tuple:
+    if r == "50000+":
+        return 50000, None
+    lo, hi = r.split("-")
+    return int(lo), int(hi)
 
 
 class FeedbackIn(BaseModel):
@@ -101,13 +108,14 @@ def list_mentions(
     bot_filter:        Optional[str]   = Query(None, description="Filtrar por clasificación de bot: bot|suspicious|real|anonymous"),
     min_bot_score:     Optional[float] = Query(None, ge=0.0, le=1.0, description="Filtrar menciones cuyo autor tiene bot_probability >= valor"),
     country:           Optional[str]   = Query(None, description="Filtrar por país ISO-2 (ej: CO, MX, US)"),
+    followers_range:   Optional[str]   = Query(None, description="Rango de seguidores: 0-400|401-2000|2001-5000|5001-10000|10001-50000|50000+"),
     date_from:         Optional[str]   = Query(None),
     date_to:           Optional[str]   = Query(None),
     page:              int             = Query(1, ge=1),
     db: Session = Depends(get_db),
     _=Depends(get_current_user),
 ):
-    query = db.query(Mention)
+    query = db.query(Mention).filter(Mention.is_relevant == True)
 
     if entity_id:
         query = query.filter(Mention.entity_id == entity_id)
@@ -171,6 +179,18 @@ def list_mentions(
         )
         query = query.filter(bot_score_subq)
 
+    if followers_range:
+        min_f, max_f = _parse_followers_range(followers_range)
+        query = query.join(
+            AccountProfile,
+            (AccountProfile.platform_id == Mention.platform_id) &
+            (AccountProfile.external_user_id == Mention.author_ext_id),
+            isouter=False,
+        )
+        query = query.filter(AccountProfile.followers_count >= min_f)
+        if max_f is not None:
+            query = query.filter(AccountProfile.followers_count <= max_f)
+
     if date_from:
         query = query.filter(Mention.collected_at >= date_from)
 
@@ -190,6 +210,23 @@ def list_mentions(
         "pages": (total + PAGE_SIZE - 1) // PAGE_SIZE,
         "items": [_mention_dict(m, db) for m in items],
     }
+
+
+# ── Relevancia ───────────────────────────────────────────────────
+
+@router.patch("/{mention_id}/relevance", status_code=204)
+def set_mention_relevance(
+    mention_id: uuid.UUID,
+    is_relevant: bool = Body(..., embed=True),
+    db: Session = Depends(get_db),
+    current_user=Depends(require_analyst),
+):
+    """Marca o desmarca una mención como relevante. Las no relevantes no aparecen en los listados."""
+    mention = db.query(Mention).filter(Mention.id == mention_id).first()
+    if not mention:
+        raise HTTPException(status_code=404, detail="Mención no encontrada")
+    mention.is_relevant = is_relevant
+    db.commit()
 
 
 # ── Búsqueda semántica (v2 — módulo 6.1) ─────────────────────────

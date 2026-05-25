@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ExternalLink, Bot, Flame, Search, SlidersHorizontal, Camera, MessageSquare, MapPin, Users, Flag } from 'lucide-react'
+import { ExternalLink, Bot, Flame, Search, SlidersHorizontal, Camera, MessageSquare, MapPin, Users, Flag, EyeOff } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import toast from 'react-hot-toast'
@@ -123,10 +123,27 @@ const PLATFORM_ICON = {
 
 export default function Mentions() {
   const canFeedback = useAuthStore(s => s.isAnalyst() || s.isAdmin())
+  const qc = useQueryClient()
   const [filters, setFilters] = useState({
     entity_id: '', platform: '', sentiment: '', language: '', min_urgency: '',
-    bot_filter: '', country: '',
+    bot_filter: '', country: '', followers_range: '',
     exclude_duplicates: false, visual_only: false, page: 1,
+  })
+
+  const markIrrelevant = useMutation({
+    mutationFn: (id) => client.patch(`/mentions/${id}/relevance`, { is_relevant: false }),
+    onMutate: async (id) => {
+      await qc.cancelQueries({ queryKey: ['mentions', filters] })
+      const prev = qc.getQueryData(['mentions', filters])
+      qc.setQueryData(['mentions', filters], old =>
+        old ? { ...old, items: old.items.filter(m => m.id !== id), total: old.total - 1 } : old
+      )
+      return { prev }
+    },
+    onError: (_err, _id, ctx) => {
+      qc.setQueryData(['mentions', filters], ctx.prev)
+      toast.error('No se pudo marcar como no relevante')
+    },
   })
   const [searchMode, setSearchMode]         = useState('filters')
   const [semanticQuery, setSemanticQuery]   = useState('')
@@ -244,7 +261,17 @@ export default function Mentions() {
           </div>
 
           {canFeedback && (
-            <FeedbackWidget mentionId={m.id} currentLabel={m.sentiment_label} />
+            <div className="flex items-start gap-3">
+              <FeedbackWidget mentionId={m.id} currentLabel={m.sentiment_label} />
+              <button
+                onClick={() => markIrrelevant.mutate(m.id)}
+                title="Marcar como no relevante — Sonar no la volverá a mostrar"
+                className="mt-2 flex items-center gap-1 text-xs text-gray-300 hover:text-red-400 transition-colors shrink-0"
+              >
+                <EyeOff className="w-3.5 h-3.5" />
+                <span>No relevante</span>
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -326,6 +353,18 @@ export default function Mentions() {
                 <option value="suspicious">⚠️ Solo sospechosos</option>
                 <option value="real">✅ Solo cuentas reales</option>
                 <option value="anonymous">🕵️ Solo anónimos</option>
+              </select>
+
+              {/* Filtro seguidores */}
+              <select className="input w-auto" value={filters.followers_range}
+                onChange={e => setFilter('followers_range', e.target.value)}>
+                <option value="">Todos los seguidores</option>
+                <option value="0-400">0 – 400</option>
+                <option value="401-2000">401 – 2 000</option>
+                <option value="2001-5000">2 001 – 5 000</option>
+                <option value="5001-10000">5 001 – 10 000</option>
+                <option value="10001-50000">10 001 – 50 000</option>
+                <option value="50000+">&gt; 50 000</option>
               </select>
 
               {/* Filtro país */}
