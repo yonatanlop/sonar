@@ -52,6 +52,14 @@ class TikTokScraper(BaseScraper):
                     num_sessions=1,
                     sleep_after=3,
                     headless=True,
+                    override_browser_args=[
+                        "--no-sandbox",
+                        "--disable-setuid-sandbox",
+                        "--disable-dev-shm-usage",
+                        "--disable-gpu",
+                        "--single-process",
+                    ],
+                    timeout=60000,
                 )
                 seen_terms: set[str] = set()
                 for kw in sorted(keywords, key=lambda k: k.weight, reverse=True):
@@ -86,7 +94,9 @@ class TikTokScraper(BaseScraper):
     ) -> int:
         saved = 0
 
-        async for video in api.search.videos(term, count=settings.TIKTOK_MAX_RESULTS):
+        async for video in api.search.search_type(
+            term, "item", count=settings.TIKTOK_MAX_RESULTS
+        ):
             try:
                 data = video.as_dict
 
