@@ -26,9 +26,9 @@ from app.workers.scrapers.base import BaseScraper, keyword_matches_text, save_me
 
 logger = logging.getLogger(__name__)
 
-DELAY_BETWEEN_SEARCHES = 8   # segundos entre búsquedas
+DELAY_BETWEEN_SEARCHES = 20  # segundos entre búsquedas (más tiempo = menos detección)
 POSTS_PER_SEARCH       = 12  # posts visibles sin scroll (~1 página)
-PAGE_LOAD_WAIT_MS      = 4000
+PAGE_LOAD_WAIT_MS      = 6000
 
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -151,7 +151,21 @@ def _diagnose_fb_page(page, term: str) -> None:
         logger.info(f"[Facebook] '{term}' — sin resultados (búsqueda válida pero vacía)")
         return
 
-    # ── 5. Caso desconocido — registrar título + screenshot ──────
+    # ── 5. Página vacía / "Not Found" — detección de bot ────────
+    if not body_text.strip() or body_text.strip() in ("not found", "error"):
+        logger.error(
+            f"[Facebook] BOT DETECTADO para '{term}' — Facebook sirvió página vacía. "
+            "Aumentar DELAY_BETWEEN_SEARCHES o renovar cookies con una sesión más activa."
+        )
+        try:
+            ts = int(time.time())
+            page.screenshot(path=f"/app/storage/fb_debug_{ts}.png", full_page=False)
+            logger.warning(f"[Facebook] Screenshot guardado en /app/storage/fb_debug_{ts}.png")
+        except Exception:
+            pass
+        return
+
+    # ── 6. Caso desconocido — registrar título + screenshot ──────
     try:
         title = page.title()
     except Exception:
@@ -227,7 +241,7 @@ class FacebookScraper(BaseScraper):
 
         try:
             url = f"https://www.facebook.com/search/posts/?q={urllib.parse.quote(term)}"
-            page.goto(url, wait_until="domcontentloaded", timeout=30000)
+            page.goto(url, wait_until="networkidle", timeout=45000)
 
             try:
                 page.wait_for_selector('[role="feed"]', timeout=12000)
