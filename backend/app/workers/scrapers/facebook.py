@@ -214,9 +214,37 @@ class FacebookScraper(BaseScraper):
         seen_terms: set[str] = set()
 
         with sync_playwright() as pw:
-            browser = pw.chromium.launch(headless=True)
-            ctx = browser.new_context(user_agent=USER_AGENT)
+            browser = pw.chromium.launch(
+                headless=True,
+                args=[
+                    "--no-sandbox",
+                    "--disable-setuid-sandbox",
+                    "--disable-blink-features=AutomationControlled",  # oculta navigator.webdriver
+                    "--disable-dev-shm-usage",
+                ],
+            )
+            ctx = browser.new_context(
+                user_agent=USER_AGENT,
+                viewport={"width": 1366, "height": 768},
+                locale="es-CO",
+                timezone_id="America/Bogota",
+            )
             ctx.add_cookies(_playwright_cookies(self._cookies))
+
+            # Warm-up: visitar facebook.com home antes de buscar
+            warmup = ctx.new_page()
+            try:
+                warmup.goto("https://www.facebook.com", wait_until="domcontentloaded", timeout=30000)
+                time.sleep(3)
+                if "login" in warmup.url:
+                    logger.error("[Facebook] Cookies inválidas — redirigido a login en warm-up. Actualiza fb_cookies.json.")
+                    browser.close()
+                    return saved_total
+                logger.info(f"[Facebook] Sesión activa — URL warm-up: {warmup.url}")
+            except Exception as e:
+                logger.warning(f"[Facebook] Warm-up falló (continuando de todas formas): {e}")
+            finally:
+                warmup.close()
 
             for keyword_obj in keywords:
                 term = keyword_obj.keyword.strip()
@@ -241,7 +269,7 @@ class FacebookScraper(BaseScraper):
 
         try:
             url = f"https://www.facebook.com/search/posts/?q={urllib.parse.quote(term)}"
-            page.goto(url, wait_until="networkidle", timeout=45000)
+            page.goto(url, wait_until="domcontentloaded", timeout=30000)
 
             try:
                 page.wait_for_selector('[role="feed"]', timeout=12000)
