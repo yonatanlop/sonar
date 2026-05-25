@@ -150,7 +150,6 @@ def list_mentions(
         query = query.filter(Mention.country_code == country.upper()[:2])
 
     if bot_filter:
-        from app.models.bot import AccountProfile, BotAnalysis
         from sqlalchemy import exists, and_
         bot_subq = (
             db.query(BotAnalysis.account_profile_id)
@@ -166,13 +165,12 @@ def list_mentions(
         query = query.filter(bot_subq)
 
     if min_bot_score is not None:
-        from app.models.bot import AccountProfile as _AP
         bot_score_subq = (
-            db.query(_AP.id)
+            db.query(AccountProfile.id)
             .filter(
-                _AP.platform_id == Mention.platform_id,
-                _AP.external_user_id == Mention.author_ext_id,
-                _AP.bot_probability >= min_bot_score,
+                AccountProfile.platform_id == Mention.platform_id,
+                AccountProfile.external_user_id == Mention.author_ext_id,
+                AccountProfile.bot_probability >= min_bot_score,
             )
             .correlate(Mention)
             .exists()
