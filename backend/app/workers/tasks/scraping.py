@@ -26,6 +26,7 @@ def _run_scraper(scraper_class, task_name: str) -> dict:
         logger.info(f"[{task_name}] Completado. Total menciones nuevas: {total}. Detalle: {summary}")
         return {"status": "ok", "total": total, "detail": summary}
     except Exception as e:
+        db.rollback()
         logger.error(f"[{task_name}] Error: {e}", exc_info=True)
         return {"status": "error", "error": str(e)}
     finally:

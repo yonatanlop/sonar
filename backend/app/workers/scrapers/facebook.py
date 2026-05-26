@@ -26,7 +26,7 @@ from app.workers.scrapers.base import BaseScraper, keyword_matches_text, save_me
 
 logger = logging.getLogger(__name__)
 
-DELAY_BETWEEN_SEARCHES = 20  # segundos entre búsquedas (más tiempo = menos detección)
+DELAY_BETWEEN_SEARCHES = 45  # segundos entre búsquedas (más tiempo = menos detección)
 POSTS_PER_SEARCH       = 12  # posts visibles sin scroll (~1 página)
 PAGE_LOAD_WAIT_MS      = 6000
 
@@ -230,6 +230,11 @@ class FacebookScraper(BaseScraper):
                 timezone_id="America/Bogota",
             )
             ctx.add_cookies(_playwright_cookies(self._cookies))
+            ctx.add_init_script("""
+                Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+                Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3] });
+                window.chrome = { runtime: {} };
+            """)
 
             # Warm-up: visitar facebook.com home antes de buscar
             warmup = ctx.new_page()
@@ -240,6 +245,11 @@ class FacebookScraper(BaseScraper):
                     logger.error("[Facebook] Cookies inválidas — redirigido a login en warm-up. Actualiza fb_cookies.json.")
                     browser.close()
                     return saved_total
+                # Simular actividad humana antes de buscar
+                warmup.mouse.wheel(0, 300)
+                time.sleep(2)
+                warmup.mouse.wheel(0, -150)
+                time.sleep(1)
                 logger.info(f"[Facebook] Sesión activa — URL warm-up: {warmup.url}")
             except Exception as e:
                 logger.warning(f"[Facebook] Warm-up falló (continuando de todas formas): {e}")
@@ -275,7 +285,14 @@ class FacebookScraper(BaseScraper):
                 page.wait_for_selector('[role="feed"]', timeout=12000)
             except Exception:
                 _diagnose_fb_page(page, term)
-                return 0
+                logger.info(f"[Facebook] Reintentando '{term}' en 30 segundos...")
+                time.sleep(30)
+                try:
+                    page.reload(wait_until="domcontentloaded", timeout=30000)
+                    page.wait_for_selector('[role="feed"]', timeout=12000)
+                except Exception:
+                    logger.warning(f"[Facebook] Reintento fallido para '{term}', omitiendo.")
+                    return 0
 
             page.wait_for_timeout(PAGE_LOAD_WAIT_MS)
 
