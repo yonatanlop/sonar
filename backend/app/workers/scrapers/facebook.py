@@ -281,8 +281,15 @@ class FacebookScraper(BaseScraper):
             url = f"https://www.facebook.com/search/posts/?q={urllib.parse.quote(term)}"
             page.goto(url, wait_until="domcontentloaded", timeout=30000)
 
+            # Dar tiempo al JS de Facebook y simular lectura humana antes de esperar el feed
+            time.sleep(3)
+            page.mouse.wheel(0, 200)
+            time.sleep(1)
+            page.mouse.wheel(0, -50)
+            time.sleep(1)
+
             try:
-                page.wait_for_selector('[role="feed"]', timeout=12000)
+                page.wait_for_selector('[role="feed"]', timeout=15000)
             except Exception:
                 _diagnose_fb_page(page, term)
                 logger.info(f"[Facebook] Reintentando '{term}' en 30 segundos...")

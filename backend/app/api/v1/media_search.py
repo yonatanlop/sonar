@@ -3,18 +3,18 @@ Módulo 8 — Búsqueda Inversa de Imágenes y Videos
 API endpoints para buscar dónde fue publicada una imagen o video.
 """
 import uuid
-from typing import List
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from typing import List
 
 from app.api.deps import get_current_user, get_db
 from app.models.user import User
 
 router = APIRouter(prefix="/media-search", tags=["Búsqueda Inversa de Imágenes"])
 
-ALL_ENGINES = {"internal", "google_vision", "tineye", "bing"}
+ALL_ENGINES = {"internal", "google_vision", "saucenao", "yandex", "tineye"}
 
 
 def _parse_engines(engines_str: str) -> list[str]:
@@ -98,3 +98,31 @@ def search_from_mention(
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+@router.post("/ai-detect")
+async def detect_ai_image(
+    file: UploadFile = File(None),
+    url: str = Form(None),
+    _: User = Depends(get_current_user),
+):
+    """
+    Detecta si una imagen fue generada por IA.
+    Usa HuggingFace Inference API (gratis con HUGGINGFACE_TOKEN).
+    Retorna: {is_ai, confidence, label}
+    """
+    from app.services.media_search import detect_ai_generated, _download_to_bytes
+    if file:
+        img_bytes = await file.read(5 * 1024 * 1024)
+    elif url:
+        img_bytes = _download_to_bytes(url)
+        if not img_bytes:
+            raise HTTPException(status_code=422, detail="No se pudo descargar la imagen")
+    else:
+        raise HTTPException(status_code=422, detail="Se requiere 'file' o 'url'")
+    try:
+        return detect_ai_generated(img_bytes)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

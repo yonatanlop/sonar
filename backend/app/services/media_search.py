@@ -7,8 +7,14 @@ y quién lo publicó.
 Motores disponibles:
   internal       — pHash en BD de SONAR (siempre disponible, gratis)
   google_vision  — Google Cloud Vision Web Detection (requiere GOOGLE_CLOUD_API_KEY)
-  tineye         — TinEye Reverse Image Search (requiere TINEYE_API_KEY)
-  bing           — Bing Visual Search (requiere BING_SEARCH_KEY)
+  saucenao       — SauceNAO Reverse Image Search (gratis, 200/día con SAUCENAO_API_KEY)
+  yandex         — Yandex Reverse Image vía SerpApi (requiere SERPAPI_KEY, 100/mes gratis)
+  tineye         — TinEye Reverse Image Search (requiere TINEYE_API_KEY — plan de pago)
+
+Nota: Bing Visual Search fue retirado el 11 agosto 2025.
+
+Detección de IA:
+  detect_ai_generated() — HuggingFace Inference API (usa HUGGINGFACE_TOKEN, gratis)
 """
 import base64
 import json
@@ -97,7 +103,6 @@ def _extract_first_useful_frame(video_bytes: bytes, filename: str) -> Optional[b
                 cap.set(cv2.CAP_PROP_POS_MSEC, ms)
                 ret, frame = cap.read()
                 if ret and frame is not None:
-                    # Verificar que el frame no sea negro (mean < 10)
                     import numpy as np
                     if np.mean(frame) > 10:
                         ok, buf = cv2.imencode(".jpg", frame)
@@ -121,6 +126,14 @@ def _first_media_url(mention: Mention) -> Optional[str]:
         return urls[0] if urls else None
     except Exception:
         return None
+
+
+def _domain(url: str) -> str:
+    try:
+        from urllib.parse import urlparse
+        return urlparse(url).netloc.replace("www.", "")
+    except Exception:
+        return url
 
 
 # ── Motor interno ─────────────────────────────────────────────
@@ -217,8 +230,88 @@ def _search_google_vision(img_bytes: bytes) -> list[dict]:
         return []
 
 
+def _search_saucenao(img_bytes: bytes) -> list[dict]:
+    """
+    SauceNAO Reverse Image Search.
+    Gratis: 200 búsquedas/día con API key (registro gratuito en saucenao.com).
+    Sin key: funciona con límite muy bajo (4 búsquedas/30 seg).
+    """
+    try:
+        params = {"db": 999, "output_type": 2, "numres": 8}
+        if settings.SAUCENAO_API_KEY:
+            params["api_key"] = settings.SAUCENAO_API_KEY
+        r = requests.post(
+            "https://saucenao.com/search.php",
+            params=params,
+            files={"file": ("image.jpg", img_bytes, "image/jpeg")},
+            timeout=EXTERNAL_TIMEOUT,
+        )
+        r.raise_for_status()
+        data = r.json()
+        results = []
+        for item in data.get("results", []):
+            header    = item.get("header", {})
+            data_item = item.get("data", {})
+            similarity = float(header.get("similarity", 0)) / 100
+            if similarity < 0.5:
+                continue
+            ext_urls = data_item.get("ext_urls") or []
+            ext_url  = ext_urls[0] if ext_urls else None
+            results.append({
+                "engine":     "saucenao",
+                "url":        ext_url,
+                "thumbnail":  header.get("thumbnail"),
+                "source":     header.get("index_name", ""),
+                "similarity": round(similarity, 3),
+                "type":       "full_match" if similarity >= 0.9 else "partial_match",
+                "author":     data_item.get("creator") or data_item.get("member_name"),
+                "title":      data_item.get("title") or data_item.get("source"),
+            })
+        results.sort(key=lambda r: r["similarity"], reverse=True)
+        return results
+    except Exception as e:
+        logger.warning("[MediaSearch] SauceNAO error: %s", e)
+        return []
+
+
+def _search_yandex(img_bytes: bytes) -> list[dict]:
+    """
+    Yandex Reverse Image Search vía SerpApi.
+    Requiere SERPAPI_KEY (tier gratis: 100 búsquedas/mes en serpapi.com).
+    """
+    if not settings.SERPAPI_KEY:
+        return []
+    try:
+        b64 = base64.b64encode(img_bytes).decode()
+        r = requests.get(
+            "https://serpapi.com/search.json",
+            params={
+                "engine":    "yandex_images",
+                "image_url": f"data:image/jpeg;base64,{b64}",
+                "api_key":   settings.SERPAPI_KEY,
+            },
+            timeout=EXTERNAL_TIMEOUT,
+        )
+        r.raise_for_status()
+        data = r.json()
+        results = []
+        for item in (data.get("image_results") or [])[:10]:
+            results.append({
+                "engine":    "yandex",
+                "url":       item.get("link"),
+                "thumbnail": item.get("thumbnail"),
+                "source":    _domain(item.get("link", "")),
+                "title":     item.get("title"),
+                "type":      "page_with_image",
+            })
+        return results
+    except Exception as e:
+        logger.warning("[MediaSearch] Yandex error: %s", e)
+        return []
+
+
 def _search_tineye(img_bytes: bytes) -> list[dict]:
-    """TinEye Reverse Image Search."""
+    """TinEye Reverse Image Search (plan de pago)."""
     key = settings.TINEYE_API_KEY
     if not key:
         return []
@@ -248,49 +341,43 @@ def _search_tineye(img_bytes: bytes) -> list[dict]:
         return []
 
 
-def _search_bing_visual(img_bytes: bytes) -> list[dict]:
-    """Bing Visual Search."""
-    key = settings.BING_SEARCH_KEY
-    if not key:
-        return []
-    try:
-        r = requests.post(
-            "https://api.cognitive.microsoft.com/bing/v7.0/images/visualsearch",
-            headers={"Ocp-Apim-Subscription-Key": key},
-            files={"image": ("image.jpg", img_bytes, "image/jpeg")},
-            timeout=EXTERNAL_TIMEOUT,
-        )
-        r.raise_for_status()
-        data = r.json()
-        results = []
-        for tag in data.get("tags", []):
-            for action in tag.get("actions", []):
-                if action.get("actionType") in ("PagesIncluding", "VisualSearch"):
-                    for val in (action.get("data", {}).get("value") or [])[:5]:
-                        results.append({
-                            "engine":    "bing",
-                            "url":       val.get("hostPageUrl"),
-                            "thumbnail": val.get("thumbnailUrl"),
-                            "source":    _domain(val.get("hostPageUrl", "")),
-                            "name":      val.get("name"),
-                        })
-        return results
-    except Exception as e:
-        logger.warning("[MediaSearch] Bing error: %s", e)
-        return []
+# ── Detección de contenido generado por IA ───────────────────
 
-
-def _domain(url: str) -> str:
-    try:
-        from urllib.parse import urlparse
-        return urlparse(url).netloc.replace("www.", "")
-    except Exception:
-        return url
+def detect_ai_generated(img_bytes: bytes) -> dict:
+    """
+    Detecta si la imagen fue generada por IA usando HuggingFace Inference API.
+    Modelo: umm-maybe/AI-image-detector (gratis, usa HUGGINGFACE_TOKEN).
+    Retorna: {is_ai, confidence, label}
+    """
+    token = settings.HUGGINGFACE_TOKEN
+    if not token:
+        raise ValueError("HUGGINGFACE_TOKEN no configurado. Agrégalo al .env para usar esta función.")
+    r = requests.post(
+        "https://api-inference.huggingface.co/models/umm-maybe/AI-image-detector",
+        headers={"Authorization": f"Bearer {token}"},
+        data=img_bytes,
+        timeout=30,
+    )
+    r.raise_for_status()
+    data = r.json()
+    # Respuesta esperada: [{"label": "artificial", "score": 0.98}, {"label": "human", "score": 0.02}]
+    if isinstance(data, list) and data:
+        ai_item    = next((x for x in data if "artificial" in x.get("label", "").lower()), None)
+        human_item = next((x for x in data if "human"     in x.get("label", "").lower()), None)
+        ai_score   = ai_item["score"] if ai_item else 0.0
+        is_ai      = ai_score >= 0.5
+        confidence = ai_score if is_ai else (human_item["score"] if human_item else 1 - ai_score)
+        return {
+            "is_ai":      is_ai,
+            "confidence": round(confidence, 3),
+            "label":      "Generada por IA" if is_ai else "Imagen real",
+        }
+    raise ValueError(f"Respuesta inesperada del modelo de detección: {data}")
 
 
 # ── Orquestador público ───────────────────────────────────────
 
-ALL_ENGINES = ("internal", "google_vision", "tineye", "bing")
+ALL_ENGINES = ("internal", "google_vision", "saucenao", "yandex", "tineye")
 
 
 def search_by_image_bytes(
@@ -304,19 +391,21 @@ def search_by_image_bytes(
 
     phash = _compute_phash(img_bytes)
 
-    results       = {e: [] for e in ALL_ENGINES}
-    engines_used  = []
+    results         = {e: [] for e in ALL_ENGINES}
+    engines_used    = []
     engines_skipped = []
 
     _external_keys = {
         "google_vision": settings.GOOGLE_CLOUD_API_KEY,
+        "saucenao":      True,   # funciona sin key (límite muy bajo), mejor con key
+        "yandex":        settings.SERPAPI_KEY,
         "tineye":        settings.TINEYE_API_KEY,
-        "bing":          settings.BING_SEARCH_KEY,
     }
     _external_fns = {
         "google_vision": _search_google_vision,
+        "saucenao":      _search_saucenao,
+        "yandex":        _search_yandex,
         "tineye":        _search_tineye,
-        "bing":          _search_bing_visual,
     }
 
     for engine in engines:

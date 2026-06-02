@@ -3,11 +3,11 @@
  * Encuentra dónde fue publicada una imagen o video y quién la publicó.
  */
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { useSearchParams, useNavigate } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import {
   ScanSearch, Upload, Link2, X, ExternalLink, ImageOff,
   ChevronDown, ChevronRight, AlertCircle, Loader2, CheckCircle2,
-  Twitter, Youtube, Instagram, Globe, Clock,
+  Twitter, Youtube, Instagram, Globe, Clock, Sparkles, AlertTriangle,
 } from 'lucide-react'
 import { useMutation } from '@tanstack/react-query'
 import { toast } from 'react-hot-toast'
@@ -18,7 +18,7 @@ import api from '../api/client'
 const ENGINES = [
   {
     id: 'internal',
-    label: 'SONAR (interno)',
+    label: 'SONAR',
     description: 'Busca entre todo lo recopilado por SONAR',
     alwaysOn: true,
   },
@@ -29,31 +29,40 @@ const ENGINES = [
     alwaysOn: false,
   },
   {
-    id: 'tineye',
-    label: 'TinEye',
-    description: 'Especializado en copias exactas',
+    id: 'saucenao',
+    label: 'SauceNAO',
+    description: 'Búsqueda inversa gratuita — 200/día',
     alwaysOn: false,
   },
   {
-    id: 'bing',
-    label: 'Bing Visual',
-    description: 'Microsoft Bing Visual Search',
+    id: 'yandex',
+    label: 'Yandex',
+    description: 'Yandex Reverse Image — requiere SerpApi key',
+    alwaysOn: false,
+  },
+  {
+    id: 'tineye',
+    label: 'TinEye',
+    description: 'Especializado en copias exactas (plan de pago)',
     alwaysOn: false,
   },
 ]
 
 const PLATFORM_ICONS = {
-  twitter:   <Twitter  className="w-3.5 h-3.5 text-sky-500"    />,
-  instagram: <Instagram className="w-3.5 h-3.5 text-pink-500"  />,
-  youtube:   <Youtube  className="w-3.5 h-3.5 text-red-500"    />,
+  twitter:   <Twitter  className="w-3.5 h-3.5 text-sky-500"   />,
+  instagram: <Instagram className="w-3.5 h-3.5 text-pink-500" />,
+  youtube:   <Youtube  className="w-3.5 h-3.5 text-red-500"   />,
 }
 
 const ENGINE_LABELS = {
   sonar_internal: 'SONAR (interno)',
   google_vision:  'Google Vision',
+  saucenao:       'SauceNAO',
+  yandex:         'Yandex',
   tineye:         'TinEye',
-  bing:           'Bing Visual',
 }
+
+const ALL_ENGINE_KEYS = ['internal', 'google_vision', 'saucenao', 'yandex', 'tineye']
 
 // ── Helpers ───────────────────────────────────────────────────
 
@@ -93,7 +102,7 @@ function ResultCard({ item }) {
       {/* Info */}
       <div className="flex-1 min-w-0">
         {/* Fuente + plataforma */}
-        <div className="flex items-center gap-1.5 mb-1">
+        <div className="flex items-center gap-1.5 mb-1 flex-wrap">
           {item.platform && <PlatformIcon platform={item.platform} />}
           <span className="text-xs font-semibold text-gray-500 truncate">
             {item.source || item.platform || 'Fuente desconocida'}
@@ -192,7 +201,6 @@ function EngineResultGroup({ engineKey, items, skipped }) {
 
 export default function MediaSearch() {
   const [searchParams] = useSearchParams()
-  const navigate       = useNavigate()
 
   // Entrada
   const [mode, setMode]         = useState('upload')   // 'upload' | 'url'
@@ -205,11 +213,12 @@ export default function MediaSearch() {
   // Motores seleccionados
   const [engines, setEngines] = useState(new Set(['internal']))
 
-  // Resultado
-  const [result, setResult] = useState(null)
+  // Resultados
+  const [result, setResult]   = useState(null)
+  const [aiResult, setAiResult] = useState(null)
 
   const toggleEngine = (id) => {
-    if (id === 'internal') return  // siempre activo
+    if (id === 'internal') return
     setEngines(prev => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
@@ -218,10 +227,14 @@ export default function MediaSearch() {
     })
   }
 
-  // Mutations
+  // ── Mutations ────────────────────────────────────────────────
+
   const searchByUrl = useMutation({
     mutationFn: (data) => api.post('/media-search/by-url', data).then(r => r.data),
-    onSuccess: (data) => { setResult(data); if (data.total_results === 0) toast('Sin resultados encontrados') },
+    onSuccess: (data) => {
+      setResult(data)
+      if (data.total_results === 0) toast('Sin resultados encontrados')
+    },
     onError: (e) => {
       const detail = e?.response?.data?.detail
       toast.error(typeof detail === 'string' ? detail : 'Error al buscar')
@@ -232,7 +245,10 @@ export default function MediaSearch() {
     mutationFn: (formData) => api.post('/media-search/by-upload', formData, {
       headers: { 'Content-Type': undefined },
     }).then(r => r.data),
-    onSuccess: (data) => { setResult(data); if (data.total_results === 0) toast('Sin resultados encontrados') },
+    onSuccess: (data) => {
+      setResult(data)
+      if (data.total_results === 0) toast('Sin resultados encontrados')
+    },
     onError: (e) => {
       const detail = e?.response?.data?.detail
       const msg = Array.isArray(detail) ? detail.map(d => d.msg).join(', ') : (detail || 'Error al buscar')
@@ -242,8 +258,22 @@ export default function MediaSearch() {
 
   const searchFromMention = useMutation({
     mutationFn: (id) => api.get(`/media-search/from-mention/${id}?engines=${[...engines].join(',')}`).then(r => r.data),
-    onSuccess: (data) => { setResult(data); if (data.total_results === 0) toast('Sin resultados encontrados') },
+    onSuccess: (data) => {
+      setResult(data)
+      if (data.total_results === 0) toast('Sin resultados encontrados')
+    },
     onError: (e) => toast.error(e?.response?.data?.detail || 'Error al buscar'),
+  })
+
+  const detectAI = useMutation({
+    mutationFn: (formData) => api.post('/media-search/ai-detect', formData, {
+      headers: { 'Content-Type': undefined },
+    }).then(r => r.data),
+    onSuccess: setAiResult,
+    onError: (e) => {
+      const detail = e?.response?.data?.detail
+      toast.error(typeof detail === 'string' ? detail : 'Error al analizar la imagen')
+    },
   })
 
   // Si viene de una mención (?from_mention=<id>), buscar automáticamente
@@ -252,11 +282,13 @@ export default function MediaSearch() {
     if (mentionId) searchFromMention.mutate(mentionId)
   }, [])  // eslint-disable-line react-hooks/exhaustive-deps
 
-  const isLoading = searchByUrl.isPending || searchByUpload.isPending || searchFromMention.isPending
+  const isSearching = searchByUrl.isPending || searchByUpload.isPending || searchFromMention.isPending
+  const hasInput = mode === 'url' ? url.trim() : !!file
 
   const handleFile = useCallback((f) => {
     if (!f) return
     setFile(f)
+    setAiResult(null)
     if (f.type.startsWith('image/')) {
       setPreview(URL.createObjectURL(f))
     } else {
@@ -273,6 +305,7 @@ export default function MediaSearch() {
 
   const handleSearch = () => {
     setResult(null)
+    setAiResult(null)
     const engList = [...engines]
     if (mode === 'url') {
       if (!url.trim()) { toast.error('Ingresa una URL'); return }
@@ -286,7 +319,18 @@ export default function MediaSearch() {
     }
   }
 
-  const allEngineKeys = ['internal', 'google_vision', 'tineye', 'bing']
+  const handleDetectAI = () => {
+    setAiResult(null)
+    const fd = new FormData()
+    if (mode === 'url') {
+      if (!url.trim()) { toast.error('Ingresa una URL'); return }
+      fd.append('url', url.trim())
+    } else {
+      if (!file) { toast.error('Selecciona un archivo'); return }
+      fd.append('file', file)
+    }
+    detectAI.mutate(fd)
+  }
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
@@ -297,7 +341,7 @@ export default function MediaSearch() {
         </div>
         <div>
           <h1 className="text-xl font-bold text-gray-900">Búsqueda por Imagen</h1>
-          <p className="text-sm text-gray-500">Encuentra dónde fue publicada una imagen o video y quién la publicó</p>
+          <p className="text-sm text-gray-500">Encuentra dónde fue publicada una imagen o video, quién la publicó y si fue generada por IA</p>
         </div>
       </div>
 
@@ -353,7 +397,7 @@ export default function MediaSearch() {
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-gray-600">{file.name}</span>
                   <button
-                    onClick={(e) => { e.stopPropagation(); setFile(null); setPreview(null) }}
+                    onClick={(e) => { e.stopPropagation(); setFile(null); setPreview(null); setAiResult(null) }}
                     className="text-gray-400 hover:text-red-500"
                   >
                     <X className="w-4 h-4" />
@@ -374,7 +418,7 @@ export default function MediaSearch() {
             className="input w-full"
             placeholder="https://pbs.twimg.com/media/... o cualquier URL de imagen/video"
             value={url}
-            onChange={(e) => setUrl(e.target.value)}
+            onChange={(e) => { setUrl(e.target.value); setAiResult(null) }}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
           />
         )}
@@ -405,21 +449,54 @@ export default function MediaSearch() {
           </div>
         </div>
 
-        {/* Botón buscar */}
-        <button
-          onClick={handleSearch}
-          disabled={isLoading}
-          className="btn-primary w-full flex items-center justify-center gap-2"
-        >
-          {isLoading ? (
-            <><Loader2 className="w-4 h-4 animate-spin" /> Buscando...</>
-          ) : (
-            <><ScanSearch className="w-4 h-4" /> Buscar</>
-          )}
-        </button>
+        {/* Botones de acción */}
+        <div className="flex gap-3">
+          <button
+            onClick={handleSearch}
+            disabled={isSearching || !hasInput}
+            className="btn-primary flex-1 flex items-center justify-center gap-2"
+          >
+            {isSearching ? (
+              <><Loader2 className="w-4 h-4 animate-spin" /> Buscando...</>
+            ) : (
+              <><ScanSearch className="w-4 h-4" /> Buscar</>
+            )}
+          </button>
+
+          <button
+            onClick={handleDetectAI}
+            disabled={detectAI.isPending || !hasInput}
+            title="Detectar si la imagen fue generada por IA (HuggingFace, gratis)"
+            className="btn-secondary flex items-center justify-center gap-2 px-4"
+          >
+            {detectAI.isPending ? (
+              <><Loader2 className="w-4 h-4 animate-spin" /> Analizando...</>
+            ) : (
+              <><Sparkles className="w-4 h-4" /> ¿Es IA?</>
+            )}
+          </button>
+        </div>
+
+        {/* Resultado detección IA */}
+        {aiResult && (
+          <div className={`flex items-center gap-3 p-4 rounded-xl border-l-4 ${
+            aiResult.is_ai
+              ? 'border-amber-400 bg-amber-50'
+              : 'border-green-400 bg-green-50'
+          }`}>
+            {aiResult.is_ai
+              ? <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />
+              : <CheckCircle2  className="w-5 h-5 text-green-500  shrink-0" />
+            }
+            <div>
+              <p className="font-semibold text-sm text-gray-800">{aiResult.label}</p>
+              <p className="text-xs text-gray-500">{Math.round(aiResult.confidence * 100)}% de confianza</p>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Resultados */}
+      {/* Resultados de búsqueda */}
       {result && (
         <div className="space-y-4">
           {/* Resumen */}
@@ -442,8 +519,8 @@ export default function MediaSearch() {
           </div>
 
           {/* Grupos por motor */}
-          {allEngineKeys.map(key => {
-            const items = result.results?.[key] || []
+          {ALL_ENGINE_KEYS.map(key => {
+            const items   = result.results?.[key] || []
             const skipped = result.engines_skipped || []
             if (!result.engines_used?.includes(key) && !skipped.includes(key)) return null
             return (

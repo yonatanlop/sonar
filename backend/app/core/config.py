@@ -107,8 +107,9 @@ class Settings(BaseSettings):
 
     # Módulo 8 — Búsqueda Inversa de Imágenes (todas opcionales)
     GOOGLE_CLOUD_API_KEY: str = ""   # Google Cloud Vision Web Detection (1 000 req/mes gratis)
-    TINEYE_API_KEY: str = ""         # TinEye Reverse Image Search (100 búsquedas/mes gratis)
-    BING_SEARCH_KEY: str = ""        # Bing Visual Search Azure (1 000 req/mes gratis)
+    SAUCENAO_API_KEY: str = ""       # saucenao.com/user/profile → API key (200 búsquedas/día gratis)
+    SERPAPI_KEY: str = ""            # serpapi.com free tier (100 búsquedas/mes) — habilita Yandex
+    TINEYE_API_KEY: str = ""         # TinEye Reverse Image Search (plan de pago, opcional)
 
     # Entorno
     ENVIRONMENT: str = "development"
