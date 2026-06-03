@@ -353,8 +353,8 @@ def detect_ai_generated(img_bytes: bytes) -> dict:
     if not token:
         raise ValueError("HUGGINGFACE_TOKEN no configurado. Agrégalo al .env para usar esta función.")
     r = requests.post(
-        "https://api-inference.huggingface.co/models/umm-maybe/AI-image-detector",
-        headers={"Authorization": f"Bearer {token}"},
+        "https://router.huggingface.co/hf-inference/models/umm-maybe/AI-image-detector",
+        headers={"Authorization": f"Bearer {token}", "Content-Type": "image/jpeg"},
         data=img_bytes,
         timeout=30,
     )
