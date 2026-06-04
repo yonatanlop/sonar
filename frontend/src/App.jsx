@@ -24,6 +24,7 @@ import LegalInbox           from './pages/LegalInbox'
 import TwitterKeywordSearch from './pages/TwitterKeywordSearch'
 import MediaSearch          from './pages/MediaSearch'
 import ReplyAccounts       from './pages/ReplyAccounts'
+import TopicKeywords       from './pages/TopicKeywords'
 
 export default function App() {
   return (
@@ -56,6 +57,7 @@ export default function App() {
             {/* Solo analyst/admin */}
             <Route element={<AnalystRoute />}>
               <Route path="/settings/rules"  element={<AlertRules />} />
+              <Route path="/topic-keywords"  element={<TopicKeywords />} />
             </Route>
 
             {/* Solo admin */}
