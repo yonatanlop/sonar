@@ -17,32 +17,21 @@ MAX_PER_TERM     = 50   # tweets por término por ejecución
 DELAY_BETWEEN    = 5    # segundos entre términos
 SINCE_DATE       = "2026-05-18"  # filtro Twitter-side (reduce tráfico)
 
-# Operadores lógicos → sintaxis de búsqueda Twitter
-# AND:  "term1" "term2"   (ambas palabras deben aparecer)
-# OR:   "term1" OR "term2" (cualquiera de las dos)
-# NOT:  "term1" -"term2"  (primera sí, segunda no)
-_OP_MAP = {"AND": "SPACE", "OR": "OR", "NOT": "NOT"}
-
-
-def _apply_op(base: str, op: str, next_term: str) -> str:
-    """Combina base + operador + término según sintaxis Twitter."""
-    op = op.upper()
-    quoted = f'"{next_term}"'
-    if op == "OR":
-        return f"{base} OR {quoted}"
-    if op == "NOT":
-        return f"{base} -{quoted}"
-    return f"{base} {quoted}"   # AND: espacio implícito
-
-
 def _build_query(term) -> str:
     """
     Construye la query de Twitter a partir de un TwitterKeywordTerm.
-    Soporta 3+ términos con operadores mixtos via extra_conditions.
-    Sintaxis Twitter:
-      AND → "t1" "t2"         (ambos presentes)
-      OR  → "t1" OR "t2"     (cualquiera)
-      NOT → "t1" -"t2"       (excluye segundo)
+
+    El término PRINCIPAL siempre es obligatorio (ancla): garantiza que todos
+    los resultados sean sobre el sujeto buscado. Las condiciones positivas
+    (AND/OR) se agrupan entre paréntesis y se combinan con el principal con AND;
+    las condiciones NOT se excluyen aparte.
+
+    Esto evita que un OR "se escape" del ancla. Por la precedencia de Twitter
+    (AND liga más fuerte que OR), una query como
+        "Sujeto" "tema" OR "gobierno"
+    equivale a  ("Sujeto" Y "tema") O "gobierno"  → trae TODO lo que diga
+    "gobierno". Con el agrupamiento queda
+        "Sujeto" ("tema" OR "gobierno")  → anclado al sujeto.
     """
     if term.term_type == "hashtag":
         tag = term.term.strip().lstrip("#")
@@ -51,22 +40,39 @@ def _build_query(term) -> str:
     primary = f'"{term.term.strip()}"'
     base_filters = f"since:{SINCE_DATE} -is:retweet (lang:es OR lang:en)"
 
-    # extra_conditions: [{"term": "...", "op": "AND|OR|NOT"}, ...]
+    # Normalizar condiciones a lista [{term, op}]
+    conds = []
     if term.extra_conditions:
-        combined = primary
-        for cond in term.extra_conditions:
-            cond_term = (cond.get("term") or "").strip()
-            cond_op   = (cond.get("op")   or "AND").upper()
-            if cond_term:
-                combined = _apply_op(combined, cond_op, cond_term)
-        return f"{combined} {base_filters}"
+        conds = [
+            {"term": (c.get("term") or "").strip(), "op": (c.get("op") or "AND").upper()}
+            for c in term.extra_conditions
+            if (c.get("term") or "").strip()
+        ]
+    elif term.secondary_term and term.secondary_term.strip():
+        conds = [{"term": term.secondary_term.strip(), "op": (term.logic_op or "AND").upper()}]
 
-    # Backward compat: secondary_term + logic_op (1 condición extra)
-    if term.secondary_term and term.secondary_term.strip():
-        combined = _apply_op(primary, term.logic_op or "AND", term.secondary_term.strip())
-        return f"{combined} {base_filters}"
+    if not conds:
+        return f"{primary} {base_filters}"
 
-    return f"{primary} {base_filters}"
+    positives = [c for c in conds if c["op"] != "NOT"]
+    negatives = [c for c in conds if c["op"] == "NOT"]
+
+    parts = [primary]   # el sujeto principal SIEMPRE es requerido (ancla)
+
+    if positives:
+        # Grupo entre paréntesis preservando AND (espacio) / OR entre términos
+        inner = f'"{positives[0]["term"]}"'
+        for c in positives[1:]:
+            if c["op"] == "OR":
+                inner += f' OR "{c["term"]}"'
+            else:  # AND
+                inner += f' "{c["term"]}"'
+        parts.append(f"({inner})")
+
+    for c in negatives:
+        parts.append(f'-"{c["term"]}"')
+
+    return f'{" ".join(parts)} {base_filters}'
 
 
 def _get_or_create_system_entity(db: Session):
