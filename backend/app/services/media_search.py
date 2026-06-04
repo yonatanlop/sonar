@@ -346,33 +346,61 @@ def _search_tineye(img_bytes: bytes) -> list[dict]:
 def detect_ai_generated(img_bytes: bytes) -> dict:
     """
     Detecta si la imagen fue generada por IA usando HuggingFace Inference API.
-    Modelo: umm-maybe/AI-image-detector (gratis, usa HUGGINGFACE_TOKEN).
-    Retorna: {is_ai, confidence, label}
+    Modelos probados en orden (el primero que responda correctamente gana):
+      1. Nahrawy/AIorNot      — ~98% precisión, etiquetas FAKE/REAL
+      2. umm-maybe/AI-image-detector — fallback, etiquetas artificial/human
+    Retorna: {is_ai, confidence, label, model_used}
     """
     token = settings.HUGGINGFACE_TOKEN
     if not token:
         raise ValueError("HUGGINGFACE_TOKEN no configurado. Agrégalo al .env para usar esta función.")
-    r = requests.post(
-        "https://router.huggingface.co/hf-inference/models/umm-maybe/AI-image-detector",
-        headers={"Authorization": f"Bearer {token}", "Content-Type": "image/jpeg"},
-        data=img_bytes,
-        timeout=30,
-    )
-    r.raise_for_status()
-    data = r.json()
-    # Respuesta esperada: [{"label": "artificial", "score": 0.98}, {"label": "human", "score": 0.02}]
-    if isinstance(data, list) and data:
-        ai_item    = next((x for x in data if "artificial" in x.get("label", "").lower()), None)
-        human_item = next((x for x in data if "human"     in x.get("label", "").lower()), None)
-        ai_score   = ai_item["score"] if ai_item else 0.0
-        is_ai      = ai_score >= 0.5
-        confidence = ai_score if is_ai else (human_item["score"] if human_item else 1 - ai_score)
-        return {
-            "is_ai":      is_ai,
-            "confidence": round(confidence, 3),
-            "label":      "Generada por IA" if is_ai else "Imagen real",
-        }
-    raise ValueError(f"Respuesta inesperada del modelo de detección: {data}")
+
+    _models = [
+        {
+            "url":    "https://router.huggingface.co/hf-inference/models/Nahrawy/AIorNot",
+            "name":   "Nahrawy/AIorNot",
+            "ai_kw":  ("fake", "ai", "artificial"),
+            "real_kw": ("real", "human"),
+        },
+        {
+            "url":    "https://router.huggingface.co/hf-inference/models/umm-maybe/AI-image-detector",
+            "name":   "umm-maybe/AI-image-detector",
+            "ai_kw":  ("artificial", "ai", "fake"),
+            "real_kw": ("human", "real"),
+        },
+    ]
+
+    last_error = None
+    for model in _models:
+        try:
+            r = requests.post(
+                model["url"],
+                headers={"Authorization": f"Bearer {token}", "Content-Type": "image/jpeg"},
+                data=img_bytes,
+                timeout=30,
+            )
+            r.raise_for_status()
+            data = r.json()
+            if not isinstance(data, list) or not data:
+                continue
+
+            ai_item   = next((x for x in data if any(k in x.get("label","").lower() for k in model["ai_kw"])),   None)
+            real_item = next((x for x in data if any(k in x.get("label","").lower() for k in model["real_kw"])), None)
+            ai_score  = ai_item["score"]   if ai_item   else 0.0
+            is_ai     = ai_score >= 0.5
+            confidence = ai_score if is_ai else (real_item["score"] if real_item else 1 - ai_score)
+            return {
+                "is_ai":      is_ai,
+                "confidence": round(confidence, 3),
+                "label":      "Generada por IA" if is_ai else "Imagen real",
+                "model_used": model["name"],
+            }
+        except Exception as e:
+            logger.warning("[MediaSearch] AI detection error con %s: %s", model["name"], e)
+            last_error = e
+            continue
+
+    raise ValueError(f"Todos los modelos de detección fallaron. Último error: {last_error}")
 
 
 # ── Orquestador público ───────────────────────────────────────
