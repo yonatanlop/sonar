@@ -32,10 +32,20 @@ _SYSTEM_PROMPT = (
     "2. Usa OR solo entre SINÓNIMOS o variantes reales del mismo concepto "
     "(p. ej. 'corrupción' OR 'escándalo'), nunca con palabras genéricas como "
     "'gobierno', 'política', 'política pública' que traerían ruido no relacionado.\n"
-    "3. Usa NOT para excluir ruido concreto (p. ej. NOT 'fútbol' si el nombre coincide con un equipo).\n"
-    "4. NO inventes términos de relleno sin sentido (evita verbos sueltos como "
+    "3. TÉRMINOS AMBIGUOS: si el sujeto o un término es un APODO, una palabra común, "
+    "o un nombre que también es un animal, equipo, lugar o marca (p. ej. 'Tigre', 'Paloma', "
+    "'León'), combínalo SIEMPRE con AND con 1-2 términos de contexto que lo desambigüen "
+    "(el tema, el rol, el nombre real). Nunca dejes un apodo ambiguo solo o suelto con OR. "
+    "Ejemplo: el apodo 'Tigre' de un político debe ir como "
+    "\"Tigre\" AND \"política\" AND \"campaña\" (o con el nombre real) para no traer "
+    "tweets del animal ni de fútbol.\n"
+    "4. Cuando conozcas el nombre real detrás de un apodo, genera también una expresión "
+    "que combine ambos: (apodo OR nombre real) anclados con contexto.\n"
+    "5. Usa NOT para excluir ruido concreto (p. ej. NOT 'fútbol', NOT 'zoológico' si el "
+    "apodo coincide con un animal).\n"
+    "6. NO inventes términos de relleno sin sentido (evita verbos sueltos como "
     "'ignorar', 'descartar', 'sumar', 'involucramiento').\n"
-    "5. Prefiere pocas expresiones de ALTA calidad (2-4 términos cada una) antes que muchas vagas.\n"
+    "7. Prefiere pocas expresiones de ALTA calidad (2-4 términos cada una) antes que muchas vagas.\n"
     "Respondes SIEMPRE y ÚNICAMENTE con un JSON array válido, sin texto adicional."
 )
 
@@ -56,6 +66,13 @@ def _build_user_prompt(topic: str, intent: str, max_keywords: int) -> str:
         '  "terms": ["Piraquive", "corrupción", "escándalo"],\n'
         '  "ops": ["AND", "OR"],\n'
         '  "rationale": "Captura menciones del personaje ligadas a controversia"\n'
+        '}\n\n'
+        "Ejemplo con APODO ambiguo (desambiguado con contexto obligatorio):\n"
+        '{\n'
+        '  "expression": "Tigre AND política AND campaña",\n'
+        '  "terms": ["Tigre", "política", "campaña"],\n'
+        '  "ops": ["AND", "AND"],\n'
+        '  "rationale": "El apodo Tigre anclado a política y campaña evita el animal o el fútbol"\n'
         '}\n\n'
         "Reglas:\n"
         "- 'terms' es la lista ordenada de términos de la expresión.\n"
