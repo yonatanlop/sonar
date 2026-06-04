@@ -21,56 +21,63 @@ def _build_query(term) -> str:
     """
     Construye la query de Twitter a partir de un TwitterKeywordTerm.
 
-    El término PRINCIPAL siempre es obligatorio (ancla): garantiza que todos
-    los resultados sean sobre el sujeto buscado. Las condiciones positivas
-    (AND/OR) se agrupan entre paréntesis y se combinan con el principal con AND;
-    las condiciones NOT se excluyen aparte.
+    Agrupa los términos en "corridas de OR" entre paréntesis para preservar la
+    intención lógica y mantener la búsqueda anclada al sujeto. Los términos
+    conectados por OR forman un grupo (a OR b); los grupos se combinan con AND
+    (espacio); los términos NOT se excluyen aparte (-"x").
 
-    Esto evita que un OR "se escape" del ancla. Por la precedencia de Twitter
-    (AND liga más fuerte que OR), una query como
-        "Sujeto" "tema" OR "gobierno"
-    equivale a  ("Sujeto" Y "tema") O "gobierno"  → trae TODO lo que diga
-    "gobierno". Con el agrupamiento queda
-        "Sujeto" ("tema" OR "gobierno")  → anclado al sujeto.
+    Ejemplos:
+      Tigre OR Abelardo AND política AND campaña
+        → ("Tigre" OR "Abelardo") "política" "campaña"
+      Abelardo AND política OR gobierno
+        → "Abelardo" ("política" OR "gobierno")
+      Abelardo AND falso NOT rumor
+        → "Abelardo" "falso" -"rumor"
+
+    El primer grupo SIEMPRE contiene el término principal y es requerido (ancla),
+    por lo que ningún OR puede "escaparse" y traer ruido no relacionado.
     """
     if term.term_type == "hashtag":
         tag = term.term.strip().lstrip("#")
         return f"#{tag} since:{SINCE_DATE} -is:retweet lang:es"
 
-    primary = f'"{term.term.strip()}"'
     base_filters = f"since:{SINCE_DATE} -is:retweet (lang:es OR lang:en)"
 
-    # Normalizar condiciones a lista [{term, op}]
-    conds = []
+    # Secuencia completa: principal (sin op) + condiciones (cada op conecta con el término previo)
+    seq = [{"term": term.term.strip(), "op": None}]
     if term.extra_conditions:
-        conds = [
+        seq += [
             {"term": (c.get("term") or "").strip(), "op": (c.get("op") or "AND").upper()}
             for c in term.extra_conditions
             if (c.get("term") or "").strip()
         ]
     elif term.secondary_term and term.secondary_term.strip():
-        conds = [{"term": term.secondary_term.strip(), "op": (term.logic_op or "AND").upper()}]
+        seq.append({"term": term.secondary_term.strip(), "op": (term.logic_op or "AND").upper()})
 
-    if not conds:
-        return f"{primary} {base_filters}"
+    # Exclusiones (NOT) se sacan aparte; el resto forma la secuencia positiva
+    exclusions = [it["term"] for it in seq if it["op"] == "NOT"]
+    positive = [it for it in seq if it["op"] != "NOT"]
 
-    positives = [c for c in conds if c["op"] != "NOT"]
-    negatives = [c for c in conds if c["op"] == "NOT"]
+    if not positive:
+        # Caso extremo: solo el principal
+        positive = [seq[0]]
 
-    parts = [primary]   # el sujeto principal SIEMPRE es requerido (ancla)
+    # Agrupar en corridas de OR: un nuevo grupo empieza en cada AND (o al inicio)
+    groups = [[positive[0]["term"]]]
+    for it in positive[1:]:
+        if it["op"] == "OR":
+            groups[-1].append(it["term"])
+        else:  # AND
+            groups.append([it["term"]])
 
-    if positives:
-        # Grupo entre paréntesis preservando AND (espacio) / OR entre términos
-        inner = f'"{positives[0]["term"]}"'
-        for c in positives[1:]:
-            if c["op"] == "OR":
-                inner += f' OR "{c["term"]}"'
-            else:  # AND
-                inner += f' "{c["term"]}"'
-        parts.append(f"({inner})")
+    parts = []
+    for g in groups:
+        if len(g) == 1:
+            parts.append(f'"{g[0]}"')
+        else:
+            parts.append("(" + " OR ".join(f'"{t}"' for t in g) + ")")
 
-    for c in negatives:
-        parts.append(f'-"{c["term"]}"')
+    parts += [f'-"{t}"' for t in exclusions]
 
     return f'{" ".join(parts)} {base_filters}'
 
