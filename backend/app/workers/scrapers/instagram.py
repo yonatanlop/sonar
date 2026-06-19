@@ -132,78 +132,145 @@ class InstagramScraper(BaseScraper):
         self,
         hashtag: str,
         entity: Entity,
-        keyword_obj: Keyword,
+        keyword_obj: Optional[Keyword],
         since: datetime,
     ) -> int:
         client = self._get_client()
-        saved = 0
-
         try:
             medias = client.hashtag_medias_recent(hashtag, amount=MAX_POSTS_PER_HASHTAG)
         except Exception as e:
             logger.warning(f"[Instagram] hashtag_medias_recent(#{hashtag}) falló: {e}")
             return 0
 
+        saved = 0
         for media in medias:
-            # Filtrar por fecha
-            taken_at = getattr(media, "taken_at", None)
-            if taken_at:
-                if taken_at.tzinfo is None:
-                    taken_at = taken_at.replace(tzinfo=timezone.utc)
-                if taken_at < since:
-                    continue
+            saved += self._save_media(media, entity, keyword_obj, since)
+        return saved
 
-            caption     = getattr(media, "caption_text", "") or ""
-            media_pk    = str(getattr(media, "pk", ""))
-            user        = getattr(media, "user", None)
-            username    = getattr(user, "username", None) if user else None
-            user_id     = str(getattr(user, "pk", "")) if user else None
-            like_count  = getattr(media, "like_count", 0) or 0
-            comment_cnt = getattr(media, "comment_count", 0) or 0
-            reach       = like_count + comment_cnt
-            media_type  = getattr(media, "media_type", 1)   # 1=foto, 2=video, 8=álbum
+    def _search_user(
+        self,
+        username: str,
+        entity: Entity,
+        since: datetime,
+    ) -> int:
+        """Posts recientes de una cuenta específica (Instagram Explorer)."""
+        client = self._get_client()
+        try:
+            user_id = client.user_id_from_username(username.lstrip("@"))
+            medias = client.user_medias(user_id, amount=MAX_POSTS_PER_HASHTAG)
+        except Exception as e:
+            logger.warning(f"[Instagram] user_medias(@{username}) falló: {e}")
+            return 0
 
-            # URL del post
-            code = getattr(media, "code", media_pk)
-            url  = f"https://www.instagram.com/p/{code}/" if code else None
+        saved = 0
+        for media in medias:
+            saved += self._save_media(media, entity, None, since)
+        return saved
 
-            # Imagen de miniatura
-            thumb = None
-            thumb_url = getattr(media, "thumbnail_url", None)
-            if thumb_url:
-                thumb = json.dumps([str(thumb_url)])
+    def _save_media(
+        self,
+        media,
+        entity: Entity,
+        keyword_obj: Optional[Keyword],
+        since: datetime,
+    ) -> int:
+        """Guarda un media de Instagram como mención. Retorna 1 si se guardó, 0 si no."""
+        # Filtrar por fecha
+        taken_at = getattr(media, "taken_at", None)
+        if taken_at:
+            if taken_at.tzinfo is None:
+                taken_at = taken_at.replace(tzinfo=timezone.utc)
+            if taken_at < since:
+                return 0
 
-            # Perfil del autor
-            if username:
-                upsert_account_profile(
-                    db=self.db,
-                    platform_id=self.platform.id,
-                    username=username,
-                    external_user_id=user_id,
-                    followers_count=getattr(user, "follower_count", None),
-                    following_count=getattr(user, "following_count", None),
-                    post_count=getattr(user, "media_count", None),
-                    verified=getattr(user, "is_verified", False),
-                    has_profile_photo=bool(getattr(user, "profile_pic_url", None)),
-                    display_name=getattr(user, "full_name", None),
-                )
+        caption     = getattr(media, "caption_text", "") or ""
+        media_pk    = str(getattr(media, "pk", ""))
+        user        = getattr(media, "user", None)
+        username    = getattr(user, "username", None) if user else None
+        user_id     = str(getattr(user, "pk", "")) if user else None
+        like_count  = getattr(media, "like_count", 0) or 0
+        comment_cnt = getattr(media, "comment_count", 0) or 0
+        reach       = like_count + comment_cnt
+        media_type  = getattr(media, "media_type", 1)   # 1=foto, 2=video, 8=álbum
 
-            mention = save_mention(
+        # URL del post
+        code = getattr(media, "code", media_pk)
+        url  = f"https://www.instagram.com/p/{code}/" if code else None
+
+        # Imagen de miniatura
+        thumb = None
+        thumb_url = getattr(media, "thumbnail_url", None)
+        if thumb_url:
+            thumb = json.dumps([str(thumb_url)])
+
+        # Perfil del autor
+        if username:
+            upsert_account_profile(
                 db=self.db,
                 platform_id=self.platform.id,
-                entity_id=entity.id,
-                external_id=f"ig_{media_pk}",
-                content=caption or f"[Post de Instagram tipo {media_type}]",
-                author_username=username,
-                author_ext_id=user_id,
-                url=url,
-                published_at=taken_at,
-                country_code=entity.country_code,
-                reach=reach,
-                matched_keywords=[keyword_obj],
-                media_urls=thumb,
+                username=username,
+                external_user_id=user_id,
+                followers_count=getattr(user, "follower_count", None),
+                following_count=getattr(user, "following_count", None),
+                post_count=getattr(user, "media_count", None),
+                verified=getattr(user, "is_verified", False),
+                has_profile_photo=bool(getattr(user, "profile_pic_url", None)),
+                display_name=getattr(user, "full_name", None),
             )
-            if mention:
-                saved += 1
 
-        return saved
+        mention = save_mention(
+            db=self.db,
+            platform_id=self.platform.id,
+            entity_id=entity.id,
+            external_id=f"ig_{media_pk}",
+            content=caption or f"[Post de Instagram tipo {media_type}]",
+            author_username=username,
+            author_ext_id=user_id,
+            url=url,
+            published_at=taken_at,
+            country_code=entity.country_code,
+            reach=reach,
+            matched_keywords=[keyword_obj] if keyword_obj else None,
+            media_urls=thumb,
+        )
+        return 1 if mention else 0
+
+
+def scrape_feeds(db: Session) -> dict:
+    """
+    Instagram Explorer — recolección de feeds por hashtag o cuenta.
+    Recorre los InstagramFeed activos y guarda menciones en la entidad de cada feed.
+    """
+    from app.core.config import settings
+    from app.models.entity import Entity as _Entity
+    from app.models.instagram_feed import InstagramFeed
+
+    feeds = db.query(InstagramFeed).filter(InstagramFeed.active == True).all()
+    if not feeds:
+        return {"feeds": 0, "saved": 0}
+
+    scraper = InstagramScraper(db)
+    since = datetime.now(timezone.utc) - timedelta(days=settings.IG_LOOKBACK_DAYS)
+    total_saved = 0
+
+    for feed in feeds:
+        if not feed.entity_id:
+            continue
+        entity = db.query(_Entity).filter(_Entity.id == feed.entity_id).first()
+        if not entity:
+            continue
+        try:
+            if feed.feed_type == "account":
+                saved = scraper._search_user(feed.term, entity, since)
+            else:  # hashtag
+                saved = scraper._search_hashtag(_normalize_hashtag(feed.term), entity, None, since)
+            scraper._request_count += 1
+            total_saved += saved
+            logger.info(f"[InstagramExplorer] {feed.display_name}: {saved} nuevos posts")
+        except RuntimeError:
+            raise
+        except Exception as e:
+            logger.warning(f"[InstagramExplorer] Error en {feed.display_name}: {e}")
+        time.sleep(DELAY_BETWEEN_SEARCHES)
+
+    return {"feeds": len(feeds), "saved": total_saved}

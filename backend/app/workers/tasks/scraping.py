@@ -372,6 +372,58 @@ def scrape_twitter_feeds(self):
         raise self.retry(exc=exc)
 
 
+def _run_feeds_task(import_path: str, label: str) -> dict:
+    """Wrapper común para las tasks de feeds de los Explorers (FB/IG/TikTok)."""
+    import importlib
+    try:
+        module = importlib.import_module(import_path)
+        scrape_feeds = getattr(module, "scrape_feeds")
+        db = SessionLocal()
+        try:
+            result = scrape_feeds(db)
+            db.commit()
+            logger.info(f"[{label}] Completado: {result}")
+            return {"status": "ok", **result}
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+    except RuntimeError as exc:
+        logger.warning(f"[{label}] {exc}")
+        return {"status": "skipped", "reason": str(exc)}
+
+
+@celery_app.task(name="app.workers.tasks.scraping.scrape_facebook_feeds", bind=True, max_retries=1, default_retry_delay=300)
+def scrape_facebook_feeds(self):
+    """Facebook Explorer — feeds por palabra clave/tema o página. Worker residencial."""
+    try:
+        return _run_feeds_task("app.workers.scrapers.facebook", "FacebookFeeds")
+    except Exception as exc:
+        logger.error(f"[FacebookFeeds] Fallo, reintentando: {exc}", exc_info=True)
+        raise self.retry(exc=exc)
+
+
+@celery_app.task(name="app.workers.tasks.scraping.scrape_instagram_feeds", bind=True, max_retries=2, default_retry_delay=180)
+def scrape_instagram_feeds(self):
+    """Instagram Explorer — feeds por hashtag o cuenta."""
+    try:
+        return _run_feeds_task("app.workers.scrapers.instagram", "InstagramFeeds")
+    except Exception as exc:
+        logger.error(f"[InstagramFeeds] Fallo, reintentando: {exc}", exc_info=True)
+        raise self.retry(exc=exc)
+
+
+@celery_app.task(name="app.workers.tasks.scraping.scrape_tiktok_feeds", bind=True, max_retries=1, default_retry_delay=300)
+def scrape_tiktok_feeds(self):
+    """TikTok Explorer — feeds por keyword, hashtag o creador. Worker residencial."""
+    try:
+        return _run_feeds_task("app.workers.scrapers.tiktok", "TikTokFeeds")
+    except Exception as exc:
+        logger.error(f"[TikTokFeeds] Fallo, reintentando: {exc}", exc_info=True)
+        raise self.retry(exc=exc)
+
+
 @celery_app.task(
     name="app.workers.tasks.scraping.scrape_youtube_channels",
     bind=True,

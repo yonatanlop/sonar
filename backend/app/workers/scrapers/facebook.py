@@ -302,80 +302,7 @@ class FacebookScraper(BaseScraper):
                     return 0
 
             page.wait_for_timeout(PAGE_LOAD_WAIT_MS)
-
-            post_cards = page.query_selector_all('[role="feed"] > div')
-            raw_count = len(post_cards)
-
-            for card in post_cards:
-                # ── Texto del post ──────────────────────────────────
-                text = ""
-                for el in card.query_selector_all('[dir="auto"]'):
-                    t = el.inner_text().strip()
-                    if len(t) > 15:
-                        text = t
-                        break
-
-                if not text:
-                    continue
-
-                if not keyword_matches_text(text, keyword_obj):
-                    continue
-
-                # ── URL del post ────────────────────────────────────
-                post_url = ""
-                for a in card.query_selector_all("a[href]"):
-                    href = a.get_attribute("href") or ""
-                    if any(x in href for x in ["/posts/", "story_fbid", "pfbid", "/videos/"]):
-                        post_url = href
-                        break
-                if not post_url:
-                    for a in card.query_selector_all("a[href]"):
-                        href = a.get_attribute("href") or ""
-                        if href.startswith("https://www.facebook.com/"):
-                            post_url = href
-                            break
-
-                post_id = _extract_post_id(post_url, text)
-
-                # ── Autor ───────────────────────────────────────────
-                author_el = card.query_selector("h2 a, h3 a, strong a")
-                username = author_el.inner_text().strip() if author_el else ""
-
-                # ── Reach ───────────────────────────────────────────
-                reactions = 0
-                shares = 0
-                for span in card.query_selector_all("span"):
-                    t = span.inner_text()
-                    if "compartido" in t.lower() or "shares" in t.lower():
-                        shares = _parse_reach_number(t)
-                    if "reacciones" in t.lower() or "reactions" in t.lower():
-                        reactions = _parse_reach_number(t)
-                reach = reactions + shares
-
-                # Guardar mención dentro de un savepoint para que un error
-                # en un post no corrompa la sesión completa
-                try:
-                    sp = self.db.begin_nested()
-                    mention = save_mention(
-                        db=self.db,
-                        platform_id=self.platform.id,
-                        entity_id=entity.id,
-                        external_id=f"fb_{post_id}",
-                        content=text[:2000],
-                        author_username=username or None,
-                        author_ext_id=None,
-                        url=post_url or None,
-                        published_at=None,
-                        country_code=entity.country_code,
-                        reach=reach,
-                        matched_keywords=[keyword_obj],
-                    )
-                    sp.commit()
-                    if mention:
-                        saved += 1
-                except Exception as card_err:
-                    sp.rollback()
-                    logger.debug(f"[Facebook] Error guardando post '{post_id}': {card_err}")
+            saved, raw_count = self._process_feed_cards(page, entity, keyword_obj)
 
         except Exception as e:
             logger.error(f"[Facebook] Error en _search_keyword('{term}'): {e}", exc_info=True)
@@ -384,3 +311,195 @@ class FacebookScraper(BaseScraper):
 
         logger.info(f"[Facebook] '{term}' → {raw_count} posts recibidos, {saved} guardados")
         return saved
+
+    def _process_feed_cards(self, page, entity: Entity, keyword_obj: Optional[Keyword]) -> tuple[int, int]:
+        """
+        Procesa las tarjetas de un feed de Facebook (`[role="feed"] > div`) y
+        guarda cada post como mención. Si keyword_obj es None, no filtra por keyword
+        (se usa en feeds de palabra clave/página del Explorer).
+        Retorna (guardados, recibidos).
+        """
+        post_cards = page.query_selector_all('[role="feed"] > div')
+        raw_count = len(post_cards)
+        saved = 0
+
+        for card in post_cards:
+            # ── Texto del post ──────────────────────────────────
+            text = ""
+            for el in card.query_selector_all('[dir="auto"]'):
+                t = el.inner_text().strip()
+                if len(t) > 15:
+                    text = t
+                    break
+
+            if not text:
+                continue
+
+            if keyword_obj is not None and not keyword_matches_text(text, keyword_obj):
+                continue
+
+            # ── URL del post ────────────────────────────────────
+            post_url = ""
+            for a in card.query_selector_all("a[href]"):
+                href = a.get_attribute("href") or ""
+                if any(x in href for x in ["/posts/", "story_fbid", "pfbid", "/videos/"]):
+                    post_url = href
+                    break
+            if not post_url:
+                for a in card.query_selector_all("a[href]"):
+                    href = a.get_attribute("href") or ""
+                    if href.startswith("https://www.facebook.com/"):
+                        post_url = href
+                        break
+
+            post_id = _extract_post_id(post_url, text)
+
+            # ── Autor ───────────────────────────────────────────
+            author_el = card.query_selector("h2 a, h3 a, strong a")
+            username = author_el.inner_text().strip() if author_el else ""
+
+            # ── Reach ───────────────────────────────────────────
+            reactions = 0
+            shares = 0
+            for span in card.query_selector_all("span"):
+                t = span.inner_text()
+                if "compartido" in t.lower() or "shares" in t.lower():
+                    shares = _parse_reach_number(t)
+                if "reacciones" in t.lower() or "reactions" in t.lower():
+                    reactions = _parse_reach_number(t)
+            reach = reactions + shares
+
+            # Guardar dentro de un savepoint para que un error en un post no
+            # corrompa la sesión completa
+            try:
+                sp = self.db.begin_nested()
+                mention = save_mention(
+                    db=self.db,
+                    platform_id=self.platform.id,
+                    entity_id=entity.id,
+                    external_id=f"fb_{post_id}",
+                    content=text[:2000],
+                    author_username=username or None,
+                    author_ext_id=None,
+                    url=post_url or None,
+                    published_at=None,
+                    country_code=entity.country_code,
+                    reach=reach,
+                    matched_keywords=[keyword_obj] if keyword_obj else None,
+                )
+                sp.commit()
+                if mention:
+                    saved += 1
+            except Exception as card_err:
+                sp.rollback()
+                logger.debug(f"[Facebook] Error guardando post '{post_id}': {card_err}")
+
+        return saved, raw_count
+
+    def _scrape_page(self, ctx, page_name: str, entity: Entity) -> int:
+        """Recolecta publicaciones de una página/perfil de Facebook (Explorer)."""
+        page = ctx.new_page()
+        saved = 0
+        raw_count = 0
+        try:
+            slug = urllib.parse.quote(page_name.strip().lstrip("@"))
+            page.goto(f"https://www.facebook.com/{slug}", wait_until="domcontentloaded", timeout=30000)
+            time.sleep(3)
+            page.mouse.wheel(0, 600)
+            time.sleep(2)
+            page.mouse.wheel(0, 600)
+            time.sleep(2)
+            try:
+                page.wait_for_selector('[role="feed"]', timeout=15000)
+            except Exception:
+                _diagnose_fb_page(page, page_name)
+                return 0
+            page.wait_for_timeout(PAGE_LOAD_WAIT_MS)
+            saved, raw_count = self._process_feed_cards(page, entity, None)
+        except Exception as e:
+            logger.error(f"[Facebook] Error en _scrape_page('{page_name}'): {e}", exc_info=True)
+        finally:
+            page.close()
+        logger.info(f"[Facebook] página '{page_name}' → {raw_count} posts recibidos, {saved} guardados")
+        return saved
+
+    def _run_feeds(self, db: Session) -> dict:
+        """
+        Facebook Explorer — recolecta feeds por palabra clave/tema o página/perfil.
+        Reutiliza el mismo browser/contexto con cookies y warm-up que scrape_entity.
+        """
+        try:
+            from playwright.sync_api import sync_playwright
+        except ImportError:
+            raise RuntimeError("playwright no instalado.")
+
+        from app.core.config import settings
+        from app.models.entity import Entity as _Entity
+        from app.models.facebook_feed import FacebookFeed
+
+        feeds = db.query(FacebookFeed).filter(FacebookFeed.active == True).all()
+        if not feeds:
+            return {"feeds": 0, "saved": 0}
+
+        since = datetime.now(timezone.utc) - timedelta(days=settings.FB_LOOKBACK_DAYS)
+        total_saved = 0
+
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch(
+                headless=True,
+                args=["--no-sandbox", "--disable-setuid-sandbox",
+                      "--disable-blink-features=AutomationControlled", "--disable-dev-shm-usage"],
+            )
+            ctx = browser.new_context(
+                user_agent=USER_AGENT,
+                viewport={"width": 1366, "height": 768},
+                locale="es-CO",
+                timezone_id="America/Bogota",
+            )
+            ctx.add_cookies(_playwright_cookies(self._cookies))
+            ctx.add_init_script("""
+                Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+                Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3] });
+                window.chrome = { runtime: {} };
+            """)
+
+            warmup = ctx.new_page()
+            try:
+                warmup.goto("https://www.facebook.com", wait_until="domcontentloaded", timeout=30000)
+                time.sleep(3)
+                if "login" in warmup.url:
+                    logger.error("[FacebookExplorer] Cookies inválidas — redirigido a login.")
+                    browser.close()
+                    return {"feeds": len(feeds), "saved": 0, "skipped": "login"}
+            except Exception as e:
+                logger.warning(f"[FacebookExplorer] Warm-up falló: {e}")
+            finally:
+                warmup.close()
+
+            for feed in feeds:
+                if not feed.entity_id:
+                    continue
+                entity = db.query(_Entity).filter(_Entity.id == feed.entity_id).first()
+                if not entity:
+                    continue
+                try:
+                    if feed.feed_type == "page":
+                        saved = self._scrape_page(ctx, feed.term, entity)
+                    else:  # keyword
+                        saved = self._search_keyword(ctx, feed.term, entity, None, since)
+                    total_saved += saved
+                    logger.info(f"[FacebookExplorer] {feed.display_name}: {saved} nuevos posts")
+                except Exception as e:
+                    db.rollback()
+                    logger.warning(f"[FacebookExplorer] Error en {feed.display_name}: {e}")
+                time.sleep(DELAY_BETWEEN_SEARCHES)
+
+            browser.close()
+
+        return {"feeds": len(feeds), "saved": total_saved}
+
+
+def scrape_feeds(db: Session) -> dict:
+    """Entry point para la task de Celery (Facebook Explorer)."""
+    scraper = FacebookScraper(db)
+    return scraper._run_feeds(db)

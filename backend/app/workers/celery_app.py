@@ -26,8 +26,10 @@ celery_app.conf.update(
     # Enruta scrape_facebook a una queue separada para que pueda
     # ser consumida por un worker con IP residencial (no datacenter)
     task_routes={
-        "app.workers.tasks.scraping.scrape_facebook": {"queue": "facebook"},
-        "app.workers.tasks.scraping.scrape_tiktok":   {"queue": "tiktok"},
+        "app.workers.tasks.scraping.scrape_facebook":       {"queue": "facebook"},
+        "app.workers.tasks.scraping.scrape_facebook_feeds": {"queue": "facebook"},
+        "app.workers.tasks.scraping.scrape_tiktok":         {"queue": "tiktok"},
+        "app.workers.tasks.scraping.scrape_tiktok_feeds":   {"queue": "tiktok"},
     },
 )
 
@@ -71,6 +73,21 @@ celery_app.conf.beat_schedule = {
     "scrape-twitter-feeds": {
         "task": "app.workers.tasks.scraping.scrape_twitter_feeds",
         "schedule": crontab(minute="*/10"),  # cada 10 min
+    },
+    # Instagram Explorer: feeds por hashtag o cuenta
+    "scrape-instagram-feeds": {
+        "task": "app.workers.tasks.scraping.scrape_instagram_feeds",
+        "schedule": crontab(minute="*/30"),  # cada 30 min
+    },
+    # Facebook Explorer: feeds por palabra clave o página (worker residencial)
+    "scrape-facebook-feeds": {
+        "task": "app.workers.tasks.scraping.scrape_facebook_feeds",
+        "schedule": crontab(minute=30),      # cada hora en el minuto 30 (offset de scrape-facebook)
+    },
+    # TikTok Explorer: feeds por keyword, hashtag o creador (worker residencial)
+    "scrape-tiktok-feeds": {
+        "task": "app.workers.tasks.scraping.scrape_tiktok_feeds",
+        "schedule": crontab(minute="*/30"),  # cada 30 min
     },
     # Re-login preventivo cada 3 horas para renovar sesión de twscrape
     "relogin-twitter": {

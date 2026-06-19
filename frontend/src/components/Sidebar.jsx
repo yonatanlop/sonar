@@ -4,6 +4,7 @@ import {
   LayoutDashboard, Building2, MessageSquare,
   Bell, Inbox, FileText, Users, Settings2, Radio, UserCircle, Activity, Twitter,
   GitCompareArrows, Youtube, ChevronDown, ScrollText, ShieldAlert, Scale, Reply, Search, ScanSearch, MessageSquareReply, Wand2,
+  Facebook, Instagram, Music2,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useAuthStore } from '../store/authStore'
@@ -39,6 +40,9 @@ const NAV_SECTIONS = (isAdmin, isAnalyst, isSuperAdmin, unread, inbox) => [
       ...(isAnalyst ? [{ to: '/topic-keywords', icon: Wand2, label: 'Generar Keywords (IA)' }] : []),
       { to: '/twitter-explorer', icon: Twitter,   label: 'Twitter Explorer' },
       { to: '/youtube-explorer', icon: Youtube,   label: 'YouTube Explorer' },
+      { to: '/facebook-explorer',  icon: Facebook,  label: 'Facebook Explorer' },
+      { to: '/instagram-explorer', icon: Instagram, label: 'Instagram Explorer' },
+      { to: '/tiktok-explorer',    icon: Music2,    label: 'TikTok Explorer' },
       { to: '/response-tool',    icon: Reply,      label: 'Herramienta de Respuesta' },
       { to: '/media-search',     icon: ScanSearch, label: 'Búsqueda por Imagen' },
       { to: '/platforms',        icon: Activity,  label: 'Plataformas' },

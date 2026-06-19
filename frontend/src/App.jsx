@@ -15,6 +15,9 @@ import Chat         from './pages/Chat'
 import Platforms       from './pages/Platforms'
 import TwitterExplorer  from './pages/TwitterExplorer'
 import YoutubeExplorer  from './pages/YoutubeExplorer'
+import FacebookExplorer  from './pages/FacebookExplorer'
+import InstagramExplorer from './pages/InstagramExplorer'
+import TiktokExplorer    from './pages/TiktokExplorer'
 import Compare         from './pages/Compare'
 import ResponseTool    from './pages/ResponseTool'
 import MentionInbox    from './pages/MentionInbox'
@@ -46,6 +49,9 @@ export default function App() {
             <Route path="/platforms"          element={<Platforms />} />
             <Route path="/twitter-explorer"  element={<TwitterExplorer />} />
             <Route path="/youtube-explorer"  element={<YoutubeExplorer />} />
+            <Route path="/facebook-explorer"  element={<FacebookExplorer />} />
+            <Route path="/instagram-explorer" element={<InstagramExplorer />} />
+            <Route path="/tiktok-explorer"    element={<TiktokExplorer />} />
             <Route path="/compare"           element={<Compare />} />
             <Route path="/response-tool"     element={<ResponseTool />} />
             <Route path="/inbox"             element={<MentionInbox />} />
