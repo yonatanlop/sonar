@@ -12,6 +12,7 @@ from app.models.twitter_feed import TwitterFeed
 from app.models.facebook_feed import FacebookFeed
 from app.models.instagram_feed import InstagramFeed
 from app.models.tiktok_feed import TiktokFeed
+from app.models.facebook_group import FacebookGroup
 from app.models.legal_escalation import LegalEscalation
 # YoutubeChannel must be imported before YtKeywordHit (bidirectional back_populates)
 from app.models.youtube_channel import YoutubeChannel, YoutubeChannelKeyword
@@ -31,6 +32,7 @@ __all__ = [
     "MentionEntity",
     "TwitterFeed",
     "FacebookFeed", "InstagramFeed", "TiktokFeed",
+    "FacebookGroup",
     "LegalEscalation",
     "YoutubeChannel", "YoutubeChannelKeyword",
     "YtKeywordHit",

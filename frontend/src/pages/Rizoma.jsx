@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ShieldAlert, Twitter, Youtube, ExternalLink, ChevronLeft, ChevronRight, Flame } from 'lucide-react'
+import {
+  ShieldAlert, Twitter, Youtube, Facebook, Instagram, Music2, Radio,
+  ExternalLink, ChevronLeft, ChevronRight, Flame,
+} from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import client from '../api/client'
@@ -11,6 +14,17 @@ const SENTIMENT_BADGE = {
   negative:      { text: 'Negativo',     cls: 'bg-orange-100 text-orange-700' },
   very_negative: { text: 'Muy negativo', cls: 'bg-red-100 text-red-700' },
 }
+
+// Metadatos por plataforma (orden = orden de las tarjetas/filtros)
+const PLATFORMS = [
+  { key: 'twitter',   label: 'Twitter/X', Icon: Twitter,   bg: 'bg-sky-100',  color: 'text-sky-600',  cardLabel: 'Feeds Twitter/X',  chipKey: 'name' },
+  { key: 'youtube',   label: 'YouTube',   Icon: Youtube,   bg: 'bg-red-100',  color: 'text-red-600',  cardLabel: 'Canales YouTube',  chipKey: 'handle' },
+  { key: 'facebook',  label: 'Facebook',  Icon: Facebook,  bg: 'bg-blue-100', color: 'text-blue-600', cardLabel: 'Monitores Facebook',  chipKey: 'name' },
+  { key: 'instagram', label: 'Instagram', Icon: Instagram, bg: 'bg-pink-100', color: 'text-pink-600', cardLabel: 'Monitores Instagram', chipKey: 'name' },
+  { key: 'tiktok',    label: 'TikTok',    Icon: Music2,    bg: 'bg-gray-900', color: 'text-cyan-400', cardLabel: 'Monitores TikTok',    chipKey: 'name' },
+]
+
+const META_BY_KEY = Object.fromEntries(PLATFORMS.map(p => [p.key, p]))
 
 function UrgencyBadge({ score }) {
   if (score == null || score < 30) return null
@@ -26,7 +40,7 @@ function UrgencyBadge({ score }) {
 }
 
 export default function Rizoma() {
-  const [page, setPage]       = useState(1)
+  const [page, setPage]         = useState(1)
   const [platform, setPlatform] = useState('')
 
   const { data, isLoading } = useQuery({
@@ -39,8 +53,8 @@ export default function Rizoma() {
     queryFn:  () => client.get('/rizoma/sources').then(r => r.data),
   })
 
-  const twitterCount = sources?.twitter?.length ?? 0
-  const youtubeCount = sources?.youtube?.length ?? 0
+  const counts = Object.fromEntries(PLATFORMS.map(p => [p.key, sources?.[p.key]?.length ?? 0]))
+  const totalSources = Object.values(counts).reduce((a, b) => a + b, 0)
 
   return (
     <div className="space-y-4">
@@ -53,12 +67,8 @@ export default function Rizoma() {
         </div>
 
         {/* Filtro plataforma */}
-        <div className="flex gap-2">
-          {[
-            { value: '',        label: 'Todas' },
-            { value: 'twitter', label: 'Twitter/X' },
-            { value: 'youtube', label: 'YouTube' },
-          ].map(opt => (
+        <div className="flex gap-2 flex-wrap">
+          {[{ value: '', label: 'Todas' }, ...PLATFORMS.map(p => ({ value: p.key, label: p.label }))].map(opt => (
             <button
               key={opt.value}
               onClick={() => { setPlatform(opt.value); setPage(1) }}
@@ -75,57 +85,41 @@ export default function Rizoma() {
       </div>
 
       {/* Resumen de fuentes */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="card p-3 flex items-center gap-3">
-          <div className="bg-sky-100 rounded-lg p-2">
-            <Twitter className="w-4 h-4 text-sky-600" />
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        {PLATFORMS.map(p => (
+          <div key={p.key} className="card p-3 flex items-center gap-3">
+            <div className={`${p.bg} rounded-lg p-2`}>
+              <p.Icon className={`w-4 h-4 ${p.color}`} />
+            </div>
+            <div>
+              <div className="text-lg font-bold text-gray-900">{counts[p.key]}</div>
+              <div className="text-xs text-gray-500">{p.cardLabel}</div>
+            </div>
+            <div className="flex-1 flex flex-wrap gap-1 justify-end">
+              {(sources?.[p.key] ?? []).slice(0, 3).map(s => (
+                <span key={s.id} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full truncate max-w-[100px]">
+                  {s[p.chipKey] ?? s.name}
+                </span>
+              ))}
+              {counts[p.key] > 3 && <span className="text-xs text-gray-400">+{counts[p.key] - 3}</span>}
+            </div>
           </div>
-          <div>
-            <div className="text-lg font-bold text-gray-900">{twitterCount}</div>
-            <div className="text-xs text-gray-500">Feeds Twitter/X</div>
-          </div>
-          <div className="flex-1 flex flex-wrap gap-1 justify-end">
-            {(sources?.twitter ?? []).slice(0, 4).map(s => (
-              <span key={s.id} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full truncate max-w-[100px]">
-                {s.name}
-              </span>
-            ))}
-            {twitterCount > 4 && <span className="text-xs text-gray-400">+{twitterCount - 4}</span>}
-          </div>
-        </div>
-
-        <div className="card p-3 flex items-center gap-3">
-          <div className="bg-red-100 rounded-lg p-2">
-            <Youtube className="w-4 h-4 text-red-600" />
-          </div>
-          <div>
-            <div className="text-lg font-bold text-gray-900">{youtubeCount}</div>
-            <div className="text-xs text-gray-500">Canales YouTube</div>
-          </div>
-          <div className="flex-1 flex flex-wrap gap-1 justify-end">
-            {(sources?.youtube ?? []).slice(0, 4).map(s => (
-              <span key={s.id} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full truncate max-w-[100px]">
-                {s.handle}
-              </span>
-            ))}
-            {youtubeCount > 4 && <span className="text-xs text-gray-400">+{youtubeCount - 4}</span>}
-          </div>
-        </div>
+        ))}
       </div>
 
       {/* Sin fuentes Rizoma */}
-      {!isLoading && twitterCount === 0 && youtubeCount === 0 && (
+      {!isLoading && totalSources === 0 && (
         <div className="card p-8 text-center text-gray-400">
           <ShieldAlert className="w-10 h-10 mx-auto mb-3 text-gray-300" />
           <p className="font-medium">No hay cuentas Rizoma configuradas</p>
           <p className="text-sm mt-1">
-            Ve a Twitter Explorer o YouTube Explorer y marca cuentas hostiles con el botón Rizoma.
+            Ve a cualquier Explorer (Twitter, YouTube, Facebook, Instagram o TikTok) y marca cuentas hostiles con el botón Rizoma.
           </p>
         </div>
       )}
 
       {/* Feed de publicaciones */}
-      {(twitterCount > 0 || youtubeCount > 0) && (
+      {totalSources > 0 && (
         <div className="card overflow-hidden">
           {isLoading ? (
             <div className="p-8 text-center text-gray-400 text-sm">Cargando publicaciones…</div>
@@ -137,16 +131,14 @@ export default function Rizoma() {
             <div className="divide-y divide-gray-100">
               {data.items.map(item => {
                 const sentiment = SENTIMENT_BADGE[item.sentiment_label]
-                const isTwitter = item.source_type === 'twitter'
+                const meta = META_BY_KEY[item.source_type] || { Icon: Radio, bg: 'bg-gray-100', color: 'text-gray-600' }
+                const Icon = meta.Icon
                 return (
                   <div key={item.id} className="p-4 hover:bg-gray-50 transition-colors">
                     <div className="flex items-start gap-3">
                       {/* Icono plataforma */}
-                      <div className={`rounded-full p-1.5 shrink-0 ${isTwitter ? 'bg-sky-100' : 'bg-red-100'}`}>
-                        {isTwitter
-                          ? <Twitter className="w-3.5 h-3.5 text-sky-600" />
-                          : <Youtube className="w-3.5 h-3.5 text-red-600" />
-                        }
+                      <div className={`rounded-full p-1.5 shrink-0 ${meta.bg}`}>
+                        <Icon className={`w-3.5 h-3.5 ${meta.color}`} />
                       </div>
 
                       <div className="flex-1 min-w-0">

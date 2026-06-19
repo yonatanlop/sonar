@@ -12,6 +12,9 @@ from app.database import get_db
 from app.models.mention import Mention
 from app.models.twitter_feed import TwitterFeed
 from app.models.youtube_channel import YoutubeChannel
+from app.models.facebook_feed import FacebookFeed
+from app.models.instagram_feed import InstagramFeed
+from app.models.tiktok_feed import TiktokFeed
 
 router = APIRouter(prefix="/rizoma", tags=["Rizoma"])
 
@@ -23,20 +26,29 @@ def list_rizoma_sources(
     db: Session = Depends(get_db),
     _=Depends(get_current_user),
 ):
-    """Lista las cuentas marcadas como Rizoma (Twitter + YouTube)."""
-    twitter = db.query(TwitterFeed).filter(TwitterFeed.is_rizoma == True).order_by(TwitterFeed.display_name).all()
-    youtube = db.query(YoutubeChannel).filter(YoutubeChannel.is_rizoma == True).order_by(YoutubeChannel.channel_name).all()
+    """Lista las cuentas marcadas como Rizoma en todas las redes."""
+    twitter   = db.query(TwitterFeed).filter(TwitterFeed.is_rizoma == True).order_by(TwitterFeed.display_name).all()
+    youtube   = db.query(YoutubeChannel).filter(YoutubeChannel.is_rizoma == True).order_by(YoutubeChannel.channel_name).all()
+    facebook  = db.query(FacebookFeed).filter(FacebookFeed.is_rizoma == True).order_by(FacebookFeed.display_name).all()
+    instagram = db.query(InstagramFeed).filter(InstagramFeed.is_rizoma == True).order_by(InstagramFeed.display_name).all()
+    tiktok    = db.query(TiktokFeed).filter(TiktokFeed.is_rizoma == True).order_by(TiktokFeed.display_name).all()
+
+    def _feeds(rows):
+        return [{"id": str(f.id), "name": f.display_name, "active": f.active} for f in rows]
 
     return {
-        "twitter": [{"id": str(f.id), "name": f.display_name, "active": f.active} for f in twitter],
-        "youtube": [{"id": ch.id, "name": ch.channel_name, "handle": f"@{ch.handle}", "active": ch.active} for ch in youtube],
+        "twitter":   _feeds(twitter),
+        "youtube":   [{"id": ch.id, "name": ch.channel_name, "handle": f"@{ch.handle}", "active": ch.active} for ch in youtube],
+        "facebook":  _feeds(facebook),
+        "instagram": _feeds(instagram),
+        "tiktok":    _feeds(tiktok),
     }
 
 
 @router.get("/feed")
 def get_rizoma_feed(
     page: int = Query(1, ge=1),
-    platform: str = Query(None, description="twitter | youtube"),
+    platform: str = Query(None, description="twitter | youtube | facebook | instagram | tiktok"),
     db: Session = Depends(get_db),
     _=Depends(get_current_user),
 ):
@@ -50,6 +62,15 @@ def get_rizoma_feed(
     rizoma_youtube = db.query(YoutubeChannel).filter(
         YoutubeChannel.is_rizoma == True, YoutubeChannel.active == True,
     ).all()
+    rizoma_facebook = db.query(FacebookFeed).filter(
+        FacebookFeed.is_rizoma == True, FacebookFeed.active == True,
+    ).all()
+    rizoma_instagram = db.query(InstagramFeed).filter(
+        InstagramFeed.is_rizoma == True, InstagramFeed.active == True,
+    ).all()
+    rizoma_tiktok = db.query(TiktokFeed).filter(
+        TiktokFeed.is_rizoma == True, TiktokFeed.active == True,
+    ).all()
 
     entity_map: dict[str, dict] = {}
     for f in rizoma_twitter:
@@ -58,11 +79,18 @@ def get_rizoma_feed(
     for ch in rizoma_youtube:
         if ch.entity_id:
             entity_map[str(ch.entity_id)] = {"name": ch.channel_name, "type": "youtube"}
+    for f in rizoma_facebook:
+        if f.entity_id:
+            entity_map[str(f.entity_id)] = {"name": f.display_name, "type": "facebook"}
+    for f in rizoma_instagram:
+        if f.entity_id:
+            entity_map[str(f.entity_id)] = {"name": f.display_name, "type": "instagram"}
+    for f in rizoma_tiktok:
+        if f.entity_id:
+            entity_map[str(f.entity_id)] = {"name": f.display_name, "type": "tiktok"}
 
-    if platform == "twitter":
-        entity_map = {k: v for k, v in entity_map.items() if v["type"] == "twitter"}
-    elif platform == "youtube":
-        entity_map = {k: v for k, v in entity_map.items() if v["type"] == "youtube"}
+    if platform in ("twitter", "youtube", "facebook", "instagram", "tiktok"):
+        entity_map = {k: v for k, v in entity_map.items() if v["type"] == platform}
 
     entity_ids = [uuid.UUID(eid) for eid in entity_map]
 

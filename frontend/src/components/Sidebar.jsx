@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Building2, MessageSquare,
   Bell, Inbox, FileText, Users, Settings2, Radio, UserCircle, Activity, Twitter,
   GitCompareArrows, Youtube, ChevronDown, ScrollText, ShieldAlert, Scale, Reply, Search, ScanSearch, MessageSquareReply, Wand2,
-  Facebook, Instagram, Music2,
+  Facebook, Instagram, Music2, UsersRound,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useAuthStore } from '../store/authStore'
@@ -29,6 +29,7 @@ const NAV_SECTIONS = (isAdmin, isAnalyst, isSuperAdmin, unread, inbox) => [
       { to: '/inbox',   icon: Inbox,       label: 'Bandeja',  badge: inbox  },
       { to: '/rizoma',  icon: ShieldAlert, label: 'Rizoma' },
       { to: '/legal',   icon: Scale,       label: 'Jurídico' },
+      ...(isAnalyst ? [{ to: '/grupos', icon: UsersRound, label: 'Grupos a cerrar' }] : []),
       ...(isAnalyst ? [{ to: '/settings/rules', icon: Settings2, label: 'Reglas de alerta' }] : []),
     ],
   },
@@ -102,7 +103,7 @@ export default function Sidebar({ open, onClose }) {
           </div>
           <div>
             <span className="font-bold text-lg tracking-tight">SONAR</span>
-            <p className="text-primary-300 text-xs leading-none">v2.9 · Monitoreo Reputacional</p>
+            <p className="text-primary-300 text-xs leading-none">v3.0 · Monitoreo Reputacional</p>
           </div>
         </div>
 

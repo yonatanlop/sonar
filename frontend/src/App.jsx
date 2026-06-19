@@ -28,6 +28,7 @@ import TwitterKeywordSearch from './pages/TwitterKeywordSearch'
 import MediaSearch          from './pages/MediaSearch'
 import ReplyAccounts       from './pages/ReplyAccounts'
 import TopicKeywords       from './pages/TopicKeywords'
+import FacebookGroups      from './pages/FacebookGroups'
 
 export default function App() {
   return (
@@ -64,6 +65,7 @@ export default function App() {
             <Route element={<AnalystRoute />}>
               <Route path="/settings/rules"  element={<AlertRules />} />
               <Route path="/topic-keywords"  element={<TopicKeywords />} />
+              <Route path="/grupos"          element={<FacebookGroups />} />
             </Route>
 
             {/* Solo admin */}
