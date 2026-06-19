@@ -77,6 +77,38 @@ def _extract_post_id(url: str, text: str) -> str:
     return hashlib.sha1(text[:200].encode()).hexdigest()[:16]
 
 
+def _is_post_permalink(href: str) -> bool:
+    """
+    True solo si el href es un permalink de PUBLICACIÓN (no de perfil).
+    Facebook usa tokens pfbid tanto en enlaces de perfil como de post, por lo
+    que no basta con buscar 'pfbid'; hay que excluir perfiles y exigir
+    marcadores inequívocos de publicación.
+    """
+    if not href:
+        return False
+    low = href.lower()
+    # Excluir enlaces de perfil
+    if "/people/" in low:
+        return False
+    if "/profile.php" in low and "story_fbid" not in low:
+        return False
+    # Marcadores de permalink de publicación
+    post_markers = (
+        "/posts/", "/permalink/", "permalink.php", "story_fbid", "story.php",
+        "/videos/", "/watch", "/reel/", "/photo",
+    )
+    return any(m in low for m in post_markers)
+
+
+def _normalize_fb_url(href: str) -> Optional[str]:
+    """Antepone el dominio si el href es relativo. Retorna None si está vacío."""
+    if not href:
+        return None
+    if href.startswith("/"):
+        return "https://www.facebook.com" + href
+    return href
+
+
 def _parse_reach_number(text: str) -> int:
     """Convierte '5,3 mil' o '2.2K' a entero."""
     text = text.lower().replace('\xa0', ' ')
@@ -339,20 +371,17 @@ class FacebookScraper(BaseScraper):
                 continue
 
             # ── URL del post ────────────────────────────────────
-            post_url = ""
+            # Tomar el primer permalink de publicación (la marca de tiempo),
+            # excluyendo enlaces de perfil. Sin fallback a perfil: si no hay
+            # permalink, se guarda sin URL (no se enlaza al perfil del autor).
+            post_url = None
             for a in card.query_selector_all("a[href]"):
                 href = a.get_attribute("href") or ""
-                if any(x in href for x in ["/posts/", "story_fbid", "pfbid", "/videos/"]):
-                    post_url = href
+                if _is_post_permalink(href):
+                    post_url = _normalize_fb_url(href)
                     break
-            if not post_url:
-                for a in card.query_selector_all("a[href]"):
-                    href = a.get_attribute("href") or ""
-                    if href.startswith("https://www.facebook.com/"):
-                        post_url = href
-                        break
 
-            post_id = _extract_post_id(post_url, text)
+            post_id = _extract_post_id(post_url or "", text)
 
             # ── Autor ───────────────────────────────────────────
             author_el = card.query_selector("h2 a, h3 a, strong a")
