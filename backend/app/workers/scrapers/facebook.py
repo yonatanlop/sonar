@@ -37,20 +37,66 @@ USER_AGENT = (
 )
 
 
+def _cookies_from_raw(raw) -> Optional[dict]:
+    """Normaliza cookies (lista de Cookie-Editor o dict) a {name: value}."""
+    if isinstance(raw, list):
+        return {c["name"]: c["value"] for c in raw if "name" in c and "value" in c}
+    if isinstance(raw, dict):
+        return raw
+    return None
+
+
 def _load_cookies(cookies_file: str) -> Optional[dict]:
     path = Path(cookies_file)
     if not path.exists():
         return None
     try:
         with open(path) as f:
-            raw = json.load(f)
-        if isinstance(raw, list):
-            return {c["name"]: c["value"] for c in raw if "name" in c and "value" in c}
-        if isinstance(raw, dict):
-            return raw
+            return _cookies_from_raw(json.load(f))
     except Exception as e:
         logger.error(f"[Facebook] Error leyendo cookies desde {cookies_file}: {e}")
     return None
+
+
+def _load_fb_accounts(db) -> list[dict]:
+    """
+    Lee las cuentas activas del pool desde la DB (tabla facebook_accounts),
+    ordenadas por last_used (round-robin). Retorna [{id, label, cookies}].
+    Usa SQL crudo para no depender del modelo en la imagen del worker residencial.
+    Fallback: si no hay cuentas/tabla, usa el archivo único fb_cookies.json.
+    """
+    from sqlalchemy import text
+    rows = []
+    try:
+        rows = db.execute(text(
+            "SELECT id, label, cookies_json FROM facebook_accounts "
+            "WHERE active = true ORDER BY last_used NULLS FIRST, id"
+        )).fetchall()
+    except Exception as e:
+        logger.warning(f"[Facebook] No se pudo leer facebook_accounts ({e}); usando archivo.")
+        try:
+            db.rollback()
+        except Exception:
+            pass
+
+    accounts = []
+    for r in rows:
+        try:
+            cookies = _cookies_from_raw(json.loads(r[2]))
+        except Exception:
+            cookies = None
+        if cookies:
+            accounts.append({"id": r[0], "label": r[1], "cookies": cookies})
+
+    if accounts:
+        return accounts
+
+    # Fallback al archivo único
+    from app.core.config import settings
+    file_cookies = _load_cookies(settings.FB_COOKIES_FILE)
+    if file_cookies:
+        return [{"id": None, "label": "archivo (fb_cookies.json)", "cookies": file_cookies}]
+    return []
 
 
 def _playwright_cookies(cookies_dict: dict) -> list:
@@ -227,12 +273,36 @@ class FacebookScraper(BaseScraper):
     def __init__(self, db: Session):
         super().__init__(db)
         from app.core.config import settings
-        self._cookies = _load_cookies(settings.FB_COOKIES_FILE)
-        if not self._cookies:
+
+        accounts = _load_fb_accounts(db)
+        if not accounts:
             raise RuntimeError(
-                f"Facebook: archivo de cookies no encontrado en '{settings.FB_COOKIES_FILE}'. "
-                "Exporta las cookies desde facebook.com con Cookie-Editor."
+                "Facebook: no hay cuentas en el pool ni archivo de cookies en "
+                f"'{settings.FB_COOKIES_FILE}'. Agrega una cuenta en Plataformas → Facebook."
             )
+
+        # Round-robin: la primera es la menos usada recientemente
+        chosen = accounts[0]
+        self._cookies = chosen["cookies"]
+        self._account_label = chosen["label"]
+        self._account_id = chosen["id"]
+
+        # Marcar la cuenta como usada (solo si viene del pool en DB)
+        if chosen["id"] is not None:
+            try:
+                from sqlalchemy import text
+                db.execute(
+                    text("UPDATE facebook_accounts SET last_used = now() WHERE id = :id"),
+                    {"id": chosen["id"]},
+                )
+                db.commit()
+            except Exception:
+                try:
+                    db.rollback()
+                except Exception:
+                    pass
+
+        logger.info(f"[Facebook] Usando cuenta del pool: '{self._account_label}'")
 
     def scrape_entity(self, entity: Entity, keywords: list[Keyword]) -> int:
         try:

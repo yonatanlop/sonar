@@ -39,6 +39,22 @@ class InstagramAccount(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class FacebookAccount(Base):
+    """
+    Cuenta de Facebook del pool (cookies de sesión).
+    Se gestiona desde Plataformas y la lee el worker residencial directamente
+    desde la DB de Oracle. El scraper rota entre cuentas por last_used.
+    """
+    __tablename__ = "facebook_accounts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    label: Mapped[str] = mapped_column(String(150), nullable=False)
+    cookies_json: Mapped[str] = mapped_column(Text, nullable=False)
+    active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    last_used: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class Mention(Base):
     __tablename__ = "mentions"
 

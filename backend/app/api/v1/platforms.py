@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user, require_admin
 from app.core.config import settings
 from app.database import get_db
-from app.models.mention import InstagramAccount, Mention, SocialPlatform
+from app.models.mention import FacebookAccount, InstagramAccount, Mention, SocialPlatform
 
 router = APIRouter(prefix="/platforms", tags=["Plataformas"])
 
@@ -121,8 +121,31 @@ def _instagram_status(db: Session) -> dict:
     }
 
 
-def _facebook_status() -> dict:
-    """Verifica si el archivo de cookies de Facebook existe."""
+def _facebook_status(db: Session | None = None) -> dict:
+    """
+    Estado de Facebook: prioriza el pool de cuentas en DB (facebook_accounts);
+    si no hay cuentas, cae al archivo único fb_cookies.json (compat).
+    """
+    accounts_total = 0
+    accounts_active = 0
+    if db is not None:
+        try:
+            accounts = db.query(FacebookAccount).all()
+            accounts_total = len(accounts)
+            accounts_active = len([a for a in accounts if a.active])
+        except Exception:
+            accounts_total = accounts_active = 0
+
+    if accounts_total > 0:
+        return {
+            "configured":     accounts_active > 0,
+            "accounts_total": accounts_total,
+            "accounts_active": accounts_active,
+            "updated_at":     None,
+            "needs_action":   None if accounts_active > 0 else "Tienes cuentas pero ninguna activa. Activa al menos una.",
+        }
+
+    # Fallback: archivo único
     path = settings.FB_COOKIES_FILE
     configured = os.path.exists(path)
     updated_at = None
@@ -130,9 +153,11 @@ def _facebook_status() -> dict:
         mtime = os.path.getmtime(path)
         updated_at = datetime.fromtimestamp(mtime, tz=timezone.utc).isoformat()
     return {
-        "configured":  configured,
-        "updated_at":  updated_at,
-        "needs_action": None if configured else "Pega el JSON de cookies de Facebook en la sección de configuración.",
+        "configured":     configured,
+        "accounts_total": 1 if configured else 0,
+        "accounts_active": 1 if configured else 0,
+        "updated_at":     updated_at,
+        "needs_action":   None if configured else "Agrega una cuenta de Facebook con sus cookies en la sección Plataformas.",
     }
 
 
@@ -215,7 +240,7 @@ def platforms_status(db: Session = Depends(get_db), _=Depends(get_current_user))
     })
 
     # ── Facebook ─────────────────────────────────────────────────────────
-    fb       = _facebook_status()
+    fb       = _facebook_status(db)
     fb_stats = _platform_stats(db, "facebook")
     result.append({
         "code":         "facebook",
@@ -224,9 +249,11 @@ def platforms_status(db: Session = Depends(get_db), _=Depends(get_current_user))
         "frequency":    "cada hora",
         "configured":   fb["configured"],
         "status":       _health_status(fb["configured"], fb_stats["mentions_24h"], fb_stats["last_mention_at"]),
+        "accounts_total":  fb["accounts_total"],
+        "accounts_active": fb["accounts_active"],
         "cookies_updated_at": fb["updated_at"],
         "needs_action": fb["needs_action"],
-        "setup_hint":   "Exporta las cookies de facebook.com con Cookie-Editor → Export → JSON y pégalas aquí.",
+        "setup_hint":   "Agrega varias cuentas con sus cookies (Cookie-Editor → Export → JSON). El worker rota entre ellas.",
         **fb_stats,
     })
 
@@ -603,6 +630,91 @@ def delete_facebook_cookies(_=Depends(require_admin)):
         raise HTTPException(status_code=404, detail="No hay cookies configuradas.")
     os.remove(path)
     return {"ok": True, "configured": False}
+
+
+# ── Pool de cuentas Facebook (cookies) ─────────────────────────────────────
+
+class FacebookAccountIn(BaseModel):
+    label:        str
+    cookies_json: str
+
+
+class FacebookAccountUpdate(BaseModel):
+    label:        str = ""
+    cookies_json: str = ""
+
+
+def _validate_fb_cookies(cookies_json: str) -> str:
+    try:
+        parsed = json.loads(cookies_json)
+        if not isinstance(parsed, (list, dict)):
+            raise ValueError("El JSON debe ser un array u objeto de cookies.")
+    except (json.JSONDecodeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=f"JSON de cookies inválido: {exc}")
+    return cookies_json.strip()
+
+
+def _fb_accounts_list(db: Session) -> list[dict]:
+    rows = db.query(FacebookAccount).order_by(FacebookAccount.created_at).all()
+    return [{
+        "id":          a.id,
+        "label":       a.label,
+        "active":      a.active,
+        "has_cookies": bool(a.cookies_json),
+        "last_used":   a.last_used.isoformat() if a.last_used else None,
+        "created_at":  a.created_at.isoformat() if a.created_at else None,
+    } for a in rows]
+
+
+@router.get("/facebook/accounts")
+def list_facebook_accounts(db: Session = Depends(get_db), _=Depends(require_admin)):
+    return _fb_accounts_list(db)
+
+
+@router.post("/facebook/accounts", status_code=201)
+def add_facebook_account(body: FacebookAccountIn, db: Session = Depends(get_db), _=Depends(require_admin)):
+    label = body.label.strip()
+    if not label:
+        raise HTTPException(status_code=400, detail="La etiqueta es obligatoria.")
+    cookies = _validate_fb_cookies(body.cookies_json)
+    account = FacebookAccount(label=label, cookies_json=cookies, active=True)
+    db.add(account)
+    db.commit()
+    return {"ok": True, "accounts": _fb_accounts_list(db)}
+
+
+@router.put("/facebook/accounts/{account_id}")
+def update_facebook_account(account_id: int, body: FacebookAccountUpdate,
+                            db: Session = Depends(get_db), _=Depends(require_admin)):
+    account = db.query(FacebookAccount).filter(FacebookAccount.id == account_id).first()
+    if not account:
+        raise HTTPException(status_code=404, detail="Cuenta no encontrada.")
+    if body.label.strip():
+        account.label = body.label.strip()
+    if body.cookies_json.strip():
+        account.cookies_json = _validate_fb_cookies(body.cookies_json)
+    db.commit()
+    return {"ok": True, "accounts": _fb_accounts_list(db)}
+
+
+@router.post("/facebook/accounts/{account_id}/toggle")
+def toggle_facebook_account(account_id: int, db: Session = Depends(get_db), _=Depends(require_admin)):
+    account = db.query(FacebookAccount).filter(FacebookAccount.id == account_id).first()
+    if not account:
+        raise HTTPException(status_code=404, detail="Cuenta no encontrada.")
+    account.active = not account.active
+    db.commit()
+    return {"ok": True, "accounts": _fb_accounts_list(db)}
+
+
+@router.delete("/facebook/accounts/{account_id}")
+def delete_facebook_account(account_id: int, db: Session = Depends(get_db), _=Depends(require_admin)):
+    account = db.query(FacebookAccount).filter(FacebookAccount.id == account_id).first()
+    if not account:
+        raise HTTPException(status_code=404, detail="Cuenta no encontrada.")
+    db.delete(account)
+    db.commit()
+    return {"ok": True, "accounts": _fb_accounts_list(db)}
 
 
 @router.post("/facebook/test")

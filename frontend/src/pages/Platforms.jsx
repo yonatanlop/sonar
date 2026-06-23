@@ -23,8 +23,10 @@ const addIgAccount    = (body) => client.post('/platforms/instagram/accounts', b
 const toggleIgAcc     = (username) => client.post(`/platforms/instagram/accounts/${username}/toggle`).then(r => r.data)
 const deleteIgAcc     = (username) => client.delete(`/platforms/instagram/accounts/${username}`).then(r => r.data)
 
-const saveFbCookies   = (body) => client.post('/platforms/facebook/cookies', body).then(r => r.data)
-const deleteFbCookies = () => client.delete('/platforms/facebook/cookies').then(r => r.data)
+const fetchFbAccounts = () => client.get('/platforms/facebook/accounts').then(r => r.data)
+const addFbAccount    = (body) => client.post('/platforms/facebook/accounts', body).then(r => r.data)
+const toggleFbAccount = (id) => client.post(`/platforms/facebook/accounts/${id}/toggle`).then(r => r.data)
+const deleteFbAccount = (id) => client.delete(`/platforms/facebook/accounts/${id}`).then(r => r.data)
 
 const daysSince = (isoStr) => Math.floor((Date.now() - new Date(isoStr)) / 86_400_000)
 
@@ -454,28 +456,34 @@ function InstagramAccountsPanel() {
   )
 }
 
-// ── Panel de cookies Facebook ──────────────────────────────────────────────
+// ── Panel de cuentas Facebook (pool de cookies) ────────────────────────────
 
-function FacebookCookiesPanel({ configured, updatedAt }) {
+function FacebookAccountsPanel() {
   const qc = useQueryClient()
-  const [open, setOpen]           = useState(false)
-  const [cookies, setCookies]     = useState('')
-  const [error, setError]         = useState('')
+  const [open, setOpen]       = useState(false)
+  const [showAdd, setShowAdd] = useState(false)
+  const [form, setForm]       = useState({ label: '', cookies_json: '' })
+  const [error, setError]     = useState('')
   const [testResult, setTestResult] = useState(null)
 
-  const invalidate = () => qc.invalidateQueries({ queryKey: ['platforms-status'] })
-
-  const saveMut   = useMutation({
-    mutationFn: saveFbCookies,
-    onSuccess: () => { setCookies(''); setError(''); setOpen(false); setTestResult(null); invalidate() },
-    onError: (e) => setError(e.response?.data?.detail || 'Error al guardar cookies'),
+  const { data: accounts = [], isLoading } = useQuery({
+    queryKey: ['fb-accounts'],
+    queryFn:  fetchFbAccounts,
+    enabled:  open,
   })
-  const deleteMut = useMutation({ mutationFn: deleteFbCookies, onSuccess: () => { setTestResult(null); invalidate() } })
 
-  const testMut = useMutation({
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ['fb-accounts'] })
+    qc.invalidateQueries({ queryKey: ['platforms-status'] })
+  }
+
+  const addMut    = useMutation({ mutationFn: addFbAccount, onSuccess: () => { setShowAdd(false); setForm({ label: '', cookies_json: '' }); setError(''); invalidate() }, onError: (e) => setError(e.response?.data?.detail || 'Error al agregar') })
+  const toggleMut = useMutation({ mutationFn: toggleFbAccount, onSuccess: invalidate })
+  const deleteMut = useMutation({ mutationFn: deleteFbAccount, onSuccess: invalidate })
+  const testMut   = useMutation({
     mutationFn: () => client.post('/platforms/facebook/test').then(r => r.data),
     onSuccess: (data) => setTestResult(data),
-    onError:   (e)    => setTestResult({ ok: false, message: e.response?.data?.detail ?? 'Error al probar' }),
+    onError:   (e) => setTestResult({ ok: false, message: e.response?.data?.detail ?? 'Error al probar' }),
   })
   const triggerMut = useMutation({
     mutationFn: () => client.post('/platforms/facebook/trigger').then(r => r.data),
@@ -483,10 +491,10 @@ function FacebookCookiesPanel({ configured, updatedAt }) {
     onError:    (e) => toast.error(e.response?.data?.detail ?? 'Error al iniciar scraping'),
   })
 
-  const handleSave = (e) => {
+  const handleAdd = (e) => {
     e.preventDefault()
-    if (!cookies.trim()) { setError('Pega el JSON de cookies.'); return }
-    saveMut.mutate({ cookies_json: cookies })
+    if (!form.label.trim() || !form.cookies_json.trim()) { setError('Etiqueta y cookies son obligatorias.'); return }
+    addMut.mutate(form)
   }
 
   return (
@@ -494,72 +502,94 @@ function FacebookCookiesPanel({ configured, updatedAt }) {
       <button onClick={() => setOpen(v => !v)}
         className="flex items-center gap-2 text-xs text-gray-500 hover:text-gray-700 transition-colors w-full">
         <Users className="w-3.5 h-3.5" />
-        <span className="flex-1 text-left">Gestionar cookies</span>
+        <span className="flex-1 text-left">Gestionar cuentas</span>
         {open ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
       </button>
 
       {open && (
         <div className="mt-3 space-y-3">
-          {configured && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between bg-green-50 rounded-lg px-3 py-2 text-xs">
-                <span className="text-green-700 font-medium">✓ Cookies configuradas</span>
-                {updatedAt && <span className="text-gray-400">{formatDistanceToNow(new Date(updatedAt), { addSuffix: true, locale: es })}</span>}
-                <button onClick={() => { if (window.confirm('¿Eliminar las cookies de Facebook?')) deleteMut.mutate() }}
-                  disabled={deleteMut.isPending}
-                  className="p-1 rounded text-red-400 hover:text-red-600 hover:bg-red-50">
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+          {isLoading && <p className="text-xs text-gray-400">Cargando...</p>}
+          {!isLoading && accounts.length === 0 && (
+            <p className="text-xs text-gray-400 text-center py-2">No hay cuentas configuradas.</p>
+          )}
+
+          {accounts.map(acc => (
+            <div key={acc.id} className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2 text-xs">
+              <span className={`w-2 h-2 rounded-full shrink-0 ${acc.active ? 'bg-green-500' : 'bg-red-400'}`} />
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-gray-700 truncate">{acc.label} {acc.has_cookies && '🍪'}</p>
+                {acc.last_used && (
+                  <p className="text-[10px] text-gray-400">
+                    usada {formatDistanceToNow(new Date(acc.last_used), { addSuffix: true, locale: es })}
+                  </p>
+                )}
               </div>
+              <button onClick={() => toggleMut.mutate(acc.id)} disabled={toggleMut.isPending}
+                className={`px-2 py-0.5 rounded border text-xs transition-colors ${acc.active ? 'border-yellow-200 text-yellow-700 hover:bg-yellow-50' : 'border-green-200 text-green-700 hover:bg-green-50'}`}>
+                {acc.active ? 'Desactivar' : 'Activar'}
+              </button>
+              <button onClick={() => { if (window.confirm(`¿Eliminar "${acc.label}"?`)) deleteMut.mutate(acc.id) }}
+                disabled={deleteMut.isPending}
+                className="p-1 rounded text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors">
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ))}
 
-              {updatedAt && daysSince(updatedAt) > 30 && (
-                <div className="flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                  Las cookies tienen {daysSince(updatedAt)} días — pueden haber expirado
-                </div>
-              )}
+          {!showAdd && (
+            <button onClick={() => setShowAdd(true)}
+              className="flex items-center gap-1.5 text-xs text-primary-600 hover:text-primary-800 transition-colors">
+              <Plus className="w-3.5 h-3.5" /> Agregar cuenta
+            </button>
+          )}
 
-              {testResult && (
-                <div className={`flex items-start gap-2 text-xs rounded-lg px-3 py-2 ${
-                  testResult.ok ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
-                }`}>
-                  {testResult.ok
-                    ? <CheckCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                    : <XCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />}
-                  <span>
-                    {testResult.message}
-                    {!testResult.ok && testResult.error && (
-                      <code className="block mt-0.5 text-[10px] opacity-70 break-all">{testResult.error.slice(0, 120)}</code>
-                    )}
-                  </span>
-                </div>
-              )}
-
-              <div className="flex gap-2">
-                <button onClick={() => testMut.mutate()} disabled={testMut.isPending}
-                  className="btn-secondary text-xs py-1.5 flex-1">
-                  {testMut.isPending ? 'Probando…' : '🔌 Probar conexión'}
+          {showAdd && (
+            <form onSubmit={handleAdd} className="space-y-2 bg-gray-50 rounded-lg p-3 border border-gray-200">
+              <p className="text-xs font-semibold text-gray-700">Nueva cuenta Facebook</p>
+              <input className="input text-xs w-full" placeholder="Etiqueta (ej: Cuenta MIRA 1)"
+                value={form.label} onChange={e => setForm(f => ({ ...f, label: e.target.value }))} />
+              <textarea className="input text-xs w-full font-mono resize-none" rows={4}
+                placeholder={'JSON de cookies (Cookie-Editor → Export as JSON desde facebook.com)'}
+                value={form.cookies_json} onChange={e => setForm(f => ({ ...f, cookies_json: e.target.value }))} />
+              {error && <p className="text-xs text-red-600">{error}</p>}
+              <div className="flex gap-2 pt-1">
+                <button type="submit" disabled={addMut.isPending} className="btn-primary text-xs py-1.5 flex-1">
+                  {addMut.isPending ? 'Agregando...' : 'Agregar'}
                 </button>
-                <button onClick={() => triggerMut.mutate()} disabled={triggerMut.isPending}
-                  className="btn-secondary text-xs py-1.5 flex-1">
-                  {triggerMut.isPending ? 'Enviando…' : '▶ Ejecutar ahora'}
-                </button>
+                <button type="button" onClick={() => { setShowAdd(false); setError('') }} className="btn-secondary text-xs py-1.5 flex-1">Cancelar</button>
               </div>
+            </form>
+          )}
+
+          {/* Resultado de prueba */}
+          {testResult && (
+            <div className={`flex items-start gap-2 text-xs rounded-lg px-3 py-2 ${
+              testResult.ok ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+            }`}>
+              {testResult.ok
+                ? <CheckCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                : <XCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />}
+              <span>
+                {testResult.message}
+                {!testResult.ok && testResult.error && (
+                  <code className="block mt-0.5 text-[10px] opacity-70 break-all">{testResult.error.slice(0, 120)}</code>
+                )}
+              </span>
             </div>
           )}
 
-          <form onSubmit={handleSave} className="space-y-2">
-            <textarea className="input text-xs w-full font-mono resize-none" rows={4}
-              placeholder={'Pega aquí el JSON de cookies\n(Cookie-Editor → Export as JSON desde facebook.com)'}
-              value={cookies} onChange={e => setCookies(e.target.value)} />
-            {error && <p className="text-xs text-red-600">{error}</p>}
+          {accounts.length > 0 && (
             <div className="flex gap-2">
-              <button type="submit" disabled={saveMut.isPending} className="btn-primary text-xs py-1.5 flex-1">
-                {saveMut.isPending ? 'Guardando...' : configured ? 'Actualizar cookies' : 'Guardar cookies'}
+              <button onClick={() => testMut.mutate()} disabled={testMut.isPending}
+                className="btn-secondary text-xs py-1.5 flex-1">
+                {testMut.isPending ? 'Probando…' : '🔌 Probar conexión'}
               </button>
-              <button type="button" onClick={() => { setOpen(false); setError('') }} className="btn-secondary text-xs py-1.5 flex-1">Cancelar</button>
+              <button onClick={() => triggerMut.mutate()} disabled={triggerMut.isPending}
+                className="btn-secondary text-xs py-1.5 flex-1">
+                {triggerMut.isPending ? 'Enviando…' : '▶ Ejecutar ahora'}
+              </button>
             </div>
-          </form>
+          )}
         </div>
       )}
     </div>
@@ -671,10 +701,8 @@ function PlatformCard({ platform, isAdmin }) {
         {/* Instagram account manager (admin only) */}
         {platform.code === 'instagram' && isAdmin && <InstagramAccountsPanel />}
 
-        {/* Facebook cookies manager (admin only) */}
-        {platform.code === 'facebook' && isAdmin && (
-          <FacebookCookiesPanel configured={platform.configured} updatedAt={platform.cookies_updated_at} />
-        )}
+        {/* Facebook accounts pool manager (admin only) */}
+        {platform.code === 'facebook' && isAdmin && <FacebookAccountsPanel />}
       </div>
     </div>
   )
