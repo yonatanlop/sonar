@@ -128,7 +128,7 @@ export default function Sidebar({ open, onClose }) {
 
                 <div className={clsx(
                   'overflow-hidden transition-all duration-200',
-                  isCollapsed ? 'max-h-0' : 'max-h-96'
+                  isCollapsed ? 'max-h-0' : 'max-h-[1200px]'
                 )}>
                   <div className="space-y-0.5 pb-2">
                     {items.map(({ to, icon: Icon, label: itemLabel, badge }) => (
