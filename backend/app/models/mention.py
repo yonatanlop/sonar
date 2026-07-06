@@ -50,6 +50,9 @@ class FacebookAccount(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     label: Mapped[str] = mapped_column(String(150), nullable=False)
     cookies_json: Mapped[str] = mapped_column(Text, nullable=False)
+    # Proxy residencial fijo (sticky) de esta cuenta. Formato:
+    # "http://usuario:contraseña@host:puerto". NULL = usa la IP del host.
+    proxy_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     last_used: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

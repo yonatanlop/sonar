@@ -61,7 +61,7 @@ celery_app.conf.beat_schedule = {
     },
     "scrape-facebook": {
         "task": "app.workers.tasks.scraping.scrape_facebook",
-        "schedule": crontab(minute=0),       # cada hora en punto
+        "schedule": crontab(minute=0, hour="*/2"),  # cada 2 horas (menos agresivo, evita rate-limit)
     },
     # YouTube Explorer: canales asignados con keywords
     "scrape-youtube-channels": {

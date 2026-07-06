@@ -637,11 +637,13 @@ def delete_facebook_cookies(_=Depends(require_admin)):
 class FacebookAccountIn(BaseModel):
     label:        str
     cookies_json: str
+    proxy_url:    str = ""     # http://usuario:contraseña@host:puerto (opcional)
 
 
 class FacebookAccountUpdate(BaseModel):
     label:        str = ""
     cookies_json: str = ""
+    proxy_url:    str | None = None   # None = no cambiar · "" = quitar · valor = fijar
 
 
 def _validate_fb_cookies(cookies_json: str) -> str:
@@ -654,6 +656,39 @@ def _validate_fb_cookies(cookies_json: str) -> str:
     return cookies_json.strip()
 
 
+def _validate_fb_proxy(proxy_url: str) -> str:
+    """Valida el proxy URL (si viene). Retorna la cadena limpia o '' si vacío."""
+    raw = (proxy_url or "").strip()
+    if not raw:
+        return ""
+    from urllib.parse import urlparse
+    test = raw if "://" in raw else "http://" + raw
+    if not urlparse(test).hostname:
+        raise HTTPException(
+            status_code=400,
+            detail="proxy_url inválido. Formato: http://usuario:contraseña@host:puerto",
+        )
+    return raw
+
+
+def _mask_proxy(url: str | None) -> str | None:
+    """Enmascara la contraseña del proxy para exponerlo sin filtrar credenciales."""
+    if not url:
+        return None
+    try:
+        from urllib.parse import urlparse
+        raw = url if "://" in url else "http://" + url
+        p = urlparse(raw)
+        scheme = p.scheme or "http"
+        host = p.hostname or ""
+        port = f":{p.port}" if p.port else ""
+        if p.username:
+            return f"{scheme}://{p.username}:***@{host}{port}"
+        return f"{scheme}://{host}{port}"
+    except Exception:
+        return "***"
+
+
 def _fb_accounts_list(db: Session) -> list[dict]:
     rows = db.query(FacebookAccount).order_by(FacebookAccount.created_at).all()
     return [{
@@ -661,6 +696,8 @@ def _fb_accounts_list(db: Session) -> list[dict]:
         "label":       a.label,
         "active":      a.active,
         "has_cookies": bool(a.cookies_json),
+        "has_proxy":   bool(a.proxy_url),
+        "proxy":       _mask_proxy(a.proxy_url),
         "last_used":   a.last_used.isoformat() if a.last_used else None,
         "created_at":  a.created_at.isoformat() if a.created_at else None,
     } for a in rows]
@@ -677,7 +714,10 @@ def add_facebook_account(body: FacebookAccountIn, db: Session = Depends(get_db),
     if not label:
         raise HTTPException(status_code=400, detail="La etiqueta es obligatoria.")
     cookies = _validate_fb_cookies(body.cookies_json)
-    account = FacebookAccount(label=label, cookies_json=cookies, active=True)
+    proxy = _validate_fb_proxy(body.proxy_url)
+    account = FacebookAccount(
+        label=label, cookies_json=cookies, proxy_url=(proxy or None), active=True,
+    )
     db.add(account)
     db.commit()
     return {"ok": True, "accounts": _fb_accounts_list(db)}
@@ -693,6 +733,8 @@ def update_facebook_account(account_id: int, body: FacebookAccountUpdate,
         account.label = body.label.strip()
     if body.cookies_json.strip():
         account.cookies_json = _validate_fb_cookies(body.cookies_json)
+    if body.proxy_url is not None:
+        account.proxy_url = _validate_fb_proxy(body.proxy_url) or None
     db.commit()
     return {"ok": True, "accounts": _fb_accounts_list(db)}
 

@@ -93,6 +93,9 @@ class Settings(BaseSettings):
     # Facebook (cookies de sesión exportadas con Cookie-Editor desde facebook.com)
     FB_COOKIES_FILE: str = "/app/storage/fb_cookies.json"
     FB_LOOKBACK_DAYS: int = 3        # días hacia atrás para filtrar posts recientes
+    # Proxy residencial por defecto para el fallback de archivo (las cuentas del
+    # pool traen su propio proxy_url). Formato: "http://usuario:contraseña@host:puerto"
+    FB_PROXY_URL: str = ""
 
     # TikTok (TikTokApi v6 + Playwright — worker local con IP residencial)
     # Obtener ms_token: tiktok.com → DevTools → Application → Cookies → msToken

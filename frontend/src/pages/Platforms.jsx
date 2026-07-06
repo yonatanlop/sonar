@@ -462,7 +462,7 @@ function FacebookAccountsPanel() {
   const qc = useQueryClient()
   const [open, setOpen]       = useState(false)
   const [showAdd, setShowAdd] = useState(false)
-  const [form, setForm]       = useState({ label: '', cookies_json: '' })
+  const [form, setForm]       = useState({ label: '', cookies_json: '', proxy_url: '' })
   const [error, setError]     = useState('')
   const [testResult, setTestResult] = useState(null)
 
@@ -477,7 +477,7 @@ function FacebookAccountsPanel() {
     qc.invalidateQueries({ queryKey: ['platforms-status'] })
   }
 
-  const addMut    = useMutation({ mutationFn: addFbAccount, onSuccess: () => { setShowAdd(false); setForm({ label: '', cookies_json: '' }); setError(''); invalidate() }, onError: (e) => setError(e.response?.data?.detail || 'Error al agregar') })
+  const addMut    = useMutation({ mutationFn: addFbAccount, onSuccess: () => { setShowAdd(false); setForm({ label: '', cookies_json: '', proxy_url: '' }); setError(''); invalidate() }, onError: (e) => setError(e.response?.data?.detail || 'Error al agregar') })
   const toggleMut = useMutation({ mutationFn: toggleFbAccount, onSuccess: invalidate })
   const deleteMut = useMutation({ mutationFn: deleteFbAccount, onSuccess: invalidate })
   const testMut   = useMutation({
@@ -517,7 +517,10 @@ function FacebookAccountsPanel() {
             <div key={acc.id} className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2 text-xs">
               <span className={`w-2 h-2 rounded-full shrink-0 ${acc.active ? 'bg-green-500' : 'bg-red-400'}`} />
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-gray-700 truncate">{acc.label} {acc.has_cookies && '🍪'}</p>
+                <p className="font-medium text-gray-700 truncate">{acc.label} {acc.has_cookies && '🍪'} {acc.has_proxy && '🌐'}</p>
+                {acc.has_proxy && (
+                  <p className="text-[10px] text-gray-400 truncate font-mono">{acc.proxy}</p>
+                )}
                 {acc.last_used && (
                   <p className="text-[10px] text-gray-400">
                     usada {formatDistanceToNow(new Date(acc.last_used), { addSuffix: true, locale: es })}
@@ -551,6 +554,12 @@ function FacebookAccountsPanel() {
               <textarea className="input text-xs w-full font-mono resize-none" rows={4}
                 placeholder={'JSON de cookies (Cookie-Editor → Export as JSON desde facebook.com)'}
                 value={form.cookies_json} onChange={e => setForm(f => ({ ...f, cookies_json: e.target.value }))} />
+              <input className="input text-xs w-full font-mono"
+                placeholder={'Proxy residencial (opcional) — http://usuario:contraseña@host:puerto'}
+                value={form.proxy_url} onChange={e => setForm(f => ({ ...f, proxy_url: e.target.value }))} />
+              <p className="text-[10px] text-gray-400 leading-tight">
+                IP residencial fija de esta cuenta. Déjalo vacío para usar la IP del servidor.
+              </p>
               {error && <p className="text-xs text-red-600">{error}</p>}
               <div className="flex gap-2 pt-1">
                 <button type="submit" disabled={addMut.isPending} className="btn-primary text-xs py-1.5 flex-1">

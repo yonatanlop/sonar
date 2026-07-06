@@ -26,9 +26,15 @@ from app.workers.scrapers.base import BaseScraper, keyword_matches_text, save_me
 
 logger = logging.getLogger(__name__)
 
-DELAY_BETWEEN_SEARCHES = 45  # segundos entre búsquedas (más tiempo = menos detección)
+DELAY_BETWEEN_SEARCHES = 180  # segundos entre búsquedas (más tiempo = menos detección/rate-limit)
 POSTS_PER_SEARCH       = 12  # posts visibles sin scroll (~1 página)
 PAGE_LOAD_WAIT_MS      = 6000
+
+# Scroll incremental en los resultados de búsqueda para cargar más allá de las
+# ~12 tarjetas iniciales (posts nuevos aparecen más abajo en orden cronológico).
+SEARCH_SCROLL_ROUNDS   = 3      # nº de ruedas de scroll
+SEARCH_SCROLL_PIXELS   = 1400   # px por rueda
+SEARCH_SCROLL_WAIT_MS  = 2500   # espera tras cada scroll para que cargue el lazy-load
 
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -67,17 +73,31 @@ def _load_fb_accounts(db) -> list[dict]:
     """
     from sqlalchemy import text
     rows = []
+    has_proxy_col = True
     try:
         rows = db.execute(text(
-            "SELECT id, label, cookies_json FROM facebook_accounts "
+            "SELECT id, label, cookies_json, proxy_url FROM facebook_accounts "
             "WHERE active = true ORDER BY last_used NULLS FIRST, id"
         )).fetchall()
-    except Exception as e:
-        logger.warning(f"[Facebook] No se pudo leer facebook_accounts ({e}); usando archivo.")
+    except Exception:
+        # La columna proxy_url puede no existir aún (migración no aplicada):
+        # reintentar sin ella antes de caer al archivo.
         try:
             db.rollback()
         except Exception:
             pass
+        has_proxy_col = False
+        try:
+            rows = db.execute(text(
+                "SELECT id, label, cookies_json FROM facebook_accounts "
+                "WHERE active = true ORDER BY last_used NULLS FIRST, id"
+            )).fetchall()
+        except Exception as e:
+            logger.warning(f"[Facebook] No se pudo leer facebook_accounts ({e}); usando archivo.")
+            try:
+                db.rollback()
+            except Exception:
+                pass
 
     accounts = []
     for r in rows:
@@ -86,7 +106,8 @@ def _load_fb_accounts(db) -> list[dict]:
         except Exception:
             cookies = None
         if cookies:
-            accounts.append({"id": r[0], "label": r[1], "cookies": cookies})
+            proxy = r[3] if has_proxy_col and len(r) > 3 else None
+            accounts.append({"id": r[0], "label": r[1], "cookies": cookies, "proxy": proxy})
 
     if accounts:
         return accounts
@@ -95,7 +116,12 @@ def _load_fb_accounts(db) -> list[dict]:
     from app.core.config import settings
     file_cookies = _load_cookies(settings.FB_COOKIES_FILE)
     if file_cookies:
-        return [{"id": None, "label": "archivo (fb_cookies.json)", "cookies": file_cookies}]
+        return [{
+            "id": None,
+            "label": "archivo (fb_cookies.json)",
+            "cookies": file_cookies,
+            "proxy": (settings.FB_PROXY_URL or None),
+        }]
     return []
 
 
@@ -105,6 +131,32 @@ def _playwright_cookies(cookies_dict: dict) -> list:
         {"name": k, "value": v, "domain": ".facebook.com", "path": "/"}
         for k, v in cookies_dict.items()
     ]
+
+
+def _parse_proxy_url(proxy_url: Optional[str]) -> Optional[dict]:
+    """
+    Convierte un proxy URL ('http://user:pass@host:port', 'host:port', etc.)
+    al formato que acepta Playwright: {'server', 'username', 'password'}.
+    Retorna None si no hay proxy (el scraper corre con la IP del host).
+    """
+    if not proxy_url or not proxy_url.strip():
+        return None
+    raw = proxy_url.strip()
+    if "://" not in raw:
+        raw = "http://" + raw
+    parsed = urllib.parse.urlparse(raw)
+    if not parsed.hostname:
+        return None
+    scheme = parsed.scheme or "http"
+    server = f"{scheme}://{parsed.hostname}"
+    if parsed.port:
+        server += f":{parsed.port}"
+    proxy: dict = {"server": server}
+    if parsed.username:
+        proxy["username"] = urllib.parse.unquote(parsed.username)
+    if parsed.password:
+        proxy["password"] = urllib.parse.unquote(parsed.password)
+    return proxy
 
 
 def _extract_post_id(url: str, text: str) -> str:
@@ -286,6 +338,7 @@ class FacebookScraper(BaseScraper):
         self._cookies = chosen["cookies"]
         self._account_label = chosen["label"]
         self._account_id = chosen["id"]
+        self._proxy = _parse_proxy_url(chosen.get("proxy"))
 
         # Marcar la cuenta como usada (solo si viene del pool en DB)
         if chosen["id"] is not None:
@@ -302,7 +355,8 @@ class FacebookScraper(BaseScraper):
                 except Exception:
                     pass
 
-        logger.info(f"[Facebook] Usando cuenta del pool: '{self._account_label}'")
+        proxy_info = f" vía proxy {self._proxy['server']}" if self._proxy else " (IP del host)"
+        logger.info(f"[Facebook] Usando cuenta del pool: '{self._account_label}'{proxy_info}")
 
     def scrape_entity(self, entity: Entity, keywords: list[Keyword]) -> int:
         try:
@@ -330,6 +384,7 @@ class FacebookScraper(BaseScraper):
                 viewport={"width": 1366, "height": 768},
                 locale="es-CO",
                 timezone_id="America/Bogota",
+                proxy=self._proxy,
             )
             ctx.add_cookies(_playwright_cookies(self._cookies))
             ctx.add_init_script("""
@@ -404,6 +459,12 @@ class FacebookScraper(BaseScraper):
                     return 0
 
             page.wait_for_timeout(PAGE_LOAD_WAIT_MS)
+
+            # Scroll incremental para cargar más allá de las ~12 tarjetas iniciales
+            for _ in range(SEARCH_SCROLL_ROUNDS):
+                page.mouse.wheel(0, SEARCH_SCROLL_PIXELS)
+                page.wait_for_timeout(SEARCH_SCROLL_WAIT_MS)
+
             saved, raw_count = self._process_feed_cards(page, entity, keyword_obj)
 
         except Exception as e:
@@ -554,6 +615,7 @@ class FacebookScraper(BaseScraper):
                 viewport={"width": 1366, "height": 768},
                 locale="es-CO",
                 timezone_id="America/Bogota",
+                proxy=self._proxy,
             )
             ctx.add_cookies(_playwright_cookies(self._cookies))
             ctx.add_init_script("""
