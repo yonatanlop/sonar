@@ -76,10 +76,19 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    labels:
+      autoheal: "true"     # autoheal reinicia este contenedor si queda 'unhealthy'
+    healthcheck:
+      # curl no está en la imagen → usar python para pegarle a /health
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health',timeout=5).status==200 else 1)\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 45s
     deploy:
       resources:
         limits:
-          memory: 200M
+          memory: 288M
 
   # ── Celery Worker ────────────────────────────────────────────
   worker:
@@ -100,7 +109,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 350M
+          memory: 256M
 
   # ── Celery Beat (scheduler) ──────────────────────────────────
   beat:
@@ -130,6 +139,29 @@ services:
       - "80:80"
     depends_on:
       - backend
+    deploy:
+      resources:
+        limits:
+          memory: 48M
+
+  # ── Autoheal ─────────────────────────────────────────────────
+  # Vigila los contenedores con label `autoheal=true` y los reinicia si Docker
+  # los marca 'unhealthy'. Cubre cuelgues que NO son OOM (el OOM ya se auto-cura
+  # solo porque el servidor es PID 1 tras quitar --reload).
+  autoheal:
+    image: willfarrell/autoheal:latest
+    container_name: sonar_autoheal
+    restart: unless-stopped
+    environment:
+      AUTOHEAL_CONTAINER_LABEL: autoheal
+      AUTOHEAL_INTERVAL: "15"       # revisa cada 15s
+      AUTOHEAL_START_PERIOD: "60"   # espera 60s antes de vigilar tras arrancar
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    deploy:
+      resources:
+        limits:
+          memory: 24M
 
 volumes:
   postgres_data:

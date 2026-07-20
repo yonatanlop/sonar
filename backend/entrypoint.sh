@@ -19,4 +19,6 @@ echo "==> Ejecutando migraciones Alembic..."
 alembic upgrade head
 
 echo "==> Iniciando servidor FastAPI..."
-exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+# Producción: SIN --reload. Así el servidor es PID 1; si el kernel lo mata por
+# OOM, el contenedor sale y `restart: unless-stopped` lo levanta solo (auto-heal).
+exec uvicorn app.main:app --host 0.0.0.0 --port 8000
