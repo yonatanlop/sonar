@@ -73,20 +73,27 @@ def get_dashboard(db: Session = Depends(get_db),
     ).scalar() or 0
 
     # ── Timeline: últimos 14 días ─────────────────────────────
+    # UNA sola consulta agrupada por día (date_trunc) en vez de 14 queries.
+    # Con el índice (collected_at, sentiment_label) es un seek por rango.
+    window_start = today - timedelta(days=13)
+    day_col = func.date_trunc("day", Mention.collected_at).label("day")
+    timeline_rows = db.query(
+        day_col,
+        Mention.sentiment_label,
+        func.count(Mention.id).label("cnt"),
+    ).filter(
+        Mention.collected_at >= window_start,
+    ).group_by(day_col, Mention.sentiment_label).all()
+
+    # Indexar por fecha (UTC) → {date: {sentiment: cnt}}
+    by_day: dict = {}
+    for r in timeline_rows:
+        by_day.setdefault(r.day.date(), {})[r.sentiment_label] = r.cnt
+
     dates, neg_counts, neu_counts, pos_counts = [], [], [], []
     for i in range(13, -1, -1):
-        day_start = (today - timedelta(days=i))
-        day_end   = day_start + timedelta(days=1)
-
-        rows = db.query(
-            Mention.sentiment_label,
-            func.count(Mention.id).label("cnt")
-        ).filter(
-            Mention.collected_at >= day_start,
-            Mention.collected_at <  day_end,
-        ).group_by(Mention.sentiment_label).all()
-
-        counts = {r.sentiment_label: r.cnt for r in rows}
+        day_start = today - timedelta(days=i)
+        counts = by_day.get(day_start.date(), {})
         dates.append(day_start.strftime("%d/%m"))
         neg_counts.append(counts.get("negative", 0) + counts.get("very_negative", 0))
         neu_counts.append(counts.get("neutral", 0))
@@ -119,12 +126,19 @@ def get_dashboard(db: Session = Depends(get_db),
     top_entities = [{"entity_id": str(r.id), "name": r.name, "negative_count": r.negative_count} for r in top_rows]
 
     # ── Alertas recientes (últimas 5) ─────────────────────────
-    alert_rows = db.query(Alert).order_by(Alert.triggered_at.desc()).limit(5).all()
+    # JOIN a Entity para el nombre en vez de una subconsulta por alerta (N+1).
+    alert_rows = (
+        db.query(Alert, Entity.name)
+        .outerjoin(Entity, Entity.id == Alert.entity_id)
+        .order_by(Alert.triggered_at.desc())
+        .limit(5)
+        .all()
+    )
     recent_alerts = [
         {
             "id":          str(a.id),
             "entity_id":   str(a.entity_id),
-            "entity_name": db.query(Entity.name).filter(Entity.id == a.entity_id).scalar() or "—",
+            "entity_name": entity_name or "—",
             "rule_type":   a.rule.rule_type if a.rule else None,
             "mention_id":  str(a.mention_id) if a.mention_id else None,
             "message":     a.message,
@@ -132,7 +146,7 @@ def get_dashboard(db: Session = Depends(get_db),
             "triggered_at": a.triggered_at.isoformat(),
             "acknowledged": a.acknowledged,
         }
-        for a in alert_rows
+        for a, entity_name in alert_rows
     ]
 
     # ── Bots por plataforma (v2) ──────────────────────────────
