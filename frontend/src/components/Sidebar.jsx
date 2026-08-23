@@ -49,12 +49,20 @@ const NAV_SECTIONS = (isAdmin, isAnalyst, isSuperAdmin, unread, inbox) => [
       { to: '/platforms',        icon: Activity,  label: 'Plataformas' },
     ],
   },
+  // Sección propia. Hoy solo admin; para abrir a más roles cambiar este gate
+  // por `isAnalyst` (y CASE_MANAGER_ROLES en el backend + la ruta en App.jsx).
+  ...(isAdmin ? [{
+    id:    'seguimiento',
+    label: 'SEGUIMIENTO',
+    items: [
+      { to: '/cases', icon: FolderSearch, label: 'Seguimiento a caso' },
+    ],
+  }] : []),
   ...(isAdmin ? [{
     id:    'administracion',
     label: 'ADMINISTRACIÓN',
     items: [
       { to: '/admin/users',          icon: Users,              label: 'Usuarios' },
-      { to: '/cases',                icon: FolderSearch,        label: 'Seguimiento a caso' },
       { to: '/admin/audit',          icon: ScrollText,          label: 'Auditoría' },
       { to: '/admin/reply-accounts', icon: MessageSquareReply,  label: 'Cuentas de Respuesta' },
       ...(isSuperAdmin ? [{ to: '/admin/twitter-search', icon: Search, label: 'Búsqueda Twitter' }] : []),
