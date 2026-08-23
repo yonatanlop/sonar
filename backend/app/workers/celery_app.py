@@ -150,6 +150,13 @@ celery_app.conf.beat_schedule = {
         "task": "app.workers.tasks.analytics.compute_trends",
         "schedule": crontab(hour=0, minute=30),  # diario a las 00:30
     },
+    # Pre-calcula el payload del dashboard y lo deja en caché (Redis) para que
+    # la carga del usuario sea instantánea (el cómputo pesado corre aquí, no en
+    # la petición web).
+    "refresh-dashboard-cache": {
+        "task": "app.workers.tasks.analytics.refresh_dashboard_cache",
+        "schedule": crontab(minute="*/4"),  # cada 4 min
+    },
     # ── Módulo 8: Búsqueda Inversa — cómputo de pHash incremental ────
     "compute-image-phash": {
         "task": "app.workers.tasks.nlp.compute_image_phash",

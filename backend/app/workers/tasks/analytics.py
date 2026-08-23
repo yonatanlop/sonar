@@ -209,6 +209,32 @@ def geocode_mentions(self):
 
 
 @celery_app.task(
+    name="app.workers.tasks.analytics.refresh_dashboard_cache",
+    bind=True,
+    max_retries=0,
+)
+def refresh_dashboard_cache(self):
+    """
+    Pre-calcula el payload del dashboard y lo deja en caché (Redis) para que la
+    carga del usuario sea instantánea. El cómputo pesado (agregar ~90K menciones)
+    corre aquí en segundo plano, no en la petición web. Corre cada 4 min.
+    Las agregaciones se resuelven en la DB (devuelven pocas filas), así que el
+    footprint de memoria del worker es mínimo — compatible con la VM de 1GB.
+    """
+    db = SessionLocal()
+    try:
+        from app.api.v1.dashboard import compute_dashboard, dashboard_cache_set
+        payload = compute_dashboard(db)
+        dashboard_cache_set(payload)
+        return {"status": "ok"}
+    except Exception as exc:
+        logger.error(f"[DashboardCache] Error: {exc}", exc_info=True)
+        return {"status": "error", "error": str(exc)}
+    finally:
+        db.close()
+
+
+@celery_app.task(
     name="app.workers.tasks.analytics.compute_trends",
     bind=True,
     max_retries=1,

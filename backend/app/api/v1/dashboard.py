@@ -1,18 +1,54 @@
+import json
+import logging
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional, List
 
+import redis as redis_lib
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, case
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
+from app.core.config import settings
 from app.database import get_db
 from app.models.entity import Entity
 from app.models.mention import Mention, SocialPlatform
 from app.models.alert import Alert
 from app.models.bot import AccountProfile, BotAnalysis
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
+
+# ── Caché del payload del dashboard ───────────────────────────
+# El dashboard agrega ~90K menciones (14 días) por carga: en la VM de 1GB eso
+# tarda ~20s. En vez de recalcular en cada petición, cacheamos el resultado en
+# Redis y lo refrescamos en segundo plano (tarea Celery refresh_dashboard_cache
+# cada 4 min). La petición del usuario solo lee este JSON → instantánea.
+_DASH_CACHE_KEY = "sonar:dashboard:v1"
+_DASH_CACHE_TTL = 900  # 15 min: holgura si el worker de refresco se atrasa
+
+_dash_redis_pool = redis_lib.ConnectionPool.from_url(
+    settings.REDIS_URL, decode_responses=True
+)
+
+
+def _dash_cache_get() -> Optional[dict]:
+    try:
+        raw = redis_lib.Redis(connection_pool=_dash_redis_pool).get(_DASH_CACHE_KEY)
+        return json.loads(raw) if raw else None
+    except Exception as exc:  # Redis caído → degradar a cálculo directo
+        logger.warning(f"[Dashboard] cache get falló: {exc}")
+        return None
+
+
+def dashboard_cache_set(payload: dict) -> None:
+    try:
+        redis_lib.Redis(connection_pool=_dash_redis_pool).setex(
+            _DASH_CACHE_KEY, _DASH_CACHE_TTL, json.dumps(payload, default=str)
+        )
+    except Exception as exc:
+        logger.warning(f"[Dashboard] cache set falló: {exc}")
 
 
 def _delta(current: float, previous: float) -> dict:
@@ -25,9 +61,13 @@ def _delta(current: float, previous: float) -> dict:
     return {"value": current, "prev_value": previous, "delta_pct": pct, "trend": trend}
 
 
-@router.get("")
-def get_dashboard(db: Session = Depends(get_db),
-                  _=Depends(get_current_user)):
+def compute_dashboard(db: Session) -> dict:
+    """Calcula el payload completo del dashboard (consultas pesadas).
+
+    Se ejecuta en segundo plano (tarea Celery) y el resultado se cachea en Redis;
+    el endpoint solo lee la caché. También se usa como fallback si la caché está
+    vacía (primer arranque o Redis caído).
+    """
     now   = datetime.now(timezone.utc)
     today = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
@@ -77,10 +117,12 @@ def get_dashboard(db: Session = Depends(get_db),
     # Con el índice (collected_at, sentiment_label) es un seek por rango.
     window_start = today - timedelta(days=13)
     day_col = func.date_trunc("day", Mention.collected_at).label("day")
+    # count() (=count(*)) en vez de count(id): ambas columnas necesarias
+    # (collected_at, sentiment_label) están en el índice → index-only scan.
     timeline_rows = db.query(
         day_col,
         Mention.sentiment_label,
-        func.count(Mention.id).label("cnt"),
+        func.count().label("cnt"),
     ).filter(
         Mention.collected_at >= window_start,
     ).group_by(day_col, Mention.sentiment_label).all()
@@ -200,6 +242,22 @@ def get_dashboard(db: Session = Depends(get_db),
         "recent_alerts":     recent_alerts,
         "bots_by_platform":  bots_by_platform,
     }
+
+
+@router.get("")
+def get_dashboard(db: Session = Depends(get_db),
+                  _=Depends(get_current_user)):
+    """Devuelve el payload del dashboard desde caché (instantáneo).
+
+    Si la caché está vacía (primer arranque, o el worker de refresco aún no
+    corrió), lo calcula al vuelo y lo cachea para las siguientes peticiones.
+    """
+    cached = _dash_cache_get()
+    if cached is not None:
+        return cached
+    payload = compute_dashboard(db)
+    dashboard_cache_set(payload)
+    return payload
 
 
 # ── Share of Voice ────────────────────────────────────────────
