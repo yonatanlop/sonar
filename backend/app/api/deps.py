@@ -41,6 +41,19 @@ def require_analyst(current_user: User = Depends(get_current_user)) -> User:
     return current_user
 
 
+# Roles autorizados para gestionar "Seguimiento a caso".
+# De momento solo admin; abrir a más roles = agregarlos a esta tupla
+# (p.ej. ("admin", "analyst")). El frontend gatea la ruta/menú en paralelo.
+CASE_MANAGER_ROLES: tuple[str, ...] = ("admin",)
+
+
+def require_case_manager(current_user: User = Depends(get_current_user)) -> User:
+    if current_user.role not in CASE_MANAGER_ROLES:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail="No tiene permiso para gestionar casos")
+    return current_user
+
+
 def require_superadmin(current_user: User = Depends(get_current_user)) -> User:
     """Solo el usuario con is_superadmin=True puede acceder (Administrador SONAR)."""
     if not getattr(current_user, "is_superadmin", False):

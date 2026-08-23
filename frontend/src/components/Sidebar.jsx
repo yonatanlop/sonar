@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Building2, MessageSquare,
   Bell, Inbox, FileText, Users, Settings2, Radio, UserCircle, Activity, Twitter,
   GitCompareArrows, Youtube, ChevronDown, ScrollText, ShieldAlert, Scale, Reply, Search, ScanSearch, MessageSquareReply, Wand2,
-  Facebook, Instagram, Music2, UsersRound,
+  Facebook, Instagram, Music2, UsersRound, FolderSearch,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useAuthStore } from '../store/authStore'
@@ -54,6 +54,7 @@ const NAV_SECTIONS = (isAdmin, isAnalyst, isSuperAdmin, unread, inbox) => [
     label: 'ADMINISTRACIÓN',
     items: [
       { to: '/admin/users',          icon: Users,              label: 'Usuarios' },
+      { to: '/cases',                icon: FolderSearch,        label: 'Seguimiento a caso' },
       { to: '/admin/audit',          icon: ScrollText,          label: 'Auditoría' },
       { to: '/admin/reply-accounts', icon: MessageSquareReply,  label: 'Cuentas de Respuesta' },
       ...(isSuperAdmin ? [{ to: '/admin/twitter-search', icon: Search, label: 'Búsqueda Twitter' }] : []),

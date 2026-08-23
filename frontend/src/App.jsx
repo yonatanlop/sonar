@@ -29,6 +29,7 @@ import MediaSearch          from './pages/MediaSearch'
 import ReplyAccounts       from './pages/ReplyAccounts'
 import TopicKeywords       from './pages/TopicKeywords'
 import FacebookGroups      from './pages/FacebookGroups'
+import Cases               from './pages/Cases'
 
 export default function App() {
   return (
@@ -74,6 +75,9 @@ export default function App() {
               <Route path="/admin/audit"           element={<Audit />} />
               <Route path="/admin/twitter-search"  element={<TwitterKeywordSearch />} />
               <Route path="/admin/reply-accounts"  element={<ReplyAccounts />} />
+              {/* Seguimiento a caso — hoy solo admin. Para abrir a analistas:
+                  mover esta ruta a <AnalystRoute> y ajustar CASE_MANAGER_ROLES en el backend. */}
+              <Route path="/cases"                 element={<Cases />} />
             </Route>
           </Route>
         </Route>
