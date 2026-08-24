@@ -40,10 +40,11 @@ class Case(Base):
 
 class CaseRecord(Base):
     """
-    Registro dentro de un caso — una publicación denunciada y su trámite.
+    Registro dentro de un caso — una publicación monitoreada y su denuncia.
 
-    Guarda la publicación (fecha, URL, plataforma), la descripción de lo que se
-    hizo en la denuncia, el resultado y la fecha de ejecución del resultado.
+    El esquema replica la matriz de seguimiento del cliente (Excel SONAR): datos
+    de la publicación, del perfil autor, indicadores de análisis y el estado de
+    la denuncia. Todos los campos son opcionales salvo el vínculo al caso.
     """
     __tablename__ = "case_records"
 
@@ -52,15 +53,43 @@ class CaseRecord(Base):
         UUID(as_uuid=True), ForeignKey("cases.id", ondelete="CASCADE"), nullable=False, index=True
     )
 
-    # Publicación denunciada
-    publication_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    publication_url:  Mapped[str | None]      = mapped_column(String(1000), nullable=True)
-    platform:         Mapped[str | None]      = mapped_column(String(30), nullable=True)  # X, Facebook, YouTube, TikTok, Instagram
+    # Identificación
+    post_id: Mapped[int | None] = mapped_column(nullable=True, index=True)  # consecutivo global (0001, 0002…)
+    affects: Mapped[str | None] = mapped_column(String(300), nullable=True)  # a quién afecta este contenido
+    sentiment: Mapped[str | None] = mapped_column(String(20), nullable=True)  # Positivo / Negativo / Neutral
 
-    # Trámite de la denuncia
-    action_description: Mapped[str | None] = mapped_column(Text, nullable=True)  # qué se realizó en la denuncia
-    result:             Mapped[str | None] = mapped_column(Text, nullable=True)  # resultado de la denuncia
-    result_date:        Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)  # fecha de ejecución del resultado
+    # Publicación
+    publication_url:  Mapped[str | None]      = mapped_column(String(1000), nullable=True)  # link de la publicación/comentario
+    content_text:     Mapped[str | None]      = mapped_column(Text, nullable=True)          # texto del contenido
+    image_data:       Mapped[str | None]      = mapped_column(Text, nullable=True)          # captura de imagen (data-URI base64)
+    publication_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)  # fecha y hora
+    medium:           Mapped[str | None]      = mapped_column(String(30), nullable=True)    # Facebook, Instagram, TikTok, YouTube, X, Sitio Web, Threads
+    media_type:       Mapped[str | None]      = mapped_column(String(80), nullable=True)    # Video / Publicación / Columna / Otro
+    likes:            Mapped[int | None]      = mapped_column(nullable=True)                 # nº de me gusta
+    shares:           Mapped[int | None]      = mapped_column(nullable=True)                 # compartidos / retweets
+    comments_count:   Mapped[int | None]      = mapped_column(nullable=True)                 # nº de comentarios
+
+    # Perfil autor
+    author:             Mapped[str | None] = mapped_column(String(300), nullable=True)  # quién hace la publicación
+    user_id:            Mapped[str | None] = mapped_column(String(100), nullable=True)  # user id
+    account_age_months: Mapped[str | None] = mapped_column(String(300), nullable=True)  # antigüedad de la cuenta (meses) — texto libre
+    followers:          Mapped[int | None] = mapped_column(nullable=True)               # nº de seguidores
+    following:          Mapped[int | None] = mapped_column(nullable=True)               # nº de seguidos
+    verified:           Mapped[bool | None] = mapped_column(nullable=True)              # ¿cuenta verificada?
+    bio:                Mapped[str | None] = mapped_column(Text, nullable=True)         # biografía/descripción del perfil
+    city:               Mapped[str | None] = mapped_column(String(200), nullable=True)  # ciudad de origen
+
+    # Análisis
+    inauthenticity_flag:  Mapped[str | None]  = mapped_column(String(20), nullable=True)  # semáforo: Rojo / Amarillo / Verde
+    organic_criticism:    Mapped[bool | None] = mapped_column(nullable=True)  # ¿crítica orgánica de ciudadanos reales?
+    opposition_criticism: Mapped[bool | None] = mapped_column(nullable=True)  # ¿crítica impulsada por opositores?
+    coordinated_attack:   Mapped[bool | None] = mapped_column(nullable=True)  # ¿ataque coordinado (CIB)?
+
+    # Denuncia
+    reporter_name: Mapped[str | None]  = mapped_column(String(300), nullable=True)  # nombre de quien reporta
+    reported:      Mapped[bool | None] = mapped_column(nullable=True)               # ¿se denunció?
+    report_detail: Mapped[str | None]  = mapped_column(Text, nullable=True)         # detalle de la denuncia
+    post_removed:  Mapped[bool | None] = mapped_column(nullable=True)               # ¿la publicación fue eliminada?
 
     created_by: Mapped[uuid.UUID]      = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     created_at: Mapped[datetime]       = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
