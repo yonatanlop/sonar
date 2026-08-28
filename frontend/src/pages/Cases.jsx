@@ -79,7 +79,7 @@ const EMPTY_RECORD = {
   publication_url: '', content_text: '', image: '',
   likes: '', shares: '', comments_count: '',
   inauthenticity_flag: '', organic_criticism: '', opposition_criticism: '', coordinated_attack: '',
-  reporter_name: '', reported: '', report_detail: '', post_removed: '',
+  reporter_name: '', reported: '', report_detail: '', post_removed: '', post_removed_date: '',
 }
 
 export default function Cases() {
@@ -524,6 +524,7 @@ function AccountDetail({ caseId, accountId, onBack, qc }) {
       coordinated_attack: boolToSel(r.coordinated_attack),
       reporter_name: r.reporter_name || '', reported: boolToSel(r.reported),
       report_detail: r.report_detail || '', post_removed: boolToSel(r.post_removed),
+      post_removed_date: toLocalInput(r.post_removed_date),
     })
     setImageTouched(false); setShowModal(true)
     if (r.has_image) {
@@ -551,6 +552,7 @@ function AccountDetail({ caseId, accountId, onBack, qc }) {
       coordinated_attack: selToBool(form.coordinated_attack),
       reporter_name: form.reporter_name.trim() || null, reported: selToBool(form.reported),
       report_detail: form.report_detail.trim() || null, post_removed: selToBool(form.post_removed),
+      post_removed_date: form.post_removed_date ? new Date(form.post_removed_date).toISOString() : null,
     }
     if (!editing) body.image = form.image || null
     else if (imageTouched) body.image = form.image || ''
@@ -722,6 +724,11 @@ function AccountDetail({ caseId, accountId, onBack, qc }) {
                     <textarea className="input w-full resize-none" rows={2} placeholder="Qué se realizó en la denuncia…" value={form.report_detail} onChange={e => set('report_detail', e.target.value)} />
                   </Field>
                   <Field label="¿La publicación fue eliminada?"><YesNo value={form.post_removed} onChange={v => set('post_removed', v)} /></Field>
+                  {form.post_removed === 'si' && (
+                    <Field label="Fecha de eliminación de la publicación">
+                      <input className="input w-full" type="datetime-local" value={form.post_removed_date} onChange={e => set('post_removed_date', e.target.value)} />
+                    </Field>
+                  )}
                 </div>
               </section>
             </div>

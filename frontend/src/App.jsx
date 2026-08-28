@@ -30,6 +30,7 @@ import ReplyAccounts       from './pages/ReplyAccounts'
 import TopicKeywords       from './pages/TopicKeywords'
 import FacebookGroups      from './pages/FacebookGroups'
 import Cases               from './pages/Cases'
+import CaseReports         from './pages/CaseReports'
 
 export default function App() {
   return (
@@ -78,6 +79,7 @@ export default function App() {
               {/* Seguimiento a caso — hoy solo admin. Para abrir a analistas:
                   mover esta ruta a <AnalystRoute> y ajustar CASE_MANAGER_ROLES en el backend. */}
               <Route path="/cases"                 element={<Cases />} />
+              <Route path="/cases/reportes"        element={<CaseReports />} />
             </Route>
           </Route>
         </Route>

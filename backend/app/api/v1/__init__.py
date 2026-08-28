@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1 import auth, users, dashboard, entities, platforms, mentions, alerts, reports, chat, twitter_feeds, youtube_explorer, audit, rizoma, legal, twitter_keyword_search, media_search, reply_accounts, topic_keywords, facebook_feeds, instagram_feeds, tiktok_feeds, facebook_groups, cases
+from app.api.v1 import auth, users, dashboard, entities, platforms, mentions, alerts, reports, chat, twitter_feeds, youtube_explorer, audit, rizoma, legal, twitter_keyword_search, media_search, reply_accounts, topic_keywords, facebook_feeds, instagram_feeds, tiktok_feeds, facebook_groups, cases, case_reports
 
 router = APIRouter(prefix="/api/v1")
 router.include_router(auth.router)
@@ -25,3 +25,4 @@ router.include_router(instagram_feeds.router)
 router.include_router(tiktok_feeds.router)
 router.include_router(facebook_groups.router)
 router.include_router(cases.router)
+router.include_router(case_reports.router)

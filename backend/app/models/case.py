@@ -131,6 +131,7 @@ class CaseRecord(Base):
     reported:      Mapped[bool | None] = mapped_column(nullable=True)               # ¿se denunció?
     report_detail: Mapped[str | None]  = mapped_column(Text, nullable=True)         # detalle de la denuncia
     post_removed:  Mapped[bool | None] = mapped_column(nullable=True)               # ¿la publicación fue eliminada?
+    post_removed_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)  # fecha de eliminación de la publicación
 
     created_by: Mapped[uuid.UUID]      = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     created_at: Mapped[datetime]       = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)

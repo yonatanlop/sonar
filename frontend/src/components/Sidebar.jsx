@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Building2, MessageSquare,
   Bell, Inbox, FileText, Users, Settings2, Radio, UserCircle, Activity, Twitter,
   GitCompareArrows, Youtube, ChevronDown, ScrollText, ShieldAlert, Scale, Reply, Search, ScanSearch, MessageSquareReply, Wand2,
-  Facebook, Instagram, Music2, UsersRound, FolderSearch,
+  Facebook, Instagram, Music2, UsersRound, FolderSearch, FileBarChart,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useAuthStore } from '../store/authStore'
@@ -55,7 +55,8 @@ const NAV_SECTIONS = (isAdmin, isAnalyst, isSuperAdmin, unread, inbox) => [
     id:    'seguimiento',
     label: 'SEGUIMIENTO',
     items: [
-      { to: '/cases', icon: FolderSearch, label: 'Seguimiento a caso' },
+      { to: '/cases',          icon: FolderSearch,  label: 'Seguimiento a caso' },
+      { to: '/cases/reportes',  icon: FileBarChart, label: 'Reportes' },
     ],
   }] : []),
   ...(isAdmin ? [{
@@ -144,7 +145,7 @@ export default function Sidebar({ open, onClose }) {
                       <NavLink
                         key={to}
                         to={to}
-                        end={to === '/'}
+                        end={to === '/' || to === '/cases'}
                         onClick={onClose}
                         className={({ isActive }) => clsx(
                           'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',

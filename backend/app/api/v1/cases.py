@@ -94,6 +94,7 @@ class RecordBase(BaseModel):
     reported:      Optional[bool] = None
     report_detail: Optional[str] = None
     post_removed:  Optional[bool] = None
+    post_removed_date: Optional[datetime] = None
 
 
 class RecordCreate(RecordBase):
@@ -156,6 +157,7 @@ def _record_dict(r: CaseRecord) -> dict:
         "reported":      r.reported,
         "report_detail": r.report_detail,
         "post_removed":  r.post_removed,
+        "post_removed_date": r.post_removed_date.isoformat() if r.post_removed_date else None,
         "created_by":    str(r.created_by),
         "created_at":    r.created_at.isoformat() if r.created_at else None,
         "updated_at":    r.updated_at.isoformat() if r.updated_at else None,
@@ -278,7 +280,8 @@ def _apply_account_fields(a: CaseAccount, fields: dict) -> None:
 _RECORD_TEXT = ("affects", "publication_url", "content_text", "media_type", "reporter_name", "report_detail")
 _RECORD_PASS = (
     "publication_date", "likes", "shares", "comments_count",
-    "organic_criticism", "opposition_criticism", "coordinated_attack", "reported", "post_removed",
+    "organic_criticism", "opposition_criticism", "coordinated_attack", "reported",
+    "post_removed", "post_removed_date",
 )
 
 
