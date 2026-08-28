@@ -13,7 +13,7 @@ from app.models.facebook_feed import FacebookFeed
 from app.models.instagram_feed import InstagramFeed
 from app.models.tiktok_feed import TiktokFeed
 from app.models.facebook_group import FacebookGroup
-from app.models.case import Case, CaseRecord
+from app.models.case import Case, CaseAccount, CaseRecord
 from app.models.legal_escalation import LegalEscalation
 # YoutubeChannel must be imported before YtKeywordHit (bidirectional back_populates)
 from app.models.youtube_channel import YoutubeChannel, YoutubeChannelKeyword
@@ -34,7 +34,7 @@ __all__ = [
     "TwitterFeed",
     "FacebookFeed", "InstagramFeed", "TiktokFeed",
     "FacebookGroup",
-    "Case", "CaseRecord",
+    "Case", "CaseAccount", "CaseRecord",
     "LegalEscalation",
     "YoutubeChannel", "YoutubeChannelKeyword",
     "YtKeywordHit",

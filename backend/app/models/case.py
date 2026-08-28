@@ -10,12 +10,12 @@ from app.database import Base
 
 class Case(Base):
     """
-    Seguimiento a caso — agrupa múltiples publicaciones denunciadas bajo un
-    mismo nombre (ej. "Caso Payita").
+    Seguimiento a caso — la persona/sujeto monitoreado (ej. "Caso Payita").
 
-    El caso guarda solo el nombre y una imagen opcional (data-URI base64 en
-    `image_data`). Cada publicación denunciada es un `CaseRecord` hijo, de modo
-    que un caso puede tener N registros de distintas redes sociales.
+    Jerarquía de 3 niveles: Caso → Cuenta (perfil por red social) → Publicación.
+    El caso guarda solo el nombre y una imagen opcional; los datos del perfil
+    viven en `CaseAccount` (una por red social) y las publicaciones en
+    `CaseRecord` (colgando de cada cuenta).
     """
     __tablename__ = "cases"
 
@@ -30,9 +30,58 @@ class Case(Base):
     updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
 
     creator: Mapped["User"] = relationship("User", foreign_keys=[created_by])  # noqa: F821
+    accounts: Mapped[list["CaseAccount"]] = relationship(
+        "CaseAccount",
+        back_populates="case",
+        cascade="all, delete-orphan",
+        order_by="CaseAccount.created_at",
+    )
+
+
+class CaseAccount(Base):
+    """
+    Cuenta / perfil de una persona en una red social (ej. Payita en TikTok).
+
+    Agrupa las publicaciones (`CaseRecord`) de esa cuenta, de modo que los datos
+    del perfil se cargan una sola vez por red. Incluye el estado de la cuenta:
+    si fue eliminada y si la persona creó una cuenta nueva para seguir atacando.
+    """
+    __tablename__ = "case_accounts"
+
+    id:      Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    case_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("cases.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+
+    # Identidad de la cuenta
+    medium:      Mapped[str | None] = mapped_column(String(30), nullable=True)    # red social: Facebook, Instagram, TikTok, YouTube, X, Threads, Sitio Web
+    author:      Mapped[str | None] = mapped_column(String(300), nullable=True)   # nombre / quién publica
+    profile_url: Mapped[str | None] = mapped_column(String(1000), nullable=True)  # URL del perfil
+    user_id:     Mapped[str | None] = mapped_column(String(100), nullable=True)   # user id
+
+    # Datos del perfil
+    account_age_months: Mapped[str | None]  = mapped_column(String(300), nullable=True)  # antigüedad (meses) — texto libre
+    followers:          Mapped[int | None]  = mapped_column(nullable=True)               # nº de seguidores
+    following:          Mapped[int | None]  = mapped_column(nullable=True)               # nº de seguidos
+    verified:           Mapped[bool | None] = mapped_column(nullable=True)               # ¿cuenta verificada?
+    bio:                Mapped[str | None]  = mapped_column(Text, nullable=True)         # biografía/descripción
+    city:               Mapped[str | None]  = mapped_column(String(200), nullable=True)  # ciudad de origen
+
+    # Estado de la cuenta
+    account_removed:     Mapped[bool | None]     = mapped_column(nullable=True)                # ¿la cuenta fue eliminada?
+    removed_date:        Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)  # fecha de eliminación
+    created_new_account: Mapped[bool | None]     = mapped_column(nullable=True)                # ¿creó cuenta nueva?
+    new_account_info:    Mapped[str | None]      = mapped_column(String(1000), nullable=True)  # nombre/URL de la cuenta nueva
+
+    created_by: Mapped[uuid.UUID]      = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    created_at: Mapped[datetime]       = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
+
+    case:    Mapped["Case"] = relationship("Case", back_populates="accounts")
+    creator: Mapped["User"] = relationship("User", foreign_keys=[created_by])  # noqa: F821
     records: Mapped[list["CaseRecord"]] = relationship(
         "CaseRecord",
-        back_populates="case",
+        back_populates="account",
         cascade="all, delete-orphan",
         order_by="CaseRecord.created_at",
     )
@@ -40,17 +89,20 @@ class Case(Base):
 
 class CaseRecord(Base):
     """
-    Registro dentro de un caso — una publicación monitoreada y su denuncia.
+    Publicación monitoreada dentro de una cuenta.
 
-    El esquema replica la matriz de seguimiento del cliente (Excel SONAR): datos
-    de la publicación, del perfil autor, indicadores de análisis y el estado de
-    la denuncia. Todos los campos son opcionales salvo el vínculo al caso.
+    Guarda solo lo específico de la publicación (contenido, métricas, análisis de
+    inautenticidad y denuncia). Los datos del perfil autor y la red social viven
+    en la `CaseAccount` a la que pertenece.
     """
     __tablename__ = "case_records"
 
     id:      Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     case_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("cases.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("case_accounts.id", ondelete="CASCADE"), nullable=False, index=True
     )
 
     # Identificación
@@ -63,21 +115,10 @@ class CaseRecord(Base):
     content_text:     Mapped[str | None]      = mapped_column(Text, nullable=True)          # texto del contenido
     image_data:       Mapped[str | None]      = mapped_column(Text, nullable=True)          # captura de imagen (data-URI base64)
     publication_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)  # fecha y hora
-    medium:           Mapped[str | None]      = mapped_column(String(30), nullable=True)    # Facebook, Instagram, TikTok, YouTube, X, Sitio Web, Threads
     media_type:       Mapped[str | None]      = mapped_column(String(80), nullable=True)    # Video / Publicación / Columna / Otro
     likes:            Mapped[int | None]      = mapped_column(nullable=True)                 # nº de me gusta
     shares:           Mapped[int | None]      = mapped_column(nullable=True)                 # compartidos / retweets
     comments_count:   Mapped[int | None]      = mapped_column(nullable=True)                 # nº de comentarios
-
-    # Perfil autor
-    author:             Mapped[str | None] = mapped_column(String(300), nullable=True)  # quién hace la publicación
-    user_id:            Mapped[str | None] = mapped_column(String(100), nullable=True)  # user id
-    account_age_months: Mapped[str | None] = mapped_column(String(300), nullable=True)  # antigüedad de la cuenta (meses) — texto libre
-    followers:          Mapped[int | None] = mapped_column(nullable=True)               # nº de seguidores
-    following:          Mapped[int | None] = mapped_column(nullable=True)               # nº de seguidos
-    verified:           Mapped[bool | None] = mapped_column(nullable=True)              # ¿cuenta verificada?
-    bio:                Mapped[str | None] = mapped_column(Text, nullable=True)         # biografía/descripción del perfil
-    city:               Mapped[str | None] = mapped_column(String(200), nullable=True)  # ciudad de origen
 
     # Análisis
     inauthenticity_flag:  Mapped[str | None]  = mapped_column(String(20), nullable=True)  # semáforo: Rojo / Amarillo / Verde
@@ -95,5 +136,5 @@ class CaseRecord(Base):
     created_at: Mapped[datetime]       = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
 
-    case:    Mapped["Case"] = relationship("Case", back_populates="records")
-    creator: Mapped["User"] = relationship("User", foreign_keys=[created_by])  # noqa: F821
+    account: Mapped["CaseAccount"] = relationship("CaseAccount", back_populates="records")
+    creator: Mapped["User"]        = relationship("User", foreign_keys=[created_by])  # noqa: F821
