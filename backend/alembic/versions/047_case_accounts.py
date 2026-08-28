@@ -64,7 +64,7 @@ def upgrade():
             max(author), max(nullif(trim(user_id), '')),
             max(account_age_months), max(followers), max(following),
             bool_or(verified), max(bio), max(city),
-            min(created_by), min(created_at)
+            (array_agg(created_by ORDER BY created_at))[1], min(created_at)
         FROM case_records
         GROUP BY case_id, medium, {_GROUP_KEY.format(t='case_records')}
         """
