@@ -10,6 +10,7 @@ import { useQuery } from '@tanstack/react-query'
 import { FileBarChart, MapPin, Ban, Download, ExternalLink, AlertCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import client from '../api/client'
+import { CITY_COORDS } from '../data/colombiaCities'
 
 // Contorno de Colombia (GeoJSON público proyectado a este viewBox)
 const GEO = { lonMin: -78.9909, lonMax: -66.8763, latMax: 12.4373, W: 520, H: 718.3 }
@@ -17,26 +18,19 @@ const SX = GEO.W / (GEO.lonMax - GEO.lonMin)
 const proj = (lon, lat) => [(lon - GEO.lonMin) * SX, (GEO.latMax - lat) * SX]
 const COL_PATH = "M155.3 540.4 L136.9 530.2 L115.8 516.0 L103.6 522.8 L67.2 516.9 L56.8 498.4 L48.8 499.1 L5.8 474.6 L0.0 461.3 L16.0 458.0 L14.1 436.5 L24.2 421.0 L45.5 418.1 L63.5 391.1 L80.0 368.6 L64.2 358.4 L72.3 333.5 L62.6 294.2 L71.8 282.9 L65.0 246.6 L47.6 223.8 L53.1 202.9 L67.0 206.0 L75.0 193.2 L65.1 168.0 L70.3 161.7 L92.5 163.0 L124.7 133.1 L142.3 128.5 L142.8 114.3 L150.7 78.0 L175.3 58.1 L202.3 57.3 L205.8 48.4 L239.3 51.9 L273.1 30.3 L289.9 20.7 L310.6 0.0 L325.8 2.6 L337.1 13.9 L328.8 28.4 L301.2 35.6 L290.3 57.0 L273.7 69.3 L261.2 85.3 L256.0 115.9 L244.1 141.0 L266.2 143.9 L271.7 163.6 L281.2 173.1 L284.6 190.4 L279.5 206.2 L281.0 215.2 L291.6 218.8 L301.8 233.7 L357.0 229.6 L381.9 235.1 L412.1 272.0 L429.5 267.4 L460.4 269.7 L484.9 264.8 L500.0 272.2 L492.3 295.3 L482.7 309.7 L479.4 340.5 L488.0 369.0 L500.2 381.8 L501.7 391.4 L479.9 412.8 L495.5 422.2 L506.9 437.2 L520.0 480.1 L511.9 485.3 L503.5 460.0 L491.6 446.4 L477.4 461.2 L393.8 460.2 L394.3 487.1 L419.5 491.5 L418.0 508.0 L409.4 503.5 L385.3 510.6 L385.0 541.8 L404.1 557.5 L410.8 582.0 L409.8 600.7 L390.5 718.3 L369.0 695.5 L356.2 694.5 L383.9 650.8 L351.0 630.7 L325.2 634.4 L309.7 627.0 L286.1 638.3 L254.1 633.0 L228.8 588.0 L209.0 576.9 L195.3 556.6 L166.7 536.3 L155.3 540.4 Z"
 
-// Coordenadas de las principales ciudades (clave normalizada → [lat, lon])
-const CITY_COORDS = {
-  bogota: [4.65, -74.10], medellin: [6.24, -75.58], cali: [3.44, -76.52],
-  barranquilla: [10.96, -74.80], bucaramanga: [7.12, -73.12], cartagena: [10.42, -75.53],
-  cucuta: [7.89, -72.50], pereira: [4.81, -75.69], 'santa marta': [11.24, -74.20],
-  ibague: [4.44, -75.24], pasto: [1.21, -77.28], manizales: [5.07, -75.52],
-  neiva: [2.93, -75.28], villavicencio: [4.14, -73.63], armenia: [4.53, -75.68],
-  valledupar: [10.46, -73.25], monteria: [8.75, -75.88], popayan: [2.44, -76.61],
-  sincelejo: [9.30, -75.40], tunja: [5.54, -73.36], riohacha: [11.54, -72.91],
-  florencia: [1.61, -75.61], yopal: [5.34, -72.40], quibdo: [5.69, -76.66],
-  calarca: [4.53, -75.64], tulua: [4.08, -76.20], cota: [4.81, -74.10],
-  girardot: [4.30, -74.80], soacha: [4.58, -74.22], palmira: [3.54, -76.30],
-  buenaventura: [3.88, -77.03], zipaquira: [5.02, -73.99], mocoa: [1.15, -76.65],
-  arauca: [7.08, -70.76], leticia: [-4.21, -69.94], inirida: [3.87, -67.92],
-  mitu: [1.25, -70.23], 'puerto carreno': [6.19, -67.49], chia: [4.86, -74.03],
-}
-
 // NFD descompone acentos (é → e + marca) y [^a-z ] elimina las marcas y símbolos
-const norm = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[^a-z ]/g, '').trim()
+const norm = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[^a-z ]/g, '').replace(/\s+/g, ' ').trim()
 const coordOf = (city) => CITY_COORDS[norm(city)] || null
+
+// Punto proyectado en el mapa, o null si la ciudad no está o cae fuera del lienzo
+// (p. ej. San Andrés, muy al oeste). Esas van a la lista de "no ubicadas".
+function mapPointOf(city) {
+  const c = coordOf(city)
+  if (!c) return null
+  const [x, y] = proj(c[1], c[0])
+  if (x < 0 || x > GEO.W || y < 0 || y > GEO.H) return null
+  return [x, y]
+}
 
 function fmtDate(dt) {
   if (!dt) return '—'
@@ -57,8 +51,8 @@ export default function CaseReports() {
 
   const geo = data?.geo || []
   const maxCount = geo.reduce((m, g) => Math.max(m, g.count), 0) || 1
-  const located = geo.filter(g => coordOf(g.city))
-  const foreign = geo.filter(g => !coordOf(g.city))
+  const located = geo.filter(g => mapPointOf(g.city))
+  const foreign = geo.filter(g => !mapPointOf(g.city))
 
   async function downloadPdf() {
     setDownloading(true)
@@ -120,8 +114,7 @@ export default function CaseReports() {
                   <svg viewBox={`0 0 ${GEO.W} ${GEO.H}`} className="w-full max-w-[320px] h-auto">
                     <path d={COL_PATH} fill="#dbeafe" stroke="#93c5fd" strokeWidth="1.5" />
                     {located.map(g => {
-                      const [lat, lon] = coordOf(g.city)
-                      const [x, y] = proj(lon, lat)
+                      const [x, y] = mapPointOf(g.city)
                       const r = 6 + 4 * Math.sqrt(g.count)
                       return (
                         <g key={g.city}>
@@ -138,7 +131,7 @@ export default function CaseReports() {
                   {geo.map(g => (
                     <div key={g.city} className="flex items-center gap-2">
                       <div className="w-32 shrink-0 text-sm text-gray-700 truncate flex items-center gap-1">
-                        {!coordOf(g.city) && <span title="Fuera de Colombia / no ubicada">🌐</span>}
+                        {!mapPointOf(g.city) && <span title="No ubicada en el mapa">🌐</span>}
                         {g.city}
                       </div>
                       <div className="flex-1 bg-gray-100 rounded-full h-4 overflow-hidden">
