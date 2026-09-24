@@ -32,7 +32,8 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.models.entity import Entity, Keyword
 from app.workers.scrapers.base import (
-    BaseScraper, build_search_terms, save_mention, upsert_account_profile,
+    BaseScraper, build_search_terms, save_mention, text_matches_any_term,
+    upsert_account_profile,
 )
 
 logger = logging.getLogger(__name__)
@@ -388,6 +389,8 @@ class TwitterScraper(BaseScraper):
     def scrape_entity(self, entity: Entity, keywords: list[Keyword]) -> int:
         saved_total = 0
         search_terms = build_search_terms(entity, keywords)
+        # Alias de la entidad: cuentan como coincidencia válida en el post-filtro.
+        self._alias_texts = [a.alias for a in (entity.aliases or [])]
 
         for term, keyword_obj in search_terms:
             try:
@@ -438,9 +441,23 @@ class TwitterScraper(BaseScraper):
         entity: Entity, keyword_obj: Keyword,
     ) -> int:
         saved = 0
+        skipped_off_topic = 0
         try:
             async for tweet in api.search(query, limit=settings.TWITTER_MAX_RESULTS):
                 try:
+                    content = getattr(tweet, "rawContent", None) or tweet.content
+
+                    # Post-filtro: la búsqueda de Twitter es difusa (coincide con
+                    # nombres/handles de cuenta, homónimos, etc.). Solo guardamos lo
+                    # que cumple la keyword parametrizada o un alias de la entidad,
+                    # igual que hacen los demás scrapers. Se evalúa antes de guardar
+                    # el perfil para no contaminar cuentas/bots con ruido.
+                    if not text_matches_any_term(
+                        content, [keyword_obj], getattr(self, "_alias_texts", ())
+                    ):
+                        skipped_off_topic += 1
+                        continue
+
                     user = tweet.user
                     if user:
                         upsert_account_profile(
@@ -465,7 +482,6 @@ class TwitterScraper(BaseScraper):
                             location_text=(getattr(user, "location", None) or "")[:200] or None,
                         )
 
-                    content = getattr(tweet, "rawContent", None) or tweet.content
                     url = getattr(tweet, "url", f"https://x.com/i/web/status/{tweet.id}")
                     reach = (
                         (getattr(tweet, "likeCount",    0) or 0)
@@ -522,4 +538,6 @@ class TwitterScraper(BaseScraper):
         except Exception as exc:
             raise exc
 
+        if skipped_off_topic:
+            logger.info(f"[Twitter] {skipped_off_topic} tweets descartados (no cumplen la keyword ni alias)")
         return saved

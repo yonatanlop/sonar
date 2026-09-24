@@ -80,11 +80,13 @@ def compute_dashboard(db: Session) -> dict:
 
     # ── Métricas del día ──────────────────────────────────────
     today_total = db.query(func.count(Mention.id)).filter(
-        Mention.collected_at >= today
+        Mention.collected_at >= today,
+        Mention.is_relevant == True,
     ).scalar() or 0
 
     today_negative = db.query(func.count(Mention.id)).filter(
         Mention.collected_at >= today,
+        Mention.is_relevant == True,
         Mention.sentiment_label.in_(["negative", "very_negative"])
     ).scalar() or 0
 
@@ -104,11 +106,13 @@ def compute_dashboard(db: Session) -> dict:
     prev_total = db.query(func.count(Mention.id)).filter(
         Mention.collected_at >= yesterday,
         Mention.collected_at < today,
+        Mention.is_relevant == True,
     ).scalar() or 0
 
     prev_negative_cnt = db.query(func.count(Mention.id)).filter(
         Mention.collected_at >= yesterday,
         Mention.collected_at < today,
+        Mention.is_relevant == True,
         Mention.sentiment_label.in_(["negative", "very_negative"])
     ).scalar() or 0
     prev_negative_pct = round((prev_negative_cnt / prev_total * 100), 1) if prev_total else 0
@@ -136,6 +140,7 @@ def compute_dashboard(db: Session) -> dict:
         func.count().label("cnt"),
     ).filter(
         Mention.collected_at >= window_start,
+        Mention.is_relevant == True,
     ).group_by(day_col, Mention.sentiment_label).all()
 
     # Indexar por fecha (UTC) → {date: {sentiment: cnt}}
@@ -159,6 +164,7 @@ def compute_dashboard(db: Session) -> dict:
         func.count(Mention.id).label("cnt")
     ).filter(
         Mention.collected_at >= since_7,
+        Mention.is_relevant == True,
         Mention.sentiment_label.isnot(None)
     ).group_by(Mention.sentiment_label).all()
 
@@ -171,6 +177,7 @@ def compute_dashboard(db: Session) -> dict:
         func.count(Mention.id).label("negative_count")
     ).join(Mention, Mention.entity_id == Entity.id).filter(
         Mention.collected_at >= since_7,
+        Mention.is_relevant == True,
         Mention.sentiment_label.in_(["negative", "very_negative"])
     ).group_by(Entity.id, Entity.name
     ).order_by(func.count(Mention.id).desc()
@@ -288,7 +295,7 @@ def share_of_voice(
     rows = (
         db.query(Entity.id, Entity.name, func.count(Mention.id).label("cnt"))
         .join(Mention, Mention.entity_id == Entity.id)
-        .filter(Mention.collected_at >= since, Entity.active == True)
+        .filter(Mention.collected_at >= since, Mention.is_relevant == True, Entity.active == True)
         .group_by(Entity.id, Entity.name)
         .order_by(func.count(Mention.id).desc())
         .all()
@@ -346,6 +353,7 @@ def geo_distribution(
         )
         .filter(
             Mention.collected_at >= since,
+            Mention.is_relevant == True,
             Mention.country_code.isnot(None),
         )
     )
@@ -401,6 +409,7 @@ def compare_entities(
         ).filter(
             Mention.entity_id    == eid,
             Mention.collected_at >= since,
+            Mention.is_relevant == True,
         ).group_by(Mention.sentiment_label).all()
 
         counts   = {r.sentiment_label: r.cnt for r in rows}
@@ -411,6 +420,7 @@ def compare_entities(
         avg_urgency = db.query(func.avg(Mention.urgency_score)).filter(
             Mention.entity_id    == eid,
             Mention.collected_at >= since,
+            Mention.is_relevant == True,
         ).scalar() or 0
 
         bot_count = db.query(func.count(AccountProfile.id)).join(
@@ -418,6 +428,7 @@ def compare_entities(
         ).filter(
             Mention.entity_id    == eid,
             Mention.collected_at >= since,
+            Mention.is_relevant == True,
             AccountProfile.bot_probability >= 0.7,
         ).scalar() or 0
 
@@ -425,7 +436,7 @@ def compare_entities(
         plat_row = (
             db.query(SocialPlatform.code, func.count(Mention.id).label("cnt"))
             .join(Mention, Mention.platform_id == SocialPlatform.id)
-            .filter(Mention.entity_id == eid, Mention.collected_at >= since)
+            .filter(Mention.entity_id == eid, Mention.collected_at >= since, Mention.is_relevant == True)
             .group_by(SocialPlatform.code)
             .order_by(func.count(Mention.id).desc())
             .first()

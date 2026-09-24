@@ -264,6 +264,22 @@ def keyword_matches_text(text: str, kw: "Keyword") -> bool:
     return has_secondary
 
 
+def text_matches_any_term(text: str, keywords, alias_texts) -> bool:
+    """True si `text` cumple alguna keyword parametrizada (con su lógica AND/OR/NOT
+    o expresión) o contiene algún alias de la entidad.
+
+    Se usa tanto en la ingesta (Twitter) como al reclasificar el histórico, para que
+    solo cuenten las menciones que corresponden a lo parametrizado."""
+    if not text:
+        return False
+    t = text.lower()
+    for a in alias_texts or ():
+        a = (a or "").strip().lower()
+        if a and a in t:
+            return True
+    return any(keyword_matches_text(text, kw) for kw in (keywords or ()))
+
+
 def build_search_terms(entity: Entity, keywords: list[Keyword]) -> list[tuple[str, Keyword]]:
     """
     Construye lista de (término_de_búsqueda, keyword_obj).

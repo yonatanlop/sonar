@@ -235,6 +235,95 @@ def refresh_dashboard_cache(self):
 
 
 @celery_app.task(
+    name="app.workers.tasks.analytics.reclassify_relevance",
+    bind=True,
+    max_retries=0,
+)
+def reclassify_relevance(self, days: int = 30, dry_run: bool = True, batch: int = 500):
+    """
+    Reclasifica el histórico: marca is_relevant = false en las menciones cuyo texto
+    NO cumple ninguna de sus keywords parametrizadas ni un alias de su entidad
+    (el mismo criterio del post-filtro de ingesta). Solo pasa True → False y solo
+    toca menciones que tienen keywords asociadas (sin keywords no se puede decidir).
+
+    dry_run=True (por defecto) NO modifica nada: solo cuenta y devuelve una muestra.
+    Ejecución manual (no está en el beat); procesa por lotes para cuidar la memoria.
+    """
+    from datetime import datetime, timedelta, timezone
+    from collections import Counter
+    from sqlalchemy import update
+    from sqlalchemy.orm import selectinload
+    from app.models.entity import EntityAlias
+    from app.models.mention import Mention, SocialPlatform
+    from app.workers.scrapers.base import text_matches_any_term
+
+    db = SessionLocal()
+    try:
+        since = datetime.now(timezone.utc) - timedelta(days=days)
+        alias_cache: dict = {}
+
+        def aliases_of(entity_id):
+            if entity_id not in alias_cache:
+                rows = db.query(EntityAlias.alias).filter(EntityAlias.entity_id == entity_id).all()
+                alias_cache[entity_id] = [r[0] for r in rows]
+            return alias_cache[entity_id]
+
+        checked = no_keywords = flagged_total = 0
+        by_platform: Counter = Counter()
+        sample: list = []
+        last_id = None
+
+        while True:
+            q = db.query(Mention).filter(
+                Mention.is_relevant == True,  # noqa: E712
+                Mention.collected_at >= since,
+            )
+            if last_id is not None:
+                q = q.filter(Mention.id > last_id)
+            rows = (
+                q.options(selectinload(Mention.keywords))
+                 .order_by(Mention.id).limit(batch).all()
+            )
+            if not rows:
+                break
+            last_id = rows[-1].id
+
+            flagged_ids = []
+            for m in rows:
+                checked += 1
+                if not m.keywords:
+                    no_keywords += 1
+                    continue
+                if not text_matches_any_term(m.content, m.keywords, aliases_of(m.entity_id)):
+                    flagged_ids.append(m.id)
+                    by_platform[m.platform_id] += 1
+                    if len(sample) < 10:
+                        sample.append((m.content or "")[:90].replace("\n", " "))
+
+            if flagged_ids:
+                flagged_total += len(flagged_ids)
+                if not dry_run:
+                    db.execute(update(Mention).where(Mention.id.in_(flagged_ids)).values(is_relevant=False))
+                    db.commit()
+            db.expunge_all()
+
+        names = {p.id: p.name for p in db.query(SocialPlatform).all()}
+        return {
+            "dry_run": dry_run, "days": days, "checked": checked,
+            "sin_keywords_no_evaluadas": no_keywords,
+            "marcadas_no_relevantes": flagged_total,
+            "por_plataforma": {names.get(k, str(k)): v for k, v in by_platform.items()},
+            "muestra": sample,
+        }
+    except Exception as exc:
+        db.rollback()
+        logger.error(f"[Relevance] Error: {exc}", exc_info=True)
+        return {"status": "error", "error": str(exc)}
+    finally:
+        db.close()
+
+
+@celery_app.task(
     name="app.workers.tasks.analytics.compute_trends",
     bind=True,
     max_retries=1,
