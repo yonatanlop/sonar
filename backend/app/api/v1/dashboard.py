@@ -20,6 +20,9 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 
+# Zona horaria de Colombia (offset fijo -05:00; el país no usa horario de verano)
+CO_TZ = timezone(timedelta(hours=-5))
+
 # ── Caché del payload del dashboard ───────────────────────────
 # El dashboard agrega ~90K menciones (14 días) por carga: en la VM de 1GB eso
 # tarda ~20s. En vez de recalcular en cada petición, cacheamos el resultado en
@@ -68,7 +71,11 @@ def compute_dashboard(db: Session) -> dict:
     el endpoint solo lee la caché. También se usa como fallback si la caché está
     vacía (primer arranque o Redis caído).
     """
-    now   = datetime.now(timezone.utc)
+    # "Hoy" en hora de Colombia (America/Bogotá, UTC-5 fijo, sin horario de verano),
+    # no en UTC: así "Menciones hoy/ayer" y el timeline cuadran con el día calendario
+    # local. `today` queda tz-aware -05:00; comparar contra collected_at (tz-aware
+    # UTC) es correcto porque ambos llevan zona horaria.
+    now   = datetime.now(CO_TZ)
     today = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
     # ── Métricas del día ──────────────────────────────────────
@@ -116,7 +123,11 @@ def compute_dashboard(db: Session) -> dict:
     # UNA sola consulta agrupada por día (date_trunc) en vez de 14 queries.
     # Con el índice (collected_at, sentiment_label) es un seek por rango.
     window_start = today - timedelta(days=13)
-    day_col = func.date_trunc("day", Mention.collected_at).label("day")
+    # Agrupar por día en hora de Colombia: convertir collected_at a hora local antes
+    # de truncar, para que cada barra corresponda al día calendario colombiano.
+    day_col = func.date_trunc(
+        "day", func.timezone("America/Bogota", Mention.collected_at)
+    ).label("day")
     # count() (=count(*)) en vez de count(id): ambas columnas necesarias
     # (collected_at, sentiment_label) están en el índice → index-only scan.
     timeline_rows = db.query(

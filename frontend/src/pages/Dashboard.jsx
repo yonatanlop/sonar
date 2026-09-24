@@ -118,10 +118,15 @@ export default function Dashboard() {
     staleTime: 0,
   })
 
-  // Fechas (UTC, igual que el backend) para que los paneles que se abren al hacer
-  // clic muestren EXACTAMENTE la misma ventana que resume cada tarjeta/gráfica.
-  const todayStr        = new Date().toISOString().slice(0, 10)
-  const sevenDaysAgoStr = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10)
+  // Medianoche en hora de Colombia (UTC-5) de hoy / hace N días, como instante ISO.
+  // Se pasa como date_from para que los paneles que se abren al hacer clic muestren
+  // EXACTAMENTE la misma ventana (día colombiano) que resume cada tarjeta/gráfica.
+  const coMidnightISO = (daysAgo = 0) => {
+    const co = new Date(Date.now() - 5 * 3600e3)  // ahora en hora de Colombia
+    return new Date(Date.UTC(co.getUTCFullYear(), co.getUTCMonth(), co.getUTCDate() - daysAgo, 5, 0, 0)).toISOString()
+  }
+  const todayStr        = coMidnightISO(0)   // medianoche de hoy en Colombia (ej. ...T05:00:00Z)
+  const sevenDaysAgoStr = coMidnightISO(7)
 
   // Gráfica: menciones por día (últimos 14 días)
   const timelineOption = {
