@@ -1,13 +1,36 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import ReactECharts from 'echarts-for-react'
-import { TrendingUp, TrendingDown, MessageSquare, AlertTriangle, Bot, Building2, Minus } from 'lucide-react'
+import { TrendingUp, TrendingDown, MessageSquare, AlertTriangle, Bot, Building2, Minus, Info } from 'lucide-react'
 import client from '../api/client'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 
 const fetchDashboard = () => client.get('/dashboard').then(r => r.data)
 const fetchSOV       = (days) => client.get('/dashboard/share-of-voice', { params: { days } }).then(r => r.data)
+
+// Ícono de ayuda con tooltip al pasar el mouse. Explica qué representa cada caja.
+function InfoTip({ text, align = 'center' }) {
+  const pos = align === 'left'
+    ? 'left-0'
+    : align === 'right'
+    ? 'right-0'
+    : 'left-1/2 -translate-x-1/2'
+  return (
+    <span className="relative inline-flex items-center group align-middle">
+      <Info className="w-3.5 h-3.5 text-gray-300 hover:text-gray-500 cursor-help" />
+      <span
+        role="tooltip"
+        className={`pointer-events-none absolute bottom-full mb-1.5 w-60 z-30 ${pos}
+                    opacity-0 group-hover:opacity-100 transition-opacity duration-150
+                    bg-gray-900 text-white text-xs font-normal normal-case leading-snug
+                    rounded-lg px-3 py-2 shadow-lg`}
+      >
+        {text}
+      </span>
+    </span>
+  )
+}
 
 function DeltaBadge({ delta }) {
   if (!delta) return null
@@ -22,7 +45,7 @@ function DeltaBadge({ delta }) {
   )
 }
 
-function StatCard({ icon: Icon, label, value, delta, sub, color = 'primary', onClick }) {
+function StatCard({ icon: Icon, label, value, delta, sub, color = 'primary', onClick, info }) {
   const colors = {
     primary: 'bg-primary-50 text-primary-600',
     red:     'bg-red-50 text-red-600',
@@ -39,7 +62,9 @@ function StatCard({ icon: Icon, label, value, delta, sub, color = 'primary', onC
       </div>
       <div>
         <p className="text-2xl font-bold text-gray-900">{value ?? '—'}</p>
-        <p className="text-sm font-medium text-gray-700">{label}</p>
+        <p className="text-sm font-medium text-gray-700 flex items-center gap-1">
+          {label}{info && <InfoTip text={info} align="left" />}
+        </p>
         {onClick && <p className="text-xs text-blue-500 mt-0.5">Ver detalle →</p>}
         {delta && <DeltaBadge delta={delta} />}
         {sub && !delta && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
@@ -92,6 +117,11 @@ export default function Dashboard() {
     enabled:  !!drawer,
     staleTime: 0,
   })
+
+  // Fechas (UTC, igual que el backend) para que los paneles que se abren al hacer
+  // clic muestren EXACTAMENTE la misma ventana que resume cada tarjeta/gráfica.
+  const todayStr        = new Date().toISOString().slice(0, 10)
+  const sevenDaysAgoStr = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10)
 
   // Gráfica: menciones por día (últimos 14 días)
   const timelineOption = {
@@ -191,21 +221,25 @@ export default function Dashboard() {
         <StatCard icon={MessageSquare} label="Menciones hoy"
           value={data?.stats?.today_mentions?.value}
           delta={data?.stats?.today_mentions}
-          color="primary" />
+          color="primary"
+          info="Total de publicaciones recolectadas hoy en todas las redes monitoreadas. La flecha compara con el mismo periodo de ayer." />
         <StatCard icon={TrendingDown} label="Menciones negativas"
           value={data?.stats?.negative_pct?.value != null ? data.stats.negative_pct.value + '%' : '—'}
           delta={data?.stats?.negative_pct}
           color="red"
-          onClick={() => setDrawer({ title: 'Menciones negativas', params: { sentiment: 'negative' } })} />
+          info="Porcentaje de las menciones de HOY con sentimiento negativo o muy negativo. Haz clic para ver esas publicaciones de hoy."
+          onClick={() => setDrawer({ title: 'Menciones negativas de hoy', params: { sentiment: 'negative', date_from: todayStr } })} />
         <StatCard icon={Bot} label="Bots detectados"
           value={data?.stats?.bots_today?.value}
           delta={data?.stats?.bots_today}
           color="yellow"
-          onClick={() => setDrawer({ title: 'Posibles bots detectados', params: { min_bot_score: 0.7 } })} />
+          info="Cuentas clasificadas como bots por el modelo hoy. Haz clic para ver publicaciones de hoy de cuentas señaladas como probables bots."
+          onClick={() => setDrawer({ title: 'Publicaciones de hoy de posibles bots', params: { min_bot_score: 0.7, date_from: todayStr } })} />
         <StatCard icon={Building2} label="Entidades activas"
           value={data?.stats?.active_entities}
           sub="monitoreadas"
-          color="green" />
+          color="green"
+          info="Líderes, instituciones y keywords que se están monitoreando actualmente." />
       </div>
 
       {/* Alertas recientes */}
@@ -214,6 +248,7 @@ export default function Dashboard() {
           <div className="flex items-center gap-2 mb-4">
             <AlertTriangle className="w-4 h-4 text-red-500" />
             <h2 className="font-semibold text-gray-800">Alertas recientes</h2>
+            <InfoTip text="Últimas alertas disparadas por las reglas configuradas (menciones negativas, picos de actividad, etc.). Clic en una para ver las publicaciones de esa entidad." align="left" />
           </div>
           <div className="space-y-2">
             {data.recent_alerts.map((alert) => (
@@ -242,11 +277,17 @@ export default function Dashboard() {
       {/* Gráficas */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <div className="card xl:col-span-2">
-          <h2 className="font-semibold text-gray-800 mb-4">Menciones por día — últimos 14 días</h2>
+          <h2 className="font-semibold text-gray-800 mb-4 flex items-center gap-1.5">
+            Menciones por día — últimos 14 días
+            <InfoTip text="Volumen diario de menciones en los últimos 14 días. Cada barra se apila por sentimiento: rojo = negativas, gris = neutras, verde = positivas." align="left" />
+          </h2>
           <ReactECharts option={timelineOption} style={{ height: 240 }} />
         </div>
         <div className="card">
-          <h2 className="font-semibold text-gray-800 mb-4">Distribución de sentimiento</h2>
+          <h2 className="font-semibold text-gray-800 mb-4 flex items-center gap-1.5">
+            Distribución de sentimiento
+            <InfoTip text="Reparto de las menciones por sentimiento en los últimos 7 días: muy negativo, negativo, neutral y positivo." align="left" />
+          </h2>
           <ReactECharts option={sentimentOption} style={{ height: 240 }} />
         </div>
       </div>
@@ -255,7 +296,10 @@ export default function Dashboard() {
       <div className="card">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <div>
-            <h2 className="font-semibold text-gray-800">Share of Voice</h2>
+            <h2 className="font-semibold text-gray-800 flex items-center gap-1.5">
+              Share of Voice
+              <InfoTip text="Participación de cada entidad en el total de menciones del período: mide quién domina la conversación. El número gris es la cantidad de menciones." align="left" />
+            </h2>
             <p className="text-xs text-gray-400">% de menciones por entidad sobre el total del período</p>
           </div>
           <select className="input w-auto text-sm" value={sovDays} onChange={e => setSovDays(Number(e.target.value))}>
@@ -300,7 +344,10 @@ export default function Dashboard() {
       {/* Fila inferior: bots por plataforma + top entidades */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <div className="card">
-          <h2 className="font-semibold text-gray-800 mb-1">% Bots por plataforma</h2>
+          <h2 className="font-semibold text-gray-800 mb-1 flex items-center gap-1.5">
+            % Bots por plataforma
+            <InfoTip text="De las cuentas analizadas en cada red, qué porcentaje son probablemente bots (probabilidad ≥ 70% según el modelo). Clic en una porción para ver sus publicaciones." align="left" />
+          </h2>
           <p className="text-xs text-gray-400 mb-3">Clasificación ML — cuentas analizadas</p>
           {(data?.bots_by_platform?.length ?? 0) > 0 ? (
             <ReactECharts option={botPlatformOption} style={{ height: 220 }}
@@ -318,7 +365,10 @@ export default function Dashboard() {
           )}
         </div>
         <div className="card xl:col-span-2">
-          <h2 className="font-semibold text-gray-800 mb-4">Top 5 entidades — menciones negativas (últimos 7 días)</h2>
+          <h2 className="font-semibold text-gray-800 mb-4 flex items-center gap-1.5">
+            Top 5 entidades — menciones negativas (últimos 7 días)
+            <InfoTip text="Las 5 entidades con más menciones negativas (o muy negativas) en los últimos 7 días. Clic en una barra para ver esas publicaciones." align="left" />
+          </h2>
           <ReactECharts option={topEntitiesOption} style={{ height: 220 }}
             onEvents={{
               click: (params) => {
@@ -326,7 +376,7 @@ export default function Dashboard() {
                 if (!entity) return
                 setDrawer({
                   title: `Menciones negativas · ${entity.name}`,
-                  params: { sentiment: 'negative', entity_id: entity.entity_id },
+                  params: { sentiment: 'negative', entity_id: entity.entity_id, date_from: sevenDaysAgoStr },
                 })
               },
             }}
