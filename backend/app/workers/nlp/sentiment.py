@@ -27,9 +27,18 @@ logger = logging.getLogger(__name__)
 NLP_MODE = os.getenv("NLP_MODE", "api")   # 'local' | 'api'
 
 # ── Modelos ───────────────────────────────────────────────────
-MODEL_ES   = "pysentimiento/robertuito-sentiment-analysis"
+MODEL_ES   = "pysentimiento/robertuito-sentiment-analysis"   # solo modo 'local'
 MODEL_EN   = "cardiffnlp/twitter-roberta-base-sentiment-latest"
-MODEL_MULTI = "nlptown/bert-base-multilingual-uncased-sentiment"
+MODEL_MULTI = "nlptown/bert-base-multilingual-uncased-sentiment"   # solo modo 'local' (estrellas, poco fiable)
+# Modo 'api': español y demás idiomas. Multilingüe (XLM-R), entrenado en tweets, 3 clases
+# (negative/neutral/positive). robertuito ya no está disponible en la Inference API de HF
+# ("Model not supported by provider hf-inference"), y el respaldo anterior (nlptown, estrellas
+# de reseñas de producto) polarizaba todo: 1★→muy negativo, 4-5★→positivo.
+MODEL_XLMR = "cardiffnlp/twitter-xlm-roberta-base-sentiment"
+
+# Confianza mínima para aceptar una etiqueta. Por debajo, la mención queda "sin clasificar"
+# (sentiment_label = NULL) en vez de guardar como cierta una predicción débil.
+MIN_CONFIDENCE = 0.60
 
 HF_API_BASE = "https://router.huggingface.co/hf-inference/models"
 
@@ -193,33 +202,27 @@ def _hf_api_call(model: str, text: str) -> Optional[list]:
         return None
 
 
-def _analyze_api(text: str, lang: str) -> dict:
-    if lang == "es":
-        result = _hf_api_call(MODEL_ES, text)
+def _analyze_api(text: str, lang: str) -> Optional[dict]:
+    """Sentimiento vía HF Inference API. Retorna None si el servicio no respondió.
+
+    Inglés → cardiffnlp roberta; resto (incl. español) → XLM-R multilingüe. Ambos devuelven
+    negative/neutral/positive, así que comparten normalización. Ya NO se cae a nlptown ni se
+    devuelve "neutral 0.5" si todo falla: un fallo del servicio se reintenta después en vez
+    de guardarse como un neutral falso.
+    """
+    models = [MODEL_EN, MODEL_XLMR] if lang == "en" else [MODEL_XLMR]
+    for model in models:
+        result = _hf_api_call(model, text)
         if result:
             # Inference API devuelve [[{label, score}, ...]]
             items = result[0] if isinstance(result[0], list) else result
-            return _normalize_es(items)
-
-    elif lang == "en":
-        result = _hf_api_call(MODEL_EN, text)
-        if result:
-            items = result[0] if isinstance(result[0], list) else result
             return _normalize_en(items)
-
-    # Fallback multilingual
-    result = _hf_api_call(MODEL_MULTI, text)
-    if result:
-        items = result[0] if isinstance(result[0], list) else result
-        return _normalize_multi(items[0] if isinstance(items, list) else items)
-
-    # Si todo falla, retornar neutral
-    return {"label": "neutral", "score": 0.5}
+    return None
 
 
 # ── Punto de entrada público ──────────────────────────────────
 
-def analyze_sentiment(text: str, lang: str = "es") -> dict:
+def analyze_sentiment(text: str, lang: str = "es") -> Optional[dict]:
     """
     Analiza el sentimiento de un texto.
 
@@ -229,6 +232,8 @@ def analyze_sentiment(text: str, lang: str = "es") -> dict:
 
     Returns:
         {"label": "positive"|"neutral"|"negative"|"very_negative", "score": float}
+        o None si el servicio de sentimiento no está disponible (modo 'api').
+        El umbral de confianza (MIN_CONFIDENCE) lo aplica quien llama.
     """
     if not text or len(text.strip()) < 3:
         return {"label": "neutral", "score": 0.5}

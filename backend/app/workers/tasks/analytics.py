@@ -324,6 +324,108 @@ def reclassify_relevance(self, days: int = 30, dry_run: bool = True, batch: int 
 
 
 @celery_app.task(
+    name="app.workers.tasks.analytics.reclassify_sentiment",
+    bind=True,
+    max_retries=0,
+)
+def reclassify_sentiment(self, days: int = 30, dry_run: bool = True, batch: int = 50):
+    """
+    Recalcula el sentimiento de las menciones relevantes de entidades parametrizadas
+    (excluye Explorer, tipos "Monitor …") de los últimos `days` días con el modelo actual
+    (XLM-R) y el umbral de confianza. Actualiza etiqueta, score y urgency_score.
+
+    dry_run=True (por defecto) no modifica nada: devuelve la matriz etiqueta anterior →
+    nueva y cuántas quedarían sin clasificar. Ejecución manual (no está en el beat).
+    Llama a la API de HF mención por mención; se detiene si falla 3 veces seguidas.
+    """
+    from datetime import datetime, timedelta, timezone
+    from collections import Counter
+    from decimal import Decimal
+    from app.core.explorer import explorer_entity_ids_subq
+    from app.models.mention import Mention
+    from app.workers.nlp.sentiment import MIN_CONFIDENCE, analyze_sentiment
+    from app.workers.nlp.urgency import compute_urgency_score
+
+    db = SessionLocal()
+    try:
+        since = datetime.now(timezone.utc) - timedelta(days=days)
+        transitions: Counter = Counter()
+        checked = updated = failed = consecutive_fail = 0
+        aborted = False
+        last_id = None
+        sample: list = []
+
+        while not aborted:
+            q = db.query(Mention).filter(
+                Mention.is_relevant == True,  # noqa: E712
+                Mention.collected_at >= since,
+                ~Mention.entity_id.in_(explorer_entity_ids_subq()),
+            )
+            if last_id is not None:
+                q = q.filter(Mention.id > last_id)
+            rows = q.order_by(Mention.id).limit(batch).all()
+            if not rows:
+                break
+            last_id = rows[-1].id
+
+            for m in rows:
+                text = (m.content_clean or m.content or "").strip()
+                if len(text) < 5:
+                    continue
+                checked += 1
+                res = analyze_sentiment(text, m.language or "es")
+                if res is None:
+                    failed += 1
+                    consecutive_fail += 1
+                    if consecutive_fail >= 3:
+                        aborted = True
+                        break
+                    continue
+                consecutive_fail = 0
+
+                score = float(res["score"])
+                new_label = res["label"] if score >= MIN_CONFIDENCE else None
+                old_label = m.sentiment_label
+                transitions[(old_label or "sin_clasificar", new_label or "sin_clasificar")] += 1
+                if len(sample) < 8 and old_label != new_label:
+                    sample.append(f"{old_label}→{new_label} ({score:.2f}): " + text[:70].replace("\n", " "))
+
+                if not dry_run:
+                    m.sentiment_label = new_label
+                    m.sentiment_score = Decimal(str(round(score, 3)))
+                    m.processed = True
+                    m.urgency_score = compute_urgency_score(
+                        sentiment_label=new_label,
+                        sentiment_score=score,
+                        hate_score=float(m.hate_score) if m.hate_score else None,
+                        is_hate_speech=bool(m.is_hate_speech),
+                        reach=m.reach or 0,
+                    )
+                    updated += 1
+
+            if not dry_run:
+                db.commit()
+            db.expunge_all()
+
+        after = Counter()
+        for (_old, new), n in transitions.items():
+            after[new] += n
+        return {
+            "dry_run": dry_run, "days": days, "evaluadas": checked, "fallidas_api": failed,
+            "abortada_por_fallos": aborted, "actualizadas": updated,
+            "distribucion_nueva": dict(after),
+            "transiciones": {f"{o} -> {n}": c for (o, n), c in sorted(transitions.items(), key=lambda kv: -kv[1])},
+            "muestra_cambios": sample,
+        }
+    except Exception as exc:
+        db.rollback()
+        logger.error(f"[SentimentReclass] Error: {exc}", exc_info=True)
+        return {"status": "error", "error": str(exc)}
+    finally:
+        db.close()
+
+
+@celery_app.task(
     name="app.workers.tasks.analytics.compute_trends",
     bind=True,
     max_retries=1,

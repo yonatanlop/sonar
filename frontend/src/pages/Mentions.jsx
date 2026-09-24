@@ -244,7 +244,7 @@ export default function Mentions() {
           <div className="flex items-center gap-3 mt-2 flex-wrap">
             <UrgencyBadge score={m.urgency_score} />
             <span className={`badge badge-${m.sentiment_label}`}>
-              {m.sentiment_label?.replace('_', ' ') ?? '—'}
+              {m.sentiment_label?.replace('_', ' ') ?? 'sin clasificar'}
             </span>
             {m.is_hate_speech && (
               <span className="badge bg-red-100 text-red-700">Discurso de odio</span>

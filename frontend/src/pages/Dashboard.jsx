@@ -131,7 +131,7 @@ export default function Dashboard() {
   // Gráfica: menciones por día (últimos 14 días)
   const timelineOption = {
     tooltip: { trigger: 'axis' },
-    legend: { data: ['Negativas', 'Neutras', 'Positivas'], bottom: 0 },
+    legend: { data: ['Negativas', 'Neutras', 'Positivas', 'Sin clasificar'], bottom: 0 },
     grid: { top: 10, bottom: 40, left: 40, right: 20 },
     xAxis: {
       type: 'category',
@@ -143,6 +143,7 @@ export default function Dashboard() {
       { name: 'Negativas',  type: 'bar', stack: 'total', data: data?.timeline?.negative  ?? [], color: '#ef4444' },
       { name: 'Neutras',    type: 'bar', stack: 'total', data: data?.timeline?.neutral   ?? [], color: '#d1d5db' },
       { name: 'Positivas',  type: 'bar', stack: 'total', data: data?.timeline?.positive  ?? [], color: '#22c55e' },
+      { name: 'Sin clasificar', type: 'bar', stack: 'total', data: data?.timeline?.unclassified ?? [], color: '#e5e7eb' },
     ],
   }
 
@@ -157,6 +158,7 @@ export default function Dashboard() {
         { value: data?.sentiment?.negative      ?? 0, name: 'Negativo',     itemStyle: { color: '#f97316' } },
         { value: data?.sentiment?.neutral       ?? 0, name: 'Neutral',      itemStyle: { color: '#9ca3af' } },
         { value: data?.sentiment?.positive      ?? 0, name: 'Positivo',     itemStyle: { color: '#22c55e' } },
+        { value: data?.sentiment?.unclassified  ?? 0, name: 'Sin clasificar', itemStyle: { color: '#e5e7eb' } },
       ],
       label: { fontSize: 11 },
     }],
@@ -232,7 +234,7 @@ export default function Dashboard() {
           value={data?.stats?.negative_pct?.value != null ? data.stats.negative_pct.value + '%' : '—'}
           delta={data?.stats?.negative_pct}
           color="red"
-          info="Porcentaje de las menciones de HOY con sentimiento negativo o muy negativo. Haz clic para ver esas publicaciones de hoy."
+          info="Porcentaje de las menciones de HOY que ya tienen sentimiento clasificado y son negativas o muy negativas. No cuenta las «sin clasificar» (baja confianza del modelo). Haz clic para ver esas publicaciones de hoy."
           onClick={() => setDrawer({ title: 'Menciones negativas de hoy', params: { sentiment: 'negative', date_from: todayStr } })} />
         <StatCard icon={Bot} label="Bots detectados"
           value={data?.stats?.bots_today?.value}
@@ -284,14 +286,14 @@ export default function Dashboard() {
         <div className="card xl:col-span-2">
           <h2 className="font-semibold text-gray-800 mb-4 flex items-center gap-1.5">
             Menciones por día — últimos 14 días
-            <InfoTip text="Volumen diario de menciones en los últimos 14 días. Cada barra se apila por sentimiento: rojo = negativas, gris = neutras, verde = positivas." align="left" />
+            <InfoTip text="Volumen diario de menciones en los últimos 14 días. Cada barra se apila por sentimiento: rojo = negativas, gris = neutras, verde = positivas, gris claro = sin clasificar (baja confianza del modelo o aún en cola)." align="left" />
           </h2>
           <ReactECharts option={timelineOption} style={{ height: 240 }} />
         </div>
         <div className="card">
           <h2 className="font-semibold text-gray-800 mb-4 flex items-center gap-1.5">
             Distribución de sentimiento
-            <InfoTip text="Reparto de las menciones por sentimiento en los últimos 7 días: muy negativo, negativo, neutral y positivo." align="left" />
+            <InfoTip text="Reparto de las menciones por sentimiento en los últimos 7 días. «Sin clasificar» son las que el modelo no pudo etiquetar con suficiente confianza (menos de 60 %); no se cuentan como positivas ni negativas." align="left" />
           </h2>
           <ReactECharts option={sentimentOption} style={{ height: 240 }} />
         </div>

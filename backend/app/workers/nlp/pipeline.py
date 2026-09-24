@@ -21,7 +21,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app.workers.nlp.language_detector import detect_language
-from app.workers.nlp.sentiment import analyze_sentiment, analyze_sentiment_groq
+from app.workers.nlp.sentiment import MIN_CONFIDENCE, analyze_sentiment, analyze_sentiment_groq
 from app.workers.nlp.hate_speech import analyze_hate_speech
 from app.workers.nlp.urgency import compute_urgency_score
 from app.models.mention import Mention
@@ -75,6 +75,17 @@ logger = logging.getLogger(__name__)
 
 BATCH_SIZE = 20   # menciones por lote
 
+# Corta-circuito: si el servicio de sentimiento no responde varias veces seguidas, se aborta la
+# corrida (las menciones quedan processed=False y se reintentan en la siguiente). El worker es
+# de concurrencia 1: reintentar cientos de llamadas caídas lo bloquearía todo (ver
+# project_worker_starvation).
+_MAX_CONSECUTIVE_UNAVAILABLE = 3
+_consecutive_unavailable = 0
+
+
+def _sentiment_circuit_open() -> bool:
+    return _consecutive_unavailable >= _MAX_CONSECUTIVE_UNAVAILABLE
+
 
 def process_mention(mention: Mention) -> bool:
     """
@@ -98,8 +109,22 @@ def process_mention(mention: Mention) -> bool:
             mention.language = lang
 
         # ── 2. Análisis de sentimiento ──────────────────────
+        global _consecutive_unavailable
         sentiment = analyze_sentiment(text, lang)
-        mention.sentiment_label = sentiment["label"]
+        if sentiment is None:
+            # Servicio no disponible: NO guardar un neutral falso ni marcar procesada;
+            # queda pendiente y se reintenta en la próxima corrida.
+            _consecutive_unavailable += 1
+            logger.warning(f"Sentimiento no disponible para {mention.id}; se reintentará")
+            return False
+        _consecutive_unavailable = 0
+
+        # Confianza baja → "sin clasificar" (label NULL, se conserva el score). Evita presentar
+        # como cierta una predicción débil (p. ej. positivo con 0.30).
+        if float(sentiment["score"]) < MIN_CONFIDENCE:
+            mention.sentiment_label = None
+        else:
+            mention.sentiment_label = sentiment["label"]
         mention.sentiment_score = Decimal(str(sentiment["score"]))
 
         # ── 2b. Segunda pasada Groq (neutral con baja confianza) ─────
@@ -178,6 +203,8 @@ def process_batch(db: Session, mention_ids: list[str]) -> dict:
     feed_ids   = _feed_entity_ids(db, entity_ids)
 
     for mention in mentions:
+        if _sentiment_circuit_open():
+            break   # servicio caído: el resto queda pendiente (processed=False)
         try:
             if mention.entity_id in feed_ids:
                 # Feed del Explorer: solo detectar idioma, no analizar sentimiento
@@ -217,10 +244,16 @@ def run_nlp_pipeline(db: Session) -> dict:
 
     r = redis_lib.from_url(settings.REDIS_URL, decode_responses=True)
 
+    global _consecutive_unavailable
+    _consecutive_unavailable = 0   # cada corrida empieza con el corta-circuito cerrado
+
     total_stats = {"processed": 0, "failed": 0, "not_found": 0, "batches": 0}
     queue_key   = "nlp:pending"
 
     while True:
+        if _sentiment_circuit_open():
+            logger.warning("[NLP] Servicio de sentimiento no disponible; se aborta la corrida")
+            break
         # Leer hasta BATCH_SIZE IDs de la cola (FIFO: rpop procesa los más antiguos)
         batch_ids = []
         for _ in range(BATCH_SIZE):
@@ -269,18 +302,23 @@ def _process_orphan_mentions(db: Session, stats: dict, limit: int = 100):
     entity_ids = {m.entity_id for m in orphans}
     feed_ids   = _feed_entity_ids(db, entity_ids)
 
+    done = 0
     for mention in orphans:
         if mention.entity_id in feed_ids:
             text = mention.content_clean or mention.content
             if text and not mention.language:
                 mention.language = detect_language(text)
             mention.processed = True
+            done += 1
         else:
-            process_mention(mention)
+            if _sentiment_circuit_open():
+                continue   # servicio caído: se reintenta en la próxima corrida
+            if process_mention(mention):
+                done += 1
 
     try:
         db.commit()
-        stats["processed"] += len(orphans)
+        stats["processed"] += done
     except Exception as e:
         db.rollback()
         logger.error(f"[NLP] Error en commit de huérfanas: {e}")

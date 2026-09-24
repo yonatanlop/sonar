@@ -99,7 +99,15 @@ def compute_dashboard(db: Session) -> dict:
         Mention.sentiment_label.in_(["negative", "very_negative"])
     ).scalar() or 0
 
-    negative_pct = round((today_negative / today_total * 100), 1) if today_total else 0
+    # % sobre las menciones YA CLASIFICADAS (con sentimiento): las de baja confianza quedan
+    # "sin clasificar" (label NULL) y no deben diluir ni inflar el porcentaje.
+    today_classified = db.query(func.count(Mention.id)).filter(
+        Mention.collected_at >= today,
+        Mention.is_relevant == True,
+        _not_explorer(),
+        Mention.sentiment_label.isnot(None),
+    ).scalar() or 0
+    negative_pct = round((today_negative / today_classified * 100), 1) if today_classified else 0
 
     bots_today = db.query(func.count(BotAnalysis.id)).filter(
         BotAnalysis.analyzed_at >= today,
@@ -127,7 +135,14 @@ def compute_dashboard(db: Session) -> dict:
         _not_explorer(),
         Mention.sentiment_label.in_(["negative", "very_negative"])
     ).scalar() or 0
-    prev_negative_pct = round((prev_negative_cnt / prev_total * 100), 1) if prev_total else 0
+    prev_classified = db.query(func.count(Mention.id)).filter(
+        Mention.collected_at >= yesterday,
+        Mention.collected_at < today,
+        Mention.is_relevant == True,
+        _not_explorer(),
+        Mention.sentiment_label.isnot(None),
+    ).scalar() or 0
+    prev_negative_pct = round((prev_negative_cnt / prev_classified * 100), 1) if prev_classified else 0
 
     prev_bots = db.query(func.count(BotAnalysis.id)).filter(
         BotAnalysis.analyzed_at >= yesterday,
@@ -161,7 +176,7 @@ def compute_dashboard(db: Session) -> dict:
     for r in timeline_rows:
         by_day.setdefault(r.day.date(), {})[r.sentiment_label] = r.cnt
 
-    dates, neg_counts, neu_counts, pos_counts = [], [], [], []
+    dates, neg_counts, neu_counts, pos_counts, unc_counts = [], [], [], [], []
     for i in range(13, -1, -1):
         day_start = today - timedelta(days=i)
         counts = by_day.get(day_start.date(), {})
@@ -169,6 +184,7 @@ def compute_dashboard(db: Session) -> dict:
         neg_counts.append(counts.get("negative", 0) + counts.get("very_negative", 0))
         neu_counts.append(counts.get("neutral", 0))
         pos_counts.append(counts.get("positive", 0))
+        unc_counts.append(counts.get(None, 0))   # sin clasificar / pendientes
 
     # ── Distribución de sentimiento (últimos 7 días) ──────────
     since_7 = today - timedelta(days=7)
@@ -183,6 +199,12 @@ def compute_dashboard(db: Session) -> dict:
     ).group_by(Mention.sentiment_label).all()
 
     sentiment = {r.sentiment_label: r.cnt for r in sentiment_rows}
+    unclassified_7d = db.query(func.count(Mention.id)).filter(
+        Mention.collected_at >= since_7,
+        Mention.is_relevant == True,
+        _not_explorer(),
+        Mention.sentiment_label.is_(None),
+    ).scalar() or 0
 
     # ── Top 5 entidades con más menciones negativas (7 días) ──
     top_rows = db.query(
@@ -264,12 +286,14 @@ def compute_dashboard(db: Session) -> dict:
             "negative": neg_counts,
             "neutral":  neu_counts,
             "positive": pos_counts,
+            "unclassified": unc_counts,
         },
         "sentiment": {
             "very_negative": sentiment.get("very_negative", 0),
             "negative":      sentiment.get("negative",      0),
             "neutral":       sentiment.get("neutral",       0),
             "positive":      sentiment.get("positive",      0),
+            "unclassified":  unclassified_7d,
         },
         "top_entities":      top_entities,
         "recent_alerts":     recent_alerts,
