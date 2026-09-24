@@ -11,6 +11,7 @@ from app.api.audit_utils import log_action
 from app.api.deps import get_current_user, require_analyst
 from app.database import get_db
 from app.models.anomaly import Anomaly
+from app.core.explorer import explorer_type_ids_subq
 from app.models.entity import Country, Entity, EntityAlias, EntityType, Keyword
 from app.models.mention import Mention
 from app.models.mention_entity import MentionEntity
@@ -113,7 +114,13 @@ def _entity_dict(entity: Entity, db: Session) -> dict:
 
 @router.get("/types")
 def list_types(db: Session = Depends(get_db), _=Depends(get_current_user)):
-    types = db.query(EntityType).order_by(EntityType.name).all()
+    # Los tipos "Monitor …" son internos de los Explorer: no se ofrecen al parametrizar.
+    types = (
+        db.query(EntityType)
+        .filter(~EntityType.id.in_(explorer_type_ids_subq()))
+        .order_by(EntityType.name)
+        .all()
+    )
     return [{"id": t.id, "name": t.name} for t in types]
 
 
@@ -126,7 +133,9 @@ def list_entities(
     db: Session = Depends(get_db),
     _=Depends(get_current_user),
 ):
-    query = db.query(Entity)
+    # Solo entidades parametrizables (Líderes/Instituciones/Keywords): las entidades
+    # internas de los Explorer ("Monitor …") no se mezclan aquí.
+    query = db.query(Entity).filter(~Entity.entity_type_id.in_(explorer_type_ids_subq()))
     if active_only:
         query = query.filter(Entity.active == True)
     if q:

@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.core.config import settings
+from app.core.explorer import explorer_entity_ids_subq, explorer_type_ids_subq
 from app.database import get_db
 from app.models.entity import Entity
 from app.models.mention import Mention, SocialPlatform
@@ -54,6 +55,12 @@ def dashboard_cache_set(payload: dict) -> None:
         logger.warning(f"[Dashboard] cache set falló: {exc}")
 
 
+def _not_explorer():
+    """Excluye las menciones de las entidades internas de los Explorer ("Monitor …").
+    El Dashboard solo refleja lo parametrizado en Líderes/Instituciones/Keywords."""
+    return ~Mention.entity_id.in_(explorer_entity_ids_subq())
+
+
 def _delta(current: float, previous: float) -> dict:
     """Calcula variación porcentual entre dos períodos."""
     if previous == 0:
@@ -82,11 +89,13 @@ def compute_dashboard(db: Session) -> dict:
     today_total = db.query(func.count(Mention.id)).filter(
         Mention.collected_at >= today,
         Mention.is_relevant == True,
+        _not_explorer(),
     ).scalar() or 0
 
     today_negative = db.query(func.count(Mention.id)).filter(
         Mention.collected_at >= today,
         Mention.is_relevant == True,
+        _not_explorer(),
         Mention.sentiment_label.in_(["negative", "very_negative"])
     ).scalar() or 0
 
@@ -98,7 +107,8 @@ def compute_dashboard(db: Session) -> dict:
     ).scalar() or 0
 
     active_entities = db.query(func.count(Entity.id)).filter(
-        Entity.active == True
+        Entity.active == True,
+        ~Entity.entity_type_id.in_(explorer_type_ids_subq()),
     ).scalar() or 0
 
     # ── Comparativo período anterior (últimas 24h vs 24h previas) ─
@@ -107,12 +117,14 @@ def compute_dashboard(db: Session) -> dict:
         Mention.collected_at >= yesterday,
         Mention.collected_at < today,
         Mention.is_relevant == True,
+        _not_explorer(),
     ).scalar() or 0
 
     prev_negative_cnt = db.query(func.count(Mention.id)).filter(
         Mention.collected_at >= yesterday,
         Mention.collected_at < today,
         Mention.is_relevant == True,
+        _not_explorer(),
         Mention.sentiment_label.in_(["negative", "very_negative"])
     ).scalar() or 0
     prev_negative_pct = round((prev_negative_cnt / prev_total * 100), 1) if prev_total else 0
@@ -141,6 +153,7 @@ def compute_dashboard(db: Session) -> dict:
     ).filter(
         Mention.collected_at >= window_start,
         Mention.is_relevant == True,
+        _not_explorer(),
     ).group_by(day_col, Mention.sentiment_label).all()
 
     # Indexar por fecha (UTC) → {date: {sentiment: cnt}}
@@ -165,6 +178,7 @@ def compute_dashboard(db: Session) -> dict:
     ).filter(
         Mention.collected_at >= since_7,
         Mention.is_relevant == True,
+        _not_explorer(),
         Mention.sentiment_label.isnot(None)
     ).group_by(Mention.sentiment_label).all()
 
@@ -178,6 +192,7 @@ def compute_dashboard(db: Session) -> dict:
     ).join(Mention, Mention.entity_id == Entity.id).filter(
         Mention.collected_at >= since_7,
         Mention.is_relevant == True,
+        _not_explorer(),
         Mention.sentiment_label.in_(["negative", "very_negative"])
     ).group_by(Entity.id, Entity.name
     ).order_by(func.count(Mention.id).desc()
@@ -295,7 +310,7 @@ def share_of_voice(
     rows = (
         db.query(Entity.id, Entity.name, func.count(Mention.id).label("cnt"))
         .join(Mention, Mention.entity_id == Entity.id)
-        .filter(Mention.collected_at >= since, Mention.is_relevant == True, Entity.active == True)
+        .filter(Mention.collected_at >= since, Mention.is_relevant == True, _not_explorer(), Entity.active == True)
         .group_by(Entity.id, Entity.name)
         .order_by(func.count(Mention.id).desc())
         .all()
@@ -354,6 +369,7 @@ def geo_distribution(
         .filter(
             Mention.collected_at >= since,
             Mention.is_relevant == True,
+            _not_explorer(),
             Mention.country_code.isnot(None),
         )
     )
@@ -410,6 +426,7 @@ def compare_entities(
             Mention.entity_id    == eid,
             Mention.collected_at >= since,
             Mention.is_relevant == True,
+            _not_explorer(),
         ).group_by(Mention.sentiment_label).all()
 
         counts   = {r.sentiment_label: r.cnt for r in rows}
@@ -421,6 +438,7 @@ def compare_entities(
             Mention.entity_id    == eid,
             Mention.collected_at >= since,
             Mention.is_relevant == True,
+            _not_explorer(),
         ).scalar() or 0
 
         bot_count = db.query(func.count(AccountProfile.id)).join(
@@ -429,6 +447,7 @@ def compare_entities(
             Mention.entity_id    == eid,
             Mention.collected_at >= since,
             Mention.is_relevant == True,
+            _not_explorer(),
             AccountProfile.bot_probability >= 0.7,
         ).scalar() or 0
 
