@@ -244,49 +244,97 @@ def analyze_sentiment(text: str, lang: str = "es") -> Optional[dict]:
         return _analyze_api(text, lang)
 
 
+_LLM_LABELS = ("positive", "neutral", "negative", "very_negative")
+
+
+def _llm_prompt(text: str, entity_name: str) -> str:
+    entity = entity_name or "la entidad monitoreada"
+    return (
+        'Eres analista de reputación en Colombia. Entidad monitoreada: "' + entity + '".\n'
+        "Clasifica el sentimiento de la publicación HACIA esa entidad (no el tono general del texto).\n\n"
+        "Criterios:\n"
+        "- very_negative: agresión, insulto, difamación o acusación grave contra la entidad.\n"
+        "- negative: crítica, denuncia, ironía despectiva o noticia que la perjudica.\n"
+        "- neutral: informativo o sin carga hacia la entidad (comunicados, agendas, sesiones, "
+        "noticias descriptivas).\n"
+        "- positive: apoyo, elogio, agradecimiento o noticia que la favorece "
+        "(p. ej. la exoneran o logra algo).\n"
+        "Si el texto no habla realmente de la entidad, responde neutral.\n\n"
+        'Publicación: """' + text[:600] + '"""\n\n'
+        'Responde SOLO un JSON: {"label": "positive|neutral|negative|very_negative", '
+        '"confidence": 0.0-1.0}'
+    )
+
+
 def analyze_sentiment_groq(text: str, entity_name: str = "") -> Optional[dict]:
     """
-    Segunda pasada con Groq/Llama para casos dudosos (neutral con baja confianza).
+    Sentimiento HACIA la entidad con un LLM de Groq (segunda opinión).
 
-    Solo se llama cuando el modelo principal retornó 'neutral' con score < 0.70.
-    Incluye el contexto de la entidad para mejorar precisión en discurso político.
-
-    Returns:
-        {"label": ..., "score": 0.80, "source": "groq"} o None si falla/no configurado.
+    Se usa cuando el modelo principal (XLM-R) no alcanza la confianza mínima o cuando este
+    no está disponible. Devuelve {"label", "score", "source": "groq"} o None si Groq no está
+    configurado, falla, o el propio LLM declara una confianza menor a MIN_CONFIDENCE
+    (en ese caso la mención sigue "sin clasificar": el umbral se mantiene).
     """
+    import json
+
     from app.core.config import settings
     if not settings.GROQ_API_KEY:
         return None
     try:
         from groq import Groq
     except ImportError:
-        logger.debug("Paquete groq no instalado — segunda pasada omitida")
+        logger.debug("Paquete groq no instalado — segunda opinión omitida")
         return None
 
-    entity_ctx = f' sobre "{entity_name}"' if entity_name else ""
-    prompt = (
-        f"Clasifica el sentimiento de esta publicación de redes sociales{entity_ctx}.\n\n"
-        f"Texto: \"{text[:600]}\"\n\n"
-        f"Criterios:\n"
-        f"- very_negative: tono muy agresivo, ofensivo, difamatorio o muy dañino para la reputación\n"
-        f"- negative: crítico, acusatorio, de denuncia, irónico negativamente o despectivo\n"
-        f"- neutral: informativo sin carga emocional clara\n"
-        f"- positive: favorable, de apoyo o elogioso\n\n"
-        f"Responde ÚNICAMENTE con una palabra: positive, neutral, negative o very_negative"
-    )
-
+    model = settings.SENTIMENT_LLM_MODEL
+    extra = {"reasoning_effort": "low"} if "gpt-oss" in model else {}
     try:
-        client = Groq(api_key=settings.GROQ_API_KEY)
+        client = Groq(api_key=settings.GROQ_API_KEY, timeout=15.0, max_retries=1)
         response = client.chat.completions.create(
-            model=settings.SUMMARY_MODEL,
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=10,
+            model=model,
+            messages=[{"role": "user", "content": _llm_prompt(text, entity_name)}],
+            max_tokens=400,
             temperature=0,
+            **extra,
         )
-        label = response.choices[0].message.content.strip().lower().rstrip(".")
-        if label in ("positive", "neutral", "negative", "very_negative"):
-            return {"label": label, "score": 0.80, "source": "groq"}
-        return None
+        raw = (response.choices[0].message.content or "").strip()
+        start, end = raw.find("{"), raw.rfind("}")
+        if start < 0 or end <= start:
+            return None
+        data = json.loads(raw[start:end + 1])
+        label = str(data.get("label", "")).strip().lower()
+        confidence = float(data.get("confidence", 0))
+        if label not in _LLM_LABELS or confidence < MIN_CONFIDENCE:
+            return None
+        return {"label": label, "score": round(min(confidence, 1.0), 4), "source": "groq"}
     except Exception as e:
-        logger.warning(f"Groq second pass error: {e}")
+        logger.warning(f"Groq sentimiento ({model}) falló: {e}")
         return None
+
+
+def classify_text(text: str, lang: str = "es", entity_name_provider=None) -> Optional[dict]:
+    """
+    Clasificación completa: modelo principal → (si es débil o no responde) LLM de Groq.
+
+    Retorna {"label": str|None, "score": float, "source": "xlmr"|"groq"}; label=None significa
+    "sin clasificar". Retorna None solo si NINGÚN servicio pudo responder (se reintenta luego).
+    `entity_name_provider` es un callable que devuelve el nombre de la entidad (se invoca solo
+    si hace falta la segunda opinión, para evitar consultas innecesarias).
+    """
+    def _entity() -> str:
+        try:
+            return (entity_name_provider() if entity_name_provider else "") or ""
+        except Exception:
+            return ""
+
+    primary = analyze_sentiment(text, lang)
+    if primary is None:                       # HF caído → usar el LLM como principal
+        return analyze_sentiment_groq(text, _entity())
+
+    label, score = primary["label"], float(primary["score"])
+    weak = score < MIN_CONFIDENCE or (label == "neutral" and score < 0.70)
+    if weak:
+        llm = analyze_sentiment_groq(text, _entity())
+        if llm:
+            return llm
+    return {"label": label if score >= MIN_CONFIDENCE else None, "score": score, "source": "xlmr"}

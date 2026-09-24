@@ -21,7 +21,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app.workers.nlp.language_detector import detect_language
-from app.workers.nlp.sentiment import MIN_CONFIDENCE, analyze_sentiment, analyze_sentiment_groq
+from app.workers.nlp.sentiment import classify_text
 from app.workers.nlp.hate_speech import analyze_hate_speech
 from app.workers.nlp.urgency import compute_urgency_score
 from app.models.mention import Mention
@@ -110,37 +110,26 @@ def process_mention(mention: Mention) -> bool:
 
         # ── 2. Análisis de sentimiento ──────────────────────
         global _consecutive_unavailable
-        sentiment = analyze_sentiment(text, lang)
+
+        def _entity_name() -> str:
+            from sqlalchemy import inspect as sa_inspect
+            session = sa_inspect(mention).session
+            entity = session.query(Entity).filter(Entity.id == mention.entity_id).first() if session else None
+            return entity.name if entity else ""
+
+        # Modelo principal (XLM-R) y, si su confianza es baja (< MIN_CONFIDENCE) o no responde,
+        # segunda opinión con Groq (sentimiento HACIA la entidad). label=None → "sin clasificar".
+        sentiment = classify_text(text, lang, _entity_name)
         if sentiment is None:
-            # Servicio no disponible: NO guardar un neutral falso ni marcar procesada;
+            # Ningún servicio disponible: NO guardar un neutral falso ni marcar procesada;
             # queda pendiente y se reintenta en la próxima corrida.
             _consecutive_unavailable += 1
             logger.warning(f"Sentimiento no disponible para {mention.id}; se reintentará")
             return False
         _consecutive_unavailable = 0
 
-        # Confianza baja → "sin clasificar" (label NULL, se conserva el score). Evita presentar
-        # como cierta una predicción débil (p. ej. positivo con 0.30).
-        if float(sentiment["score"]) < MIN_CONFIDENCE:
-            mention.sentiment_label = None
-        else:
-            mention.sentiment_label = sentiment["label"]
+        mention.sentiment_label = sentiment["label"]
         mention.sentiment_score = Decimal(str(sentiment["score"]))
-
-        # ── 2b. Segunda pasada Groq (neutral con baja confianza) ─────
-        if sentiment["label"] == "neutral" and float(sentiment["score"]) < 0.70:
-            try:
-                from sqlalchemy import inspect as sa_inspect
-                session = sa_inspect(mention).session
-                entity = session.query(Entity).filter(Entity.id == mention.entity_id).first() if session else None
-                entity_name = entity.name if entity else ""
-                groq_result = analyze_sentiment_groq(text, entity_name)
-                if groq_result and groq_result["label"] != "neutral":
-                    mention.sentiment_label = groq_result["label"]
-                    mention.sentiment_score = Decimal(str(groq_result["score"]))
-                    logger.debug("Groq reclasificó %s: neutral→%s", mention.id, groq_result["label"])
-            except Exception as exc:
-                logger.debug("Groq second pass skipped for %s: %s", mention.id, exc)
 
         # ── 3. Detección de discurso de odio ────────────────
         hate = analyze_hate_speech(text, lang)

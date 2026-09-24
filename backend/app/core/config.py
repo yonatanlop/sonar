@@ -69,7 +69,11 @@ class Settings(BaseSettings):
     # Groq API (v2 — resúmenes y agentes con Llama 3 gratuito)
     # Obtener token gratis en: console.groq.com
     GROQ_API_KEY: str = ""
-    SUMMARY_MODEL: str = "llama-3.1-8b-instant"  # modelo más rápido y gratuito de Groq
+    # llama-3.1-8b-instant fue retirado de Groq (404 model_not_found) y dejó caídos resúmenes,
+    # Chat, generador de keywords y texto IA de reportes. qwen3.8-27b responde en ~0.3 s y NO
+    # consume tokens de razonamiento (compatible con los max_tokens de 200-900 de los llamadores).
+    SUMMARY_MODEL: str = "qwen/qwen3.8-27b"
+    SENTIMENT_LLM_MODEL: str = "qwen/qwen3.8-27b"   # segunda opinión de sentimiento (hacia la entidad)
 
     # Bot Classifier ML (v2)
     BOT_THRESHOLD: float = 0.7  # probabilidad mínima para clasificar como "bot"

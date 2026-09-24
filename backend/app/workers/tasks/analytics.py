@@ -328,11 +328,14 @@ def reclassify_relevance(self, days: int = 30, dry_run: bool = True, batch: int 
     bind=True,
     max_retries=0,
 )
-def reclassify_sentiment(self, days: int = 30, dry_run: bool = True, batch: int = 50):
+def reclassify_sentiment(self, days: int = 30, dry_run: bool = True, batch: int = 50,
+                         only_unclassified: bool = False):
     """
     Recalcula el sentimiento de las menciones relevantes de entidades parametrizadas
     (excluye Explorer, tipos "Monitor …") de los últimos `days` días con el modelo actual
-    (XLM-R) y el umbral de confianza. Actualiza etiqueta, score y urgency_score.
+    (XLM-R), el umbral de confianza y la segunda opinión de Groq (sentimiento hacia la entidad).
+    Actualiza etiqueta, score y urgency_score. only_unclassified=True solo reprocesa las que hoy
+    están "sin clasificar" (label NULL y procesadas).
 
     dry_run=True (por defecto) no modifica nada: devuelve la matriz etiqueta anterior →
     nueva y cuántas quedarían sin clasificar. Ejecución manual (no está en el beat).
@@ -343,7 +346,7 @@ def reclassify_sentiment(self, days: int = 30, dry_run: bool = True, batch: int 
     from decimal import Decimal
     from app.core.explorer import explorer_entity_ids_subq
     from app.models.mention import Mention
-    from app.workers.nlp.sentiment import MIN_CONFIDENCE, analyze_sentiment
+    from app.workers.nlp.sentiment import classify_text
     from app.workers.nlp.urgency import compute_urgency_score
 
     db = SessionLocal()
@@ -361,6 +364,8 @@ def reclassify_sentiment(self, days: int = 30, dry_run: bool = True, batch: int 
                 Mention.collected_at >= since,
                 ~Mention.entity_id.in_(explorer_entity_ids_subq()),
             )
+            if only_unclassified:
+                q = q.filter(Mention.sentiment_label.is_(None), Mention.processed == True)  # noqa: E712
             if last_id is not None:
                 q = q.filter(Mention.id > last_id)
             rows = q.order_by(Mention.id).limit(batch).all()
@@ -373,7 +378,7 @@ def reclassify_sentiment(self, days: int = 30, dry_run: bool = True, batch: int 
                 if len(text) < 5:
                     continue
                 checked += 1
-                res = analyze_sentiment(text, m.language or "es")
+                res = classify_text(text, m.language or "es", lambda m=m: m.entity.name if m.entity else "")
                 if res is None:
                     failed += 1
                     consecutive_fail += 1
@@ -384,7 +389,7 @@ def reclassify_sentiment(self, days: int = 30, dry_run: bool = True, batch: int 
                 consecutive_fail = 0
 
                 score = float(res["score"])
-                new_label = res["label"] if score >= MIN_CONFIDENCE else None
+                new_label = res["label"]
                 old_label = m.sentiment_label
                 transitions[(old_label or "sin_clasificar", new_label or "sin_clasificar")] += 1
                 if len(sample) < 8 and old_label != new_label:
