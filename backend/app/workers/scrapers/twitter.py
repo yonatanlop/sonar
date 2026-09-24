@@ -93,8 +93,12 @@ def _patch_queue_client():
         # Monkey-patch: reemplaza XClIdGenStore.get con nuestra implementación
         class _PatchedXClIdGenStore:
             @staticmethod
-            async def get(username: str, fresh: bool = False):
-                """Retorna un objeto compatible con .calc() usando xclienttransaction."""
+            async def get(username: str, fresh: bool = False, proxy=None, **kwargs):
+                """Retorna un objeto compatible con .calc() usando xclienttransaction.
+
+                Acepta e ignora `proxy` (y cualquier kwarg futuro): versiones
+                recientes de twscrape llaman get(..., proxy=...) y sin esto se
+                lanza TypeError en cada request, bloqueando el worker."""
                 ct = await _get_ct()
 
                 class _Wrapper:
