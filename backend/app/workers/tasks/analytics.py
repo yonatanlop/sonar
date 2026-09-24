@@ -341,6 +341,7 @@ def reclassify_sentiment(self, days: int = 30, dry_run: bool = True, batch: int 
     nueva y cuántas quedarían sin clasificar. Ejecución manual (no está en el beat).
     Llama a la API de HF mención por mención; se detiene si falla 3 veces seguidas.
     """
+    import time
     from datetime import datetime, timedelta, timezone
     from collections import Counter
     from decimal import Decimal
@@ -387,6 +388,8 @@ def reclassify_sentiment(self, days: int = 30, dry_run: bool = True, batch: int 
                         break
                     continue
                 consecutive_fail = 0
+                if res.get("source") == "groq":
+                    time.sleep(2.2)   # Groq: ~30 req/min; evita 429 en el rescate masivo
 
                 score = float(res["score"])
                 new_label = res["label"]

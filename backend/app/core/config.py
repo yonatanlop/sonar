@@ -73,7 +73,10 @@ class Settings(BaseSettings):
     # Chat, generador de keywords y texto IA de reportes. qwen3.8-27b responde en ~0.3 s y NO
     # consume tokens de razonamiento (compatible con los max_tokens de 200-900 de los llamadores).
     SUMMARY_MODEL: str = "qwen/qwen3.8-27b"
-    SENTIMENT_LLM_MODEL: str = "qwen/qwen3.8-27b"   # segunda opinión de sentimiento (hacia la entidad)
+    # Segunda opinión de sentimiento (hacia la entidad). gpt-oss-120b: en pruebas sus errores tienden
+    # a "neutral" (subestima), mientras qwen llegó a marcar un agradecimiento como negativo, lo que
+    # inflaría el % de negativas. Límite Groq ~30 req/min → el rescate masivo espacia las llamadas.
+    SENTIMENT_LLM_MODEL: str = "openai/gpt-oss-120b"
 
     # Bot Classifier ML (v2)
     BOT_THRESHOLD: float = 0.7  # probabilidad mínima para clasificar como "bot"
