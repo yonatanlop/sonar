@@ -186,33 +186,117 @@ def get_active_entities_with_keywords(db: Session) -> list[tuple[Entity, list[Ke
     return result
 
 
-def _eval_expression(text: str, expr: str) -> bool:
-    """Evalúa una expresión booleana multi-término contra un texto.
-    Formato: 'término1 AND término2 OR término3 NOT término4'
-    Evaluación de izquierda a derecha (sin precedencia de operadores).
-    """
-    import re
-    t = text.lower()
-    tokens = re.split(r'\b(AND|OR|NOT)\b', expr, flags=re.IGNORECASE)
-    tokens = [tok.strip() for tok in tokens if tok.strip()]
+def _fold(s: str) -> str:
+    """Minúsculas y sin tildes/diacríticos, para comparar 'Política' con 'politica'."""
+    import unicodedata
+    s = unicodedata.normalize("NFD", (s or "").lower())
+    return "".join(c for c in s if not unicodedata.combining(c))
 
-    result = None
-    pending_op = "AND"
+
+def _eval_expression_legacy(t: str, expr: str) -> bool:
+    """Evaluación izquierda→derecha sin precedencia (respaldo si la sintaxis es inválida)."""
+    import re
+    tokens = re.split(r'\b(AND|OR|NOT)\b', expr.replace("(", " ").replace(")", " "), flags=re.IGNORECASE)
+    tokens = [tok.strip() for tok in tokens if tok.strip()]
+    result, pending_op = None, "AND"
     for tok in tokens:
         upper = tok.upper()
         if upper in ("AND", "OR", "NOT"):
             pending_op = upper
+            continue
+        match = _fold(tok) in t
+        if result is None:
+            result = match
+        elif pending_op == "OR":
+            result = result or match
+        elif pending_op == "NOT":
+            result = result and not match
         else:
-            match = tok.lower() in t
-            if result is None:
-                result = match
-            elif pending_op == "OR":
-                result = result or match
-            elif pending_op == "NOT":
-                result = result and not match
-            else:  # AND
-                result = result and match
+            result = result and match
     return bool(result)
+
+
+def _eval_expression(text: str, expr: str) -> bool:
+    """Evalúa una expresión booleana contra un texto.
+
+    Soporta AND, OR, NOT (también 'AND NOT') y paréntesis, con precedencia
+    NOT > AND > OR. Compara sin tildes ni mayúsculas. Ej.:
+    'Piraquive AND (corrupción OR escándalo) AND NOT política'.
+    Si la expresión está mal formada (paréntesis sin cerrar), cae a la evaluación
+    izquierda→derecha anterior.
+    """
+    import re
+    t = _fold(text)
+
+    tokens: list = []
+    for part in re.split(r"([()])", expr):
+        if part in ("(", ")"):
+            tokens.append(part)
+            continue
+        for piece in re.split(r"\b(AND|OR|NOT)\b", part, flags=re.IGNORECASE):
+            piece = piece.strip()
+            if not piece:
+                continue
+            up = piece.upper()
+            tokens.append(up if up in ("AND", "OR", "NOT") else ("TERM", piece))
+
+    pos = 0
+
+    def peek():
+        return tokens[pos] if pos < len(tokens) else None
+
+    def take():
+        nonlocal pos
+        tok = tokens[pos]
+        pos += 1
+        return tok
+
+    def parse_or():
+        val = parse_and()
+        while peek() == "OR":
+            take()
+            rhs = parse_and()
+            val = val or rhs
+        return val
+
+    def parse_and():
+        val = parse_unary()
+        while True:
+            nxt = peek()
+            if nxt == "AND":
+                take()
+                rhs = parse_unary()          # 'AND NOT x' lo resuelve parse_unary
+                val = val and rhs
+            elif nxt == "NOT":               # 'a NOT b' == 'a AND NOT b'
+                rhs = parse_unary()
+                val = val and rhs
+            else:
+                return val
+
+    def parse_unary():
+        nxt = peek()
+        if nxt == "NOT":
+            take()
+            return not parse_unary()
+        if nxt == "(":
+            take()
+            val = parse_or()
+            if peek() != ")":
+                raise ValueError("paréntesis sin cerrar")
+            take()
+            return val
+        if isinstance(nxt, tuple):
+            take()
+            return _fold(nxt[1]) in t
+        raise ValueError(f"token inesperado: {nxt!r}")
+
+    try:
+        result = parse_or()
+        if pos != len(tokens):
+            raise ValueError("tokens sobrantes")
+        return bool(result)
+    except (ValueError, IndexError):
+        return _eval_expression_legacy(t, expr)
 
 
 def build_twitter_query(kw: "Keyword") -> str:
@@ -245,9 +329,9 @@ def keyword_matches_text(text: str, kw: "Keyword") -> bool:
     if expr and expr.strip():
         return _eval_expression(text, expr)
 
-    t = text.lower()
-    primary = kw.keyword.strip().lower()
-    secondary = (kw.keyword_secondary or "").strip().lower()
+    t = _fold(text)
+    primary = _fold(kw.keyword.strip())
+    secondary = _fold((kw.keyword_secondary or "").strip())
     op = getattr(kw, "logic_op", "AND")
 
     has_primary = primary in t
@@ -272,9 +356,9 @@ def text_matches_any_term(text: str, keywords, alias_texts) -> bool:
     solo cuenten las menciones que corresponden a lo parametrizado."""
     if not text:
         return False
-    t = text.lower()
+    t = _fold(text)
     for a in alias_texts or ():
-        a = (a or "").strip().lower()
+        a = _fold((a or "").strip())
         if a and a in t:
             return True
     return any(keyword_matches_text(text, kw) for kw in (keywords or ()))
