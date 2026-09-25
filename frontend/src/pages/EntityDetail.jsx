@@ -562,7 +562,8 @@ export default function EntityDetail() {
             ) : summaryData?.items?.length > 0 ? (
               <div>
                 <div className="text-xs text-gray-400 mb-2">
-                  {format(new Date(summaryData.items[0].summary_date), "EEEE d 'de' MMMM", { locale: es })}
+                  {/* 'AAAA-MM-DD' se interpretaba como UTC y mostraba el día anterior: se ancla al mediodía local */}
+                  {format(new Date(`${String(summaryData.items[0].summary_date).slice(0, 10)}T12:00:00`), "EEEE d 'de' MMMM", { locale: es })}
                   &nbsp;·&nbsp;{summaryData.items[0].mention_count} menciones analizadas
                   &nbsp;·&nbsp;
                   <span className="italic">{summaryData.items[0].model_used}</span>
