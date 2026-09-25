@@ -12,6 +12,7 @@ import toast from 'react-hot-toast'
 import client from '../api/client'
 import { useAuthStore } from '../store/authStore'
 import MentionsExplorer from '../components/MentionsExplorer'
+import { ENTITY_TAB_HELP } from '../data/moduleHelp'
 
 // ── API helpers ────────────────────────────────────────────────
 const fetchEntity          = (id) => client.get(`/entities/${id}`).then(r => r.data)
@@ -409,6 +410,7 @@ export default function EntityDetail() {
             <button
               key={t.key}
               onClick={() => (t.key === 'mentions' ? goMentions({}) : setTab(t.key))}
+              title={ENTITY_TAB_HELP[t.key]}
               className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
                 tab === t.key
                   ? 'border-primary-600 text-primary-600'
@@ -420,6 +422,13 @@ export default function EntityDetail() {
           ))}
         </nav>
       </div>
+
+      {/* Para qué sirve la pestaña activa */}
+      {ENTITY_TAB_HELP[tab] && (
+        <p className="text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
+          <span className="font-semibold text-gray-600">¿Para qué sirve? </span>{ENTITY_TAB_HELP[tab]}
+        </p>
+      )}
 
       {/* ── Resumen ── */}
       {tab === 'overview' && (

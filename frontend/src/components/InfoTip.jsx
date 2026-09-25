@@ -18,7 +18,7 @@ export default function InfoTip({ text, align = 'center', below = false, wide = 
         role="tooltip"
         className={`pointer-events-none absolute ${below ? 'top-full mt-1.5' : 'bottom-full mb-1.5'} ${wide ? 'w-72 sm:w-80' : 'w-60'} z-30 ${pos}
                     opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity duration-150
-                    bg-gray-900 text-white text-xs font-normal normal-case leading-snug text-left
+                    bg-gray-900 text-white text-xs font-normal normal-case leading-snug text-left whitespace-pre-line
                     rounded-lg px-3 py-2 shadow-lg`}
       >
         {text}

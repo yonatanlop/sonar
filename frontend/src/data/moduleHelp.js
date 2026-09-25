@@ -1,68 +1,137 @@
-// Textos de ayuda de cada módulo: qué es y para qué sirve. Se muestran como tooltip (ícono ⓘ)
-// junto al título de cada pantalla, al pasar el mouse por el menú lateral y en las pestañas de Rizoma.
+// Textos de ayuda de cada módulo: qué es, para qué sirve y qué se puede hacer. Se muestran como
+// tooltip (ícono ⓘ) junto al título de cada pantalla, al pasar el mouse por el menú lateral y en
+// las pestañas de Rizoma y del detalle de una entidad. Los saltos de línea (\n) se respetan.
+// Redactados a partir de lo que realmente hace cada pantalla; si cambia una pantalla, actualizar aquí.
 
 export const MODULE_HELP = {
   // ── Monitoreo ──
   dashboard:
-    'Vista general del monitoreo: menciones de hoy, % de negativas (sobre las ya clasificadas), bots detectados, tendencia de 14 días, distribución de sentimiento, participación por entidad y últimas alertas. Pasa el mouse por el ícono ⓘ de cada caja para ver cómo se calcula.',
+    'Resumen del monitoreo de hoy.\n' +
+    '• Menciones de hoy, % de negativas (sobre las ya clasificadas), bots detectados y entidades activas, con la variación frente a ayer.\n' +
+    '• Tendencia de 14 días, reparto de sentimiento, participación de cada entidad y últimas alertas.\n' +
+    'Haz clic en una caja o gráfica para ver las publicaciones que la componen; el ⓘ de cada caja explica cómo se calcula.',
   entities:
-    'Aquí se configuran las entidades que se monitorean (líderes, instituciones y keywords). Solo cuentan las publicaciones que coinciden con las keywords de cada entidad. Entra a «Ver detalle» para ver su resumen de 7 días, sus keywords, sus menciones y su análisis.',
+    'Aquí se configura qué se monitorea: líderes, instituciones y keywords.\n' +
+    '• «Nueva entidad»: nombre, tipo, país, foto y tipo de monitoreo (vigilancia reputacional, seguimiento político u oportunidad del partido).\n' +
+    '• Solo cuentan las publicaciones que coinciden con las keywords o alias de cada entidad.\n' +
+    '• Entra a «Ver detalle» para su resumen, menciones, keywords, alias, reglas de alerta e influencers.',
   mentions:
-    'Todas las publicaciones recolectadas que coinciden con las keywords parametrizadas. Filtra por entidad, red social, sentimiento, fechas, bots, urgencia o país, o usa la búsqueda semántica para buscar por significado. Si el sentimiento está mal clasificado, puedes corregirlo.',
+    'Todas las publicaciones recolectadas que coinciden con las keywords parametrizadas.\n' +
+    '• Filtra por entidad, red, sentimiento, idioma, urgencia, tipo de autor (bot, sospechoso, real), seguidores, país y fechas.\n' +
+    '• La búsqueda semántica encuentra publicaciones por significado, no solo por palabras.\n' +
+    '• En cada tarjeta puedes corregir el sentimiento, marcarla como atendida o como «No relevante» (Sonar no la vuelve a mostrar).',
   compare:
-    'Compara entre 2 y 4 entidades en el mismo período: menciones, % negativo, bots detectados, urgencia promedio y red principal. Usa los mismos criterios de cálculo del Dashboard.',
+    'Compara entre 2 y 4 entidades en el mismo período (7, 14 o 30 días).\n' +
+    '• Menciones, % negativo (sobre clasificadas), bots detectados, urgencia promedio y red principal.\n' +
+    '• Usa los mismos criterios de cálculo que el Dashboard.',
 
   // ── Alertas ──
   alerts:
-    'Historial de las alertas que el sistema dispara según las reglas configuradas (menciones negativas, picos de actividad, etc.). Desde aquí ves la mención que la originó y puedes marcarla como atendida.',
+    'Historial de las alertas que el sistema dispara según las reglas configuradas.\n' +
+    '• Filtra por severidad (baja, media, alta, crítica) y por estado (sin atender / atendidas).\n' +
+    '• Al atender una alerta registras qué acción tomaste (reportar a la plataforma, escalar a jurídico, oportunidad, descartar…) y una nota.',
   inbox:
-    'Bandeja de trabajo con las menciones negativas que generaron alerta. Para cada una registra qué acción se tomó: reportar en la plataforma, a instancias internacionales o a Fiscalía/Policía, escalar, marcar como oportunidad o descartar.',
+    'Bandeja de trabajo para tratar las menciones negativas que generaron alerta.\n' +
+    '• Ordena por fecha, urgencia o seguidores del autor.\n' +
+    '• Sigue la guía de la pantalla: evalúa la gravedad, captura evidencia, reporta en la plataforma, escala a jurídico o a autoridades y registra la acción.\n' +
+    '• También puedes corregir el sentimiento y marcar la cuenta como Rizoma.',
   legal:
-    'Menciones que se escalaron al equipo jurídico (Iglesia o MIRA) para hacerles seguimiento formal.',
+    'Menciones que se escalaron al equipo jurídico (Iglesia o MIRA) para seguimiento formal.\n' +
+    '• Filtra por destino (Iglesia / MIRA) y por estado (pendientes / recibidos).\n' +
+    '• Guarda una copia de la publicación por si luego se elimina.',
   rizoma:
-    'Centro de seguimiento de cuentas hostiles y ataques. Reúne las publicaciones de las cuentas marcadas como Rizoma, las cuentas de atacantes con su historial, el balance de denuncias por día/semana/mes, lo que ya se cerró, los grupos de Facebook a cerrar y el seguimiento por caso. Cada pestaña tiene su propia ayuda.',
+    'Centro de seguimiento de cuentas hostiles y ataques.\n' +
+    '• Publicaciones de las cuentas marcadas como Rizoma en los Explorer.\n' +
+    '• Cuentas de atacantes con su historial y mapa de origen, balance de denuncias por día/semana/mes y lo ya cerrado.\n' +
+    '• Grupos de Facebook a cerrar y seguimiento por caso.\n' +
+    'Cada pestaña tiene su propia ayuda.',
   coordination:
-    'Detecta grupos de cuentas distintas que publican el mismo texto (o casi) en pocas horas: una señal de actividad coordinada. Revisa cada grupo y márcalo como confirmado o descartado para mejorar la detección.',
+    'Detecta cuentas distintas que publican el mismo texto (o casi) en pocas horas: una señal de actividad coordinada.\n' +
+    '• El detector corre cada 3 horas y muestra grupos candidatos con un puntaje.\n' +
+    '• Revisa cada grupo y márcalo como confirmado o descartado (con una nota); así se mide el acierto del detector.\n' +
+    '• Filtra por tipo (varias cuentas en red / una cuenta repitiendo) y por puntaje.',
   rules:
-    'Define cuándo se disparan las alertas automáticas: el tipo de regla, la entidad, el umbral, la ventana de tiempo, la severidad y a quién se notifica.',
+    'Define cuándo se disparan las alertas automáticas.\n' +
+    '• Elige la entidad (o global), el tipo de regla, el umbral, la ventana de evaluación y la severidad.\n' +
+    '• La severidad decide por dónde llega: baja = solo dashboard; media = Telegram y dashboard; alta y crítica = todos los canales.\n' +
+    '• Puedes limitar quién recibe cada alerta; si lo dejas vacío, la reciben todos los admin y analistas.',
 
   // ── Herramientas ──
   reports:
-    'Genera y descarga informes en PDF: por entidad, por país, por bots, por alertas o por campaña. Con «Nuevo reporte» eliges el tipo y el sistema arma el documento.',
+    'Genera y descarga informes en PDF.\n' +
+    '• Tipos: por entidad, por país, por bots, por alertas o por campaña.\n' +
+    '• Con «Generar nuevo reporte» das un nombre, eliges el tipo y el rango de fechas, y el sistema arma el documento para descargar.',
   topickw:
-    'Describe un tema en lenguaje natural y la IA propone expresiones de búsqueda con operadores lógicos (Y / O / NO) que puedes agregar como keywords de una entidad.',
+    'Genera keywords con IA a partir de un tema.\n' +
+    '• Describe el tema y lo que necesitas encontrar; la IA propone expresiones de búsqueda con operadores (Y / O / NO).\n' +
+    '• Descarta las que no sirvan y guarda las demás en una entidad destino.\n' +
+    '• «Búsqueda en vivo» las prueba en Twitter/X (resultados en ~1 minuto).',
   'twitter-explorer':
-    'Búsqueda y monitoreo libre en X (Twitter): cuentas, hashtags y palabras clave. Sus resultados no se mezclan con el Dashboard ni con Líderes/Instituciones/Keywords. Puedes marcar cuentas hostiles como Rizoma.',
+    'Monitorea cuentas, hashtags y palabras clave de X (Twitter) de forma libre.\n' +
+    '• «Agregar monitor» (usuario, hashtag o palabra clave) y elige uno para ver sus tweets, con búsqueda y fechas.\n' +
+    '• Sus resultados NO se mezclan con el Dashboard ni con Líderes/Instituciones/Keywords.\n' +
+    '• Con el botón Rizoma marcas cuentas hostiles para seguirlas en Rizoma.',
   'youtube-explorer':
-    'Monitorea canales específicos de YouTube por palabras clave. Sus resultados no se mezclan con el Dashboard. Puedes marcar canales hostiles como Rizoma.',
+    'Monitorea canales específicos de YouTube.\n' +
+    '• Agrega un canal por su @handle o URL, define las keywords a buscar (vacío = videos recientes), el período y la cantidad de videos.\n' +
+    '• Sus resultados NO se mezclan con el Dashboard.\n' +
+    '• Con el botón Rizoma marcas canales hostiles.',
   'facebook-explorer':
-    'Monitorea temas y páginas de Facebook. Sus resultados no se mezclan con el Dashboard. Puedes marcar cuentas hostiles como Rizoma.',
+    'Monitorea temas y páginas de Facebook.\n' +
+    '• «Agregar monitor», elige uno y revisa sus publicaciones (el scraper las recolecta periódicamente).\n' +
+    '• Sus resultados NO se mezclan con el Dashboard.\n' +
+    '• Con el botón Rizoma marcas cuentas hostiles.',
   'instagram-explorer':
-    'Monitorea hashtags y cuentas de Instagram. Sus resultados no se mezclan con el Dashboard. Puedes marcar cuentas hostiles como Rizoma.',
+    'Monitorea hashtags y cuentas de Instagram.\n' +
+    '• «Agregar monitor», elige uno y revisa sus publicaciones (el scraper las recolecta periódicamente).\n' +
+    '• Sus resultados NO se mezclan con el Dashboard.\n' +
+    '• Con el botón Rizoma marcas cuentas hostiles.',
   'tiktok-explorer':
-    'Monitorea palabras clave, hashtags y creadores de TikTok. Sus resultados no se mezclan con el Dashboard. Puedes marcar cuentas hostiles como Rizoma.',
+    'Monitorea palabras clave, hashtags y creadores de TikTok.\n' +
+    '• «Agregar monitor», elige uno y revisa sus publicaciones (el scraper las recolecta periódicamente).\n' +
+    '• Sus resultados NO se mezclan con el Dashboard.\n' +
+    '• Con el botón Rizoma marcas cuentas hostiles.',
   response:
     'Herramienta para redactar respuestas a comentarios negativos.',
   media:
-    'Búsqueda inversa: encuentra dónde más se publicó una imagen o video, quién lo publicó y si fue generado con IA.',
+    'Búsqueda inversa de imágenes y videos: dónde más se publicó, quién lo publicó y si fue generado con IA.\n' +
+    '• Sube un archivo (JPG, PNG, WEBP, GIF, MP4, MOV; máx. 50 MB) o pega un enlace.\n' +
+    '• Elige en qué buscar: SONAR (lo ya recopilado), Google Vision, SauceNAO, Yandex o TinEye.\n' +
+    '• «¿Es IA?» analiza si la imagen fue generada por inteligencia artificial.',
   platforms:
-    'Estado de las redes sociales: cuáles están activas y recolectando menciones.',
+    'Estado de las redes sociales y de las cuentas con las que SONAR las recolecta.\n' +
+    '• Ves qué plataformas están activas y cuántas menciones llegaron en las últimas 24 h y 7 días, y la última mención.\n' +
+    '• «Gestionar cuentas»: agrega, activa, reactiva (limpia errores y bloqueos), edita cookies o elimina las cuentas de Twitter/X, Instagram y Facebook.\n' +
+    '• Estados: activa, cooldown (en espera), error de autenticación, error o inactiva.',
   chat:
-    'Asistente MIRA: haz preguntas en lenguaje natural sobre las menciones recolectadas y recibe una respuesta con base en ellas.',
+    'Asistente MIRA: haz preguntas en lenguaje natural sobre las menciones recolectadas y recibe una respuesta con base en ellas.\n' +
+    '• Puedes limitarlo a una entidad.\n' +
+    '• El modo conversacional requiere las claves de IA configuradas en el servidor.',
   geomap:
     'Mapa con la distribución de las menciones según el país de origen del autor.',
 
   // ── Administración ──
   users:
-    'Gestión de acceso al sistema: crear usuarios, asignarles rol (administrador, analista o visor) y activarlos o desactivarlos.',
+    'Gestión de acceso al sistema.\n' +
+    '• Crea usuarios con una contraseña temporal y asígnales un rol: Consulta (solo lectura), Analista o Administrador.\n' +
+    '• Edita sus datos y actívalos o desactívalos; ves su último acceso.',
   audit:
-    'Registro de las acciones realizadas en el sistema (quién hizo qué y cuándo), para trazabilidad y control.',
+    'Registro de las acciones hechas en el sistema: quién, qué, en qué módulo y cuándo.\n' +
+    '• Filtra por usuario, acción, módulo y fechas.\n' +
+    '• Sirve para trazabilidad y control.',
   'reply-accounts':
-    'Cuentas del equipo que se usan para responder a las publicaciones monitoreadas.',
+    'Cuentas del equipo que responden a las publicaciones monitoreadas.\n' +
+    '• Registra las cuentas, sus respuestas (con el post original, si lo hay) y actívalas o desactívalas.\n' +
+    '• Ves cuántas respuestas y posts atendidos tiene cada una; algunas respuestas se detectan automáticamente.',
   'twitter-search':
-    'Monitoreo continuo y global de keywords y hashtags en Twitter. Se activa automáticamente a las 8:00 p. m. (hora de Colombia).',
+    'Monitoreo continuo y global de keywords y hashtags en Twitter.\n' +
+    '• Se activa automáticamente a las 8:00 p. m. (hora de Colombia); aquí ves su estado y la última ronda.\n' +
+    '• Agrega términos combinándolos con Y (todos), O (cualquiera) y NO (excluir).',
   profile:
-    'Tus datos personales y cómo quieres recibir las notificaciones (Telegram, WhatsApp o correo).',
+    'Tus datos personales y cómo quieres recibir las notificaciones.\n' +
+    '• Telegram: alertas de severidad media o mayor.\n' +
+    '• WhatsApp (vía CallMeBot): alertas altas y críticas.\n' +
+    '• También puedes cambiar tu contraseña (mínimo 8 caracteres).',
 }
 
 // Pestañas de Rizoma
@@ -74,6 +143,17 @@ export const RIZOMA_TAB_HELP = {
   groups:   'Registro de los grupos de Facebook que se van a cerrar: URL, razón, fecha de inicio del proceso y fecha fin. Con fecha fin queda como cerrado.',
   cases:    'Seguimiento de cada caso (la persona que ataca): sus cuentas por red social y las publicaciones denunciadas, con el detalle de la denuncia y su resultado.',
   monthly:  'Reporte del mes: origen geográfico de las cuentas y cuentas y publicaciones cerradas en el mes, con descarga en PDF.',
+}
+
+// Pestañas del detalle de una entidad
+export const ENTITY_TAB_HELP = {
+  overview:    'Resumen de los últimos 7 días: menciones de hoy, total, % de negativas, distribución de sentimiento, temas detectados, resumen del día con IA, personas/organizaciones/lugares mencionados y pronóstico. Haz clic en una cifra, una porción o un tema para ver esas publicaciones.',
+  mentions:    'Las publicaciones de esta entidad, con los mismos filtros del menú Menciones. Se abre sin filtro de fechas.',
+  keywords:    'Términos que se buscan para esta entidad. Puedes combinar palabras con Y / O / NO, elegir el idioma y el peso (1 normal, 2 importante, 3 crítico). Solo cuentan las publicaciones que coinciden con ellas.',
+  aliases:     'Nombres alternativos de la entidad (por ejemplo, su @usuario o un apodo). Una publicación que menciona un alias también se considera de la entidad.',
+  rules:       'Reglas de alerta de esta entidad: cuándo avisar (pico de volumen, negatividad, bots, discurso de odio…), con qué umbral, ventana y severidad.',
+  influencers: 'Cuentas con mayor alcance que mencionaron esta entidad en el período elegido (7, 14 o 30 días), con sus seguidores, menciones y sentimiento.',
+  faces:       'Fotos de referencia de las personas a monitorear para detectar su presencia en las imágenes de las menciones. Requiere tener activado el reconocimiento facial en el servidor.',
 }
 
 // Los módulos que viven dentro de Rizoma también muestran su ayuda junto al título
