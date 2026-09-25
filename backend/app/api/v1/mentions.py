@@ -5,13 +5,14 @@ from typing import Optional
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.api.deps import get_current_user, require_analyst
 from app.database import get_db
 from app.models.alert import Alert as AlertModel
 from app.models.bot import BotAnalysis, AccountProfile
-from app.models.entity import Entity
+from app.core.timezone import co_date_end, co_date_start
+from app.models.entity import Entity, Keyword
 from app.models.mention import Mention, SocialPlatform
 from app.models.sentiment_feedback import SentimentFeedback
 from app.workers.nlp.urgency import compute_urgency_score
@@ -88,6 +89,15 @@ def _mention_dict(m: Mention, db: Session) -> dict:
         "media_urls":         m.media_urls,
         "visual_match":       m.visual_match,
         "visual_match_names": m.visual_match_names,
+        "topic_id":           m.topic_id,
+        "topic_label":        m.topic_label,
+        # Keywords parametrizadas con las que coincidió la mención (expresión si existe, si no keyword + operador)
+        "keywords": [
+            {"id": str(k.id),
+             "label": (k.keyword_expression or "").strip() or (
+                 k.keyword + (f" {k.logic_op} {k.keyword_secondary}" if (k.keyword_secondary or "").strip() else ""))}
+            for k in (m.keywords or [])
+        ],
         "is_attended":        (db.query(AlertModel)
                                  .filter(AlertModel.mention_id == m.id,
                                          AlertModel.acknowledged == True)
@@ -111,6 +121,8 @@ def list_mentions(
     followers_range:   Optional[str]   = Query(None, description="Rango de seguidores: 0-400|401-2000|2001-5000|5001-10000|10001-50000|50000+"),
     date_from:         Optional[str]   = Query(None),
     date_to:           Optional[str]   = Query(None),
+    keyword_id:        Optional[uuid.UUID] = Query(None, description="Solo menciones que coincidieron con esta keyword"),
+    topic_id:          Optional[int]       = Query(None, description="Solo menciones de este tema detectado"),
     page:              int             = Query(1, ge=1),
     db: Session = Depends(get_db),
     _=Depends(get_current_user),
@@ -128,6 +140,8 @@ def list_mentions(
     if sentiment:
         if sentiment == 'negative':
             query = query.filter(Mention.sentiment_label.in_(['negative', 'very_negative']))
+        elif sentiment == 'negative_only':          # solo "negativo" (sin "muy negativo")
+            query = query.filter(Mention.sentiment_label == 'negative')
         else:
             query = query.filter(Mention.sentiment_label == sentiment)
 
@@ -189,14 +203,24 @@ def list_mentions(
         if max_f is not None:
             query = query.filter(AccountProfile.followers_count <= max_f)
 
-    if date_from:
-        query = query.filter(Mention.collected_at >= date_from)
+    # Las fechas 'YYYY-MM-DD' se interpretan como día calendario de Colombia (UTC-5)
+    try:
+        if date_from:
+            query = query.filter(Mention.collected_at >= co_date_start(date_from))
+        if date_to:
+            query = query.filter(Mention.collected_at <= co_date_end(date_to))
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Fecha inválida. Formato esperado: AAAA-MM-DD")
 
-    if date_to:
-        query = query.filter(Mention.collected_at <= date_to + "T23:59:59")
+    if keyword_id:
+        query = query.filter(Mention.keywords.any(Keyword.id == keyword_id))
+
+    if topic_id is not None:
+        query = query.filter(Mention.topic_id == topic_id)
 
     total  = query.count()
     items  = (query
+              .options(selectinload(Mention.keywords))
               .order_by(func.coalesce(Mention.published_at, Mention.collected_at).desc())
               .offset((page - 1) * PAGE_SIZE)
               .limit(PAGE_SIZE)

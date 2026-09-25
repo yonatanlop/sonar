@@ -11,6 +11,7 @@ import { es } from 'date-fns/locale'
 import toast from 'react-hot-toast'
 import client from '../api/client'
 import { useAuthStore } from '../store/authStore'
+import MentionsExplorer from '../components/MentionsExplorer'
 
 // ── API helpers ────────────────────────────────────────────────
 const fetchEntity          = (id) => client.get(`/entities/${id}`).then(r => r.data)
@@ -52,6 +53,15 @@ export default function EntityDetail() {
 
   const [tab, setTab]           = useState('overview')  // overview | keywords | aliases | rules | faces | influencers
   const [influDays, setInfluDays] = useState(7)
+  const [mentionPreset, setMentionPreset] = useState({})
+  const [mentionKey, setMentionKey]       = useState(0)
+
+  // Abre la pestaña "Menciones" con filtros iniciales (p. ej. al hacer clic en un dato del resumen).
+  // El cambio de `key` reinicia los filtros de la pestaña con el nuevo preset.
+  const goMentions = (preset = {}) => { setMentionPreset(preset); setMentionKey(k => k + 1); setTab('mentions') }
+  // Día calendario de Colombia (UTC-5) como 'AAAA-MM-DD': coincide con las cifras del resumen
+  const coDay = (daysAgo = 0) => new Date(Date.now() - 5 * 3600e3 - daysAgo * 86400e3).toISOString().slice(0, 10)
+  const SLICE_SENTIMENT = { 'Muy negativo': 'very_negative', 'Negativo': 'negative_only', 'Neutro': 'neutral', 'Positivo': 'positive' }
 
   // ── Formularios ──
   const [kwForm,    setKwForm]    = useState({ terms: [''], ops: [], language: 'es', weight: 1 })
@@ -348,6 +358,7 @@ export default function EntityDetail() {
 
   const TABS = [
     { key: 'overview',     label: 'Resumen' },
+    { key: 'mentions',     label: '💬 Menciones' },
     { key: 'keywords',     label: `Keywords (${entity.keywords?.length ?? 0})` },
     { key: 'aliases',      label: `Aliases (${entity.aliases?.length ?? 0})` },
     { key: 'rules',        label: 'Reglas de alerta' },
@@ -397,7 +408,7 @@ export default function EntityDetail() {
           {TABS.map(t => (
             <button
               key={t.key}
-              onClick={() => setTab(t.key)}
+              onClick={() => (t.key === 'mentions' ? goMentions({}) : setTab(t.key))}
               className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
                 tab === t.key
                   ? 'border-primary-600 text-primary-600'
@@ -416,23 +427,36 @@ export default function EntityDetail() {
           {/* Métricas */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { label: 'Menciones hoy',      value: entity.mention_count ?? 0 },
-              { label: 'Total 7 días',        value: entity.stats_7d?.total ?? 0 },
-              { label: '% Negativas 7d',      value: `${entity.stats_7d?.negative_pct ?? 0}%` },
-              { label: 'Keywords activas',    value: entity.keywords?.filter(k => k.active).length ?? 0 },
+              { label: 'Menciones hoy',      value: entity.mention_count ?? 0,
+                go: () => goMentions({ date_from: coDay(0) }), hint: 'Ver menciones' },
+              { label: 'Total 7 días',        value: entity.stats_7d?.total ?? 0,
+                go: () => goMentions({ date_from: coDay(7) }), hint: 'Ver menciones' },
+              { label: '% Negativas 7d',      value: `${entity.stats_7d?.negative_pct ?? 0}%`,
+                go: () => goMentions({ sentiment: 'negative', date_from: coDay(7) }), hint: 'Ver las negativas' },
+              { label: 'Keywords activas',    value: entity.keywords?.filter(k => k.active).length ?? 0,
+                go: () => setTab('keywords'), hint: 'Ver keywords' },
             ].map(m => (
-              <div key={m.label} className="card text-center">
+              <button key={m.label} type="button" onClick={m.go}
+                className="card text-center hover:shadow-md transition-shadow cursor-pointer">
                 <p className="text-2xl font-bold text-gray-900">{m.value}</p>
                 <p className="text-xs text-gray-500 mt-1">{m.label}</p>
-              </div>
+                <p className="text-[11px] text-blue-500 mt-0.5">{m.hint} →</p>
+              </button>
             ))}
           </div>
 
           {/* Gráfica sentimiento */}
           <div className="card">
-            <h2 className="text-sm font-semibold text-gray-700 mb-4">Distribución de sentimiento — últimos 7 días</h2>
+            <h2 className="text-sm font-semibold text-gray-700 mb-1">Distribución de sentimiento — últimos 7 días</h2>
+            <p className="text-xs text-gray-400 mb-3">Haz clic en una porción para ver sus menciones.</p>
             {entity.stats_7d?.total > 0 ? (
-              <ReactECharts option={pieOption} style={{ height: 260 }} />
+              <ReactECharts option={pieOption} style={{ height: 260 }}
+                onEvents={{
+                  click: (p) => {
+                    const sent = SLICE_SENTIMENT[p.name]
+                    if (sent) goMentions({ sentiment: sent, date_from: coDay(7) })
+                  },
+                }} />
             ) : (
               <div className="text-center text-gray-400 py-12 text-sm">
                 Sin menciones procesadas en los últimos 7 días
@@ -480,15 +504,17 @@ export default function EntityDetail() {
                     ]
                     const colorCls = COLORS[i % COLORS.length]
                     return (
-                      <span
+                      <button
+                        type="button"
                         key={t.topic_id}
-                        className={`rounded-full px-3 py-1 font-medium cursor-default ${colorCls}`}
+                        onClick={() => goMentions({ topic_id: t.topic_id, topic_label: t.label, date_from: coDay(7) })}
+                        className={`rounded-full px-3 py-1 font-medium cursor-pointer hover:opacity-80 ${colorCls}`}
                         style={{ fontSize }}
-                        title={`${t.count} menciones (${t.pct}%)`}
+                        title={`${t.count} menciones (${t.pct}%) — clic para verlas`}
                       >
                         {t.label}
                         <span className="ml-1 opacity-60 text-xs">({t.count})</span>
-                      </span>
+                      </button>
                     )
                   })}
                 </div>
@@ -721,6 +747,17 @@ export default function EntityDetail() {
       )}
 
       {/* ── Keywords ── */}
+      {/* ── Menciones (misma pantalla del menú Menciones, con la entidad fija) ── */}
+      {tab === 'mentions' && (
+        <MentionsExplorer
+          key={mentionKey}
+          entityId={id}
+          keywords={entity.keywords ?? []}
+          preset={mentionPreset}
+          showHeader={false}
+        />
+      )}
+
       {tab === 'keywords' && (
         <div className="space-y-4">
           {isAnalyst && (

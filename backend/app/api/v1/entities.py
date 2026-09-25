@@ -12,6 +12,7 @@ from app.api.deps import get_current_user, require_analyst
 from app.database import get_db
 from app.models.anomaly import Anomaly
 from app.core.explorer import explorer_type_ids_subq
+from app.core.timezone import co_midnight
 from app.models.entity import Country, Entity, EntityAlias, EntityType, Keyword
 from app.models.mention import Mention
 from app.models.mention_entity import MentionEntity
@@ -79,14 +80,17 @@ def _risk_level(negative_pct: float) -> str:
 
 
 def _entity_dict(entity: Entity, db: Session) -> dict:
-    since_today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    since_today = co_midnight()   # medianoche de hoy en hora de Colombia
+    # Solo menciones relevantes: es lo que muestran los listados (las no relevantes no se ven).
     mention_count = db.query(func.count(Mention.id)).filter(
         Mention.entity_id == entity.id,
+        Mention.is_relevant == True,  # noqa: E712
         Mention.collected_at >= since_today,
     ).scalar() or 0
 
     neg_count = db.query(func.count(Mention.id)).filter(
         Mention.entity_id == entity.id,
+        Mention.is_relevant == True,  # noqa: E712
         Mention.collected_at >= since_today,
         Mention.sentiment_label.in_(["negative", "very_negative"]),
     ).scalar() or 0
@@ -174,7 +178,7 @@ def get_entity(
     if not entity:
         raise HTTPException(status_code=404, detail="Entidad no encontrada")
 
-    since_7 = datetime.now(timezone.utc) - timedelta(days=7)
+    since_7 = co_midnight(7)   # igual que el Dashboard: medianoche (Colombia) de hace 7 días
 
     # Estadísticas de 7 días
     rows = db.query(
@@ -182,6 +186,7 @@ def get_entity(
         func.count(Mention.id).label("cnt")
     ).filter(
         Mention.entity_id == entity_id,
+        Mention.is_relevant == True,  # noqa: E712
         Mention.collected_at >= since_7,
         Mention.sentiment_label.isnot(None),
     ).group_by(Mention.sentiment_label).all()
