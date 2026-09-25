@@ -70,8 +70,13 @@ def cluster_documents(docs: list) -> list:
     docs: [{"toks": [...], "ts": datetime, "author": str}, ...]
     Devuelve una lista de clusters (listas de índices de docs) con >= 2 cuentas distintas.
     """
-    sh = [_shingles(d["toks"]) for d in docs]
-    sigs = [[min((a * x + b) & _MASK for x in s) for a, b in _PERMS] if s else None for s in sh]
+    # Solo se guardan las firmas MinHash (32 enteros por documento). Los trigramas se recalculan bajo
+    # demanda al verificar pares candidatos: conservarlos todos costaba ~270 MB con 19.500 documentos
+    # y rozaba el límite de 288 MB del contenedor.
+    sigs = []
+    for d in docs:
+        s = _shingles(d["toks"])
+        sigs.append([min((a * x + b) & _MASK for x in s) for a, b in _PERMS] if s else None)
 
     buckets = defaultdict(list)
     for i, sg in enumerate(sigs):
@@ -103,8 +108,9 @@ def cluster_documents(docs: list) -> list:
                     continue
                 if abs((docs[i]["ts"] - docs[j]["ts"]).total_seconds()) > WINDOW_HOURS * 3600:
                     continue
-                union = len(sh[i] | sh[j])
-                if union and len(sh[i] & sh[j]) / union >= JACCARD_MIN:
+                si, sj = _shingles(docs[i]["toks"]), _shingles(docs[j]["toks"])
+                union = len(si | sj)
+                if union and len(si & sj) / union >= JACCARD_MIN:
                     parent[find(i)] = find(j)
 
     groups = defaultdict(list)
@@ -194,7 +200,9 @@ def _cluster_metrics(docs: list, idxs: list, kind: str, repeat_counts: dict) -> 
     if kind == "red":
         score = score_network(n_acc, span, low_share, young_share, repeat_share, med_fol)
     else:   # repetición de una sola cuenta: más repeticiones, más puntaje
-        score = round(min(0.4 + 0.1 * (len(members) - MIN_REPEATS + 1), 0.9), 3)
+        # Menos indicativo que una red de cuentas (puede ser spam o la misma respuesta a varias personas):
+        # tope 0,6 para que las redes coordinadas queden siempre por encima en la lista.
+        score = round(min(0.2 + 0.05 * (len(members) - MIN_REPEATS + 1), 0.6), 3)
     ents = Counter(m["entity_name"] for m in members).most_common(1)[0]
     ent_id = next(m["entity_id"] for m in members if m["entity_name"] == ents[0])
     return {
