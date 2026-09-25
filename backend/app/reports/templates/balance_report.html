@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<style>
+  @page { size: A4; margin: 1.6cm 1.4cm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Helvetica Neue", Arial, sans-serif; color: #1f2937; font-size: 11px; }
+  h1 { font-size: 20px; color: #7f1d1d; margin: 0; }
+  h2 { font-size: 13px; color: #991b1b; margin: 20px 0 8px; border-bottom: 2px solid #fee2e2; padding-bottom: 4px; page-break-after: avoid; }
+  .sub { color: #6b7280; font-size: 11px; margin-top: 2px; }
+  .kpis { display: flex; gap: 10px; margin-top: 16px; }
+  .kpi { flex: 1; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px; text-align: center; }
+  .kpi .n { font-size: 20px; font-weight: 700; }
+  .kpi .l { font-size: 9px; color: #6b7280; margin-top: 2px; }
+  .kpi .s { font-size: 8px; color: #9ca3af; margin-top: 1px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+  th { background: #f3f4f6; text-align: right; padding: 6px 8px; font-size: 9.5px; color: #374151; border-bottom: 1px solid #e5e7eb; }
+  th:first-child, td:first-child { text-align: left; }
+  td { padding: 5px 8px; border-bottom: 1px solid #f3f4f6; font-size: 10px; text-align: right; }
+  tr { page-break-inside: avoid; }
+  .zero { color: #d1d5db; }
+  .chart { text-align: center; margin-top: 6px; }
+  .chart img { max-width: 100%; }
+  .badge { display: inline-block; background: #eff6ff; color: #1d4ed8; border-radius: 4px; padding: 1px 6px; font-size: 9px; }
+  .note { margin-top: 14px; background: #fffbeb; border: 1px solid #fde68a; color: #92400e; border-radius: 6px; padding: 8px 10px; font-size: 10px; }
+  .defs { margin-top: 14px; color: #6b7280; font-size: 9px; line-height: 1.5; }
+  .empty { color: #9ca3af; font-style: italic; padding: 8px 0; }
+  .foot { margin-top: 24px; color: #9ca3af; font-size: 9px; text-align: center; }
+</style>
+</head>
+<body>
+  <h1>Balance de denuncias</h1>
+  <div class="sub">
+    Período: {{ date_from_fmt }} – {{ date_to_fmt }} (hora de Colombia) &nbsp;·&nbsp; Por {{ period_word }}
+    &nbsp;·&nbsp; Red: {{ medium or 'todas' }} &nbsp;·&nbsp; Generado el {{ generated_at }}
+  </div>
+
+  <div class="kpis">
+    <div class="kpi"><div class="n" style="color:#d97706">{{ totals.reported }}</div><div class="l">Denuncias</div><div class="s">en el período</div></div>
+    <div class="kpi"><div class="n" style="color:#059669">{{ totals.posts_removed }}</div><div class="l">Publicaciones eliminadas</div><div class="s">en el período</div></div>
+    <div class="kpi"><div class="n" style="color:#dc2626">{{ totals.accounts_closed }}</div><div class="l">Cuentas cerradas</div><div class="s">en el período</div></div>
+    {% if show_groups %}
+    <div class="kpi"><div class="n" style="color:#4f46e5">{{ totals.groups_closed }}</div><div class="l">Grupos cerrados</div><div class="s">{{ totals.groups_started }} iniciados</div></div>
+    {% endif %}
+    <div class="kpi"><div class="n">{{ overall.removal_rate }}%</div><div class="l">Tasa de eliminación</div><div class="s">{{ overall.reported_removed }} de {{ overall.reported }} denunciadas (histórico)</div></div>
+  </div>
+
+  <h2>Balance por {{ period_word }}</h2>
+  {% if chart %}
+    <div class="chart"><img src="data:image/png;base64,{{ chart }}" alt="Balance" /></div>
+  {% else %}
+    <div class="empty">No hay movimientos con fecha en este período.</div>
+  {% endif %}
+
+  <h2>Detalle por {{ period_word }}</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>{{ 'Día' if granularity == 'day' else ('Semana (inicia lunes)' if granularity == 'week' else 'Mes') }}</th>
+        <th>Denuncias</th><th>Eliminadas</th><th>Cuentas cerradas</th>
+        {% if show_groups %}<th>Grupos cerrados</th>{% endif %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in points %}
+      <tr>
+        <td>{{ p.label }}</td>
+        <td class="{{ 'zero' if not p.reported }}">{{ p.reported }}</td>
+        <td class="{{ 'zero' if not p.posts_removed }}">{{ p.posts_removed }}</td>
+        <td class="{{ 'zero' if not p.accounts_closed }}">{{ p.accounts_closed }}</td>
+        {% if show_groups %}<td class="{{ 'zero' if not p.groups_closed }}">{{ p.groups_closed }}</td>{% endif %}
+      </tr>
+      {% endfor %}
+      <tr style="font-weight:700;background:#f9fafb">
+        <td>Total</td><td>{{ totals.reported }}</td><td>{{ totals.posts_removed }}</td><td>{{ totals.accounts_closed }}</td>
+        {% if show_groups %}<td>{{ totals.groups_closed }}</td>{% endif %}
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Por tipo de red</h2>
+  {% if by_medium %}
+    <table>
+      <thead><tr><th>Red</th><th>Cuentas registradas</th><th>Denuncias</th><th>Eliminadas</th><th>Cuentas cerradas</th></tr></thead>
+      <tbody>
+        {% for m in by_medium %}
+        <tr>
+          <td><span class="badge">{{ m.medium }}</span></td>
+          <td>{{ m.accounts }}</td>
+          <td>{{ m.reported }}</td><td>{{ m.posts_removed }}</td><td>{{ m.accounts_closed }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <div class="empty">Sin cuentas registradas.</div>
+  {% endif %}
+
+  {% if undated_total %}
+  <div class="note">
+    Hay registros históricos <b>sin fecha</b> que no aparecen en las cifras del período:
+    {{ undated.reported }} denuncias, {{ undated.posts_removed }} publicaciones eliminadas y {{ undated.accounts_closed }} cuentas cerradas.
+  </div>
+  {% endif %}
+
+  <div class="defs">
+    <b>Cómo se calcula.</b> Cada hecho se cuenta en su propia fecha: la denuncia, en la fecha de la denuncia; la eliminación, en la fecha de
+    eliminación; la cuenta cerrada, en la fecha de cierre; el grupo, en la fecha fin del registro. Los períodos siguen el día calendario de Colombia
+    y las semanas empiezan el lunes. La tasa de eliminación es histórica: de todas las publicaciones denunciadas, el porcentaje ya eliminado.
+  </div>
+
+  <div class="foot">SONAR · Monitoreo Reputacional — Rizoma · Balance de denuncias</div>
+</body>
+</html>

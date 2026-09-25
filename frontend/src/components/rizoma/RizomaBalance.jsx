@@ -6,7 +6,8 @@
 import { useState } from 'react'
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import ReactECharts from 'echarts-for-react'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, Download } from 'lucide-react'
+import toast from 'react-hot-toast'
 import client from '../../api/client'
 import InfoTip from '../InfoTip'
 import { MEDIUMS, MEDIUM_BADGE, bucketLabel, fmtIsoDay } from './shared'
@@ -42,6 +43,24 @@ export default function RizomaBalance() {
   const [medium, setMedium]           = useState('')
   const [dateFrom, setDateFrom]       = useState('')
   const [dateTo, setDateTo]           = useState('')
+
+  const [downloading, setDownloading] = useState(false)
+
+  async function downloadPdf() {
+    setDownloading(true)
+    try {
+      const res = await client.get('/case-reports/balance/pdf', {
+        params: { granularity, medium, date_from: dateFrom, date_to: dateTo }, responseType: 'blob',
+      })
+      const url = URL.createObjectURL(res.data)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `balance_denuncias_${granularity}${medium ? `_${medium}` : ''}.pdf`
+      document.body.appendChild(a); a.click(); a.remove()
+      URL.revokeObjectURL(url)
+    } catch { toast.error('No se pudo generar el PDF') }
+    finally { setDownloading(false) }
+  }
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['rz-balance', granularity, medium, dateFrom, dateTo],
@@ -99,6 +118,9 @@ export default function RizomaBalance() {
               <button className="text-xs text-primary-600 hover:underline" onClick={() => { setDateFrom(''); setDateTo('') }}>Restablecer</button>
             )}
           </div>
+          <button onClick={downloadPdf} disabled={downloading || !data} className="btn-primary flex items-center gap-1.5 ml-auto">
+            <Download className="w-4 h-4" /> {downloading ? 'Generando…' : 'Descargar PDF'}
+          </button>
         </div>
         {data && (
           <p className="text-xs text-gray-400">

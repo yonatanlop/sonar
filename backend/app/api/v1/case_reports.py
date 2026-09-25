@@ -6,7 +6,8 @@ Reporte de Seguimiento a caso.
 - GET /case-reports/pdf?month=YYYY-MM → el mismo reporte en PDF (WeasyPrint).
 
 Rizoma (balance e historial de cuentas de atacantes; fechas por día calendario de Colombia):
-- GET /case-reports/balance   → denuncias / eliminaciones / cierres por día, semana o mes.
+- GET /case-reports/balance   → denuncias / eliminaciones / cierres por día, semana o mes
+  (y /balance/pdf con el mismo contenido en PDF).
 - GET /case-reports/closed    → cuentas y publicaciones cerradas en un rango, filtrables por red.
 - GET /case-reports/accounts  → cuentas de atacantes con filtros (red, estado, búsqueda).
 - GET /case-reports/accounts/{id}/history → línea de tiempo de una cuenta.
@@ -219,15 +220,7 @@ def _bucket_starts(start: datetime, end: datetime, granularity: str) -> list[dat
     return out
 
 
-@router.get("/balance")
-def denuncias_balance(
-    granularity: str = Query("week", pattern="^(day|week|month)$"),
-    date_from: str = Query("", description="AAAA-MM-DD"),
-    date_to:   str = Query("", description="AAAA-MM-DD"),
-    medium:    str = Query("", description="Red social (X, Facebook, Instagram, TikTok, YouTube, …)"),
-    db: Session = Depends(get_db),
-    _:  User    = Depends(require_case_manager),
-):
+def _build_balance(db: Session, granularity: str, date_from: str, date_to: str, medium: str) -> dict:
     """Balance de denuncias: por día, semana o mes, cuántas denuncias se hicieron y cuántas
     publicaciones / cuentas / grupos se cerraron. Los hechos sin fecha registrada se cuentan aparte."""
     medium = _check_medium(medium)
@@ -331,6 +324,39 @@ def denuncias_balance(
         },
         "by_medium": by_medium,
     }
+
+
+@router.get("/balance")
+def denuncias_balance(
+    granularity: str = Query("week", pattern="^(day|week|month)$"),
+    date_from: str = Query("", description="AAAA-MM-DD"),
+    date_to:   str = Query("", description="AAAA-MM-DD"),
+    medium:    str = Query("", description="Red social (X, Facebook, Instagram, TikTok, YouTube, …)"),
+    db: Session = Depends(get_db),
+    _:  User    = Depends(require_case_manager),
+):
+    return _build_balance(db, granularity, date_from, date_to, medium)
+
+
+@router.get("/balance/pdf")
+def denuncias_balance_pdf(
+    granularity: str = Query("week", pattern="^(day|week|month)$"),
+    date_from: str = Query("", description="AAAA-MM-DD"),
+    date_to:   str = Query("", description="AAAA-MM-DD"),
+    medium:    str = Query("", description="Red social"),
+    db: Session = Depends(get_db),
+    _:  User    = Depends(require_case_manager),
+):
+    """El mismo balance en PDF (WeasyPrint)."""
+    data = _build_balance(db, granularity, date_from, date_to, medium)
+    from app.reports.balance_report import render_balance_pdf
+    pdf_bytes = render_balance_pdf(data)
+    filename = f"balance_denuncias_{granularity}_{data['date_from']}_{data['date_to']}.pdf"
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.get("/closed")
