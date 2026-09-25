@@ -5,7 +5,8 @@ import { Info } from 'lucide-react'
 //   align: hacia dónde se abre el texto respecto al ícono ('center' | 'left' | 'right')
 //   below: abre el texto debajo del ícono (útil junto a títulos en la parte alta de la página)
 //   wide:  cuadro más ancho, para textos largos
-export default function InfoTip({ text, align = 'center', below = false, wide = false }) {
+//   prominent: ícono más grande y visible (junto a los títulos de módulo)
+export default function InfoTip({ text, align = 'center', below = false, wide = false, prominent = false }) {
   const pos = align === 'left'
     ? 'left-0'
     : align === 'right'
@@ -13,7 +14,7 @@ export default function InfoTip({ text, align = 'center', below = false, wide = 
     : 'left-1/2 -translate-x-1/2'
   return (
     <span className="relative inline-flex items-center group align-middle focus:outline-none" tabIndex={0}>
-      <Info className="w-3.5 h-3.5 text-gray-300 hover:text-gray-500 group-focus:text-gray-500 cursor-help" />
+      <Info className={`${prominent ? 'w-4 h-4 text-primary-500 hover:text-primary-700 group-focus:text-primary-700' : 'w-3.5 h-3.5 text-gray-300 hover:text-gray-500 group-focus:text-gray-500'} cursor-help`} />
       <span
         role="tooltip"
         className={`pointer-events-none absolute ${below ? 'top-full mt-1.5' : 'bottom-full mb-1.5'} ${wide ? 'w-72 sm:w-80' : 'w-60'} z-30 ${pos}

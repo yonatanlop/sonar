@@ -52,7 +52,7 @@ export default function Rizoma() {
       </div>
 
       {allowed.length > 1 && (
-        <div className="flex gap-1 overflow-x-auto border-b border-gray-200">
+        <div className="flex gap-1 overflow-x-auto overflow-y-hidden border-b border-gray-200">
           {allowed.map(t => (
             <button
               key={t.key}

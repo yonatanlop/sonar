@@ -12,9 +12,11 @@ export const MODULE_HELP = {
     'Haz clic en una caja o gráfica para ver las publicaciones que la componen; el ⓘ de cada caja explica cómo se calcula.',
   entities:
     'Aquí se configura qué se monitorea: líderes, instituciones y keywords.\n' +
-    '• «Nueva entidad»: nombre, tipo, país, foto y tipo de monitoreo (vigilancia reputacional, seguimiento político u oportunidad del partido).\n' +
+    '• Cada tarjeta muestra las menciones de hoy, el nivel de riesgo (bajo, medio o alto según el % de negativas) y un interruptor para activar o pausar la entidad.\n' +
+    '• Filtra por tipo de monitoreo (vigilancia reputacional, seguimiento político u oportunidad del partido), busca por nombre o muestra las inactivas.\n' +
+    '• «Nueva entidad»: nombre, tipo, país, foto y tipo de monitoreo.\n' +
     '• Solo cuentan las publicaciones que coinciden con las keywords o alias de cada entidad.\n' +
-    '• Entra a «Ver detalle» para su resumen, menciones, keywords, alias, reglas de alerta e influencers.',
+    '• «Ver detalle»: resumen, menciones, keywords, alias, reglas de alerta, influencers y reconocimiento visual.',
   mentions:
     'Todas las publicaciones recolectadas que coinciden con las keywords parametrizadas.\n' +
     '• Filtra por entidad, red, sentimiento, idioma, urgencia, tipo de autor (bot, sospechoso, real), seguidores, país y fechas.\n' +
@@ -29,10 +31,11 @@ export const MODULE_HELP = {
   alerts:
     'Historial de las alertas que el sistema dispara según las reglas configuradas.\n' +
     '• Filtra por severidad (baja, media, alta, crítica) y por estado (sin atender / atendidas).\n' +
-    '• Al atender una alerta registras qué acción tomaste (reportar a la plataforma, escalar a jurídico, oportunidad, descartar…) y una nota.',
+    '• Con «Atender» registras qué acción tomaste (reportado a la plataforma, escalado a jurídico MIRA o de la iglesia, oportunidad del partido, descartado) y una nota.\n' +
+    '• «Ver mención» despliega la publicación que originó la alerta.',
   inbox:
     'Bandeja de trabajo para tratar las menciones negativas que generaron alerta.\n' +
-    '• Ordena por fecha, urgencia o seguidores del autor.\n' +
+    '• Alterna entre Pendientes, Todas y Gestionadas, filtra por tema y ordena por fecha, urgencia o seguidores del autor.\n' +
     '• Sigue la guía de la pantalla: evalúa la gravedad, captura evidencia, reporta en la plataforma, escala a jurídico o a autoridades y registra la acción.\n' +
     '• También puedes corregir el sentimiento y marcar la cuenta como Rizoma.',
   legal:
@@ -49,12 +52,14 @@ export const MODULE_HELP = {
     'Detecta cuentas distintas que publican el mismo texto (o casi) en pocas horas: una señal de actividad coordinada.\n' +
     '• El detector corre cada 3 horas y muestra grupos candidatos con un puntaje.\n' +
     '• Revisa cada grupo y márcalo como confirmado o descartado (con una nota); así se mide el acierto del detector.\n' +
-    '• Filtra por tipo (varias cuentas en red / una cuenta repitiendo) y por puntaje.',
+    '• Filtra por estado, por tipo (varias cuentas en red / una cuenta repitiendo) y por puntaje.\n' +
+    '• «Cuentas núcleo» lista las cuentas que aparecen repetidas en varios grupos.',
   rules:
     'Define cuándo se disparan las alertas automáticas.\n' +
     '• Elige la entidad (o global), el tipo de regla, el umbral, la ventana de evaluación y la severidad.\n' +
     '• La severidad decide por dónde llega: baja = solo dashboard; media = Telegram y dashboard; alta y crítica = todos los canales.\n' +
-    '• Puedes limitar quién recibe cada alerta; si lo dejas vacío, la reciben todos los admin y analistas.',
+    '• Puedes limitar quién recibe cada alerta; si lo dejas vacío, la reciben todos los admin y analistas.\n' +
+    '• Cada regla tiene un interruptor para activarla o pausarla y un ícono para eliminarla. Las reglas «Anomalía detectada automáticamente» avisan cuando una entidad se sale de su comportamiento normal.',
 
   // ── Herramientas ──
   reports:
@@ -92,7 +97,8 @@ export const MODULE_HELP = {
     '• Sus resultados NO se mezclan con el Dashboard.\n' +
     '• Con el botón Rizoma marcas cuentas hostiles.',
   response:
-    'Herramienta para redactar respuestas a comentarios negativos.',
+    'Ayuda a responder comentarios negativos en Facebook con argumentos sólidos y respeto.\n' +
+    '• Indicas el tema de la publicación, el enlace y el comentario negativo completo, y la herramienta te ayuda a preparar la respuesta.',
   media:
     'Búsqueda inversa de imágenes y videos: dónde más se publicó, quién lo publicó y si fue generado con IA.\n' +
     '• Sube un archivo (JPG, PNG, WEBP, GIF, MP4, MOV; máx. 50 MB) o pega un enlace.\n' +
@@ -100,9 +106,10 @@ export const MODULE_HELP = {
     '• «¿Es IA?» analiza si la imagen fue generada por inteligencia artificial.',
   platforms:
     'Estado de las redes sociales y de las cuentas con las que SONAR las recolecta.\n' +
-    '• Ves qué plataformas están activas y cuántas menciones llegaron en las últimas 24 h y 7 días, y la última mención.\n' +
+    '• Arriba ves el resumen (activas, sin menciones recientes, no configuradas). Cada tarjeta muestra la frecuencia de recolección, las menciones de las últimas 24 h y 7 días, la última mención y las cuentas activas.\n' +
     '• «Gestionar cuentas»: agrega, activa, reactiva (limpia errores y bloqueos), edita cookies o elimina las cuentas de Twitter/X, Instagram y Facebook.\n' +
-    '• Estados: activa, cooldown (en espera), error de autenticación, error o inactiva.',
+    '• Cada cuenta puede estar activa, en cooldown (en espera), con error de autenticación, con error o inactiva.\n' +
+    '• Se actualiza sola cada 60 segundos.',
   chat:
     'Asistente MIRA: haz preguntas en lenguaje natural sobre las menciones recolectadas y recibe una respuesta con base en ellas.\n' +
     '• Puedes limitarlo a una entidad.\n' +
@@ -116,16 +123,18 @@ export const MODULE_HELP = {
     '• Crea usuarios con una contraseña temporal y asígnales un rol: Consulta (solo lectura), Analista o Administrador.\n' +
     '• Edita sus datos y actívalos o desactívalos; ves su último acceso.',
   audit:
-    'Registro de las acciones hechas en el sistema: quién, qué, en qué módulo y cuándo.\n' +
+    'Registro de las acciones hechas en el sistema: quién, qué, en qué módulo, cuándo y desde qué IP (inicios y cierres de sesión, cambios, etc.).\n' +
     '• Filtra por usuario, acción, módulo y fechas.\n' +
     '• Sirve para trazabilidad y control.',
   'reply-accounts':
     'Cuentas del equipo que responden a las publicaciones monitoreadas.\n' +
     '• Registra las cuentas, sus respuestas (con el post original, si lo hay) y actívalas o desactívalas.\n' +
-    '• Ves cuántas respuestas y posts atendidos tiene cada una; algunas respuestas se detectan automáticamente.',
+    '• Arriba ves cuentas activas, respuestas registradas, posts atendidos, respuestas detectadas automáticamente y la cuenta con más respuestas.\n' +
+    '• Abre una cuenta para ver su historial de respuestas.',
   'twitter-search':
     'Monitoreo continuo y global de keywords y hashtags en Twitter.\n' +
-    '• Se activa automáticamente a las 8:00 p. m. (hora de Colombia); aquí ves su estado y la última ronda.\n' +
+    '• Se activa automáticamente a las 8:00 p. m. (hora de Colombia); aquí ves su estado, los términos activos y la última ronda.\n' +
+    '• «Verificar estado», «Iniciar ahora» y «Detener búsqueda» la controlan a mano.\n' +
     '• Agrega términos combinándolos con Y (todos), O (cualquiera) y NO (excluir).',
   profile:
     'Tus datos personales y cómo quieres recibir las notificaciones.\n' +

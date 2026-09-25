@@ -8,7 +8,7 @@ export default function ModuleHelp({ id }) {
   if (!text) return null
   return (
     <span className="ml-2 inline-flex align-middle">
-      <InfoTip text={text} align="left" below wide />
+      <InfoTip text={text} align="left" below wide prominent />
     </span>
   )
 }
