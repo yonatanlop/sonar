@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Building2, MessageSquare,
   Bell, Inbox, FileText, Users, Settings2, Radio, UserCircle, Activity, Twitter,
   GitCompareArrows, Youtube, ChevronDown, ScrollText, ShieldAlert, Scale, Reply, Search, ScanSearch, MessageSquareReply, Wand2,
-  Facebook, Instagram, Music2, UsersRound, FolderSearch, FileBarChart, Network,
+  Facebook, Instagram, Music2, Network,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useAuthStore } from '../store/authStore'
@@ -29,7 +29,6 @@ const NAV_SECTIONS = (isAdmin, isAnalyst, isSuperAdmin, unread, inbox) => [
       { to: '/inbox',   icon: Inbox,       label: 'Bandeja',  badge: inbox  },
       { to: '/rizoma',  icon: ShieldAlert, label: 'Rizoma' },
       { to: '/legal',   icon: Scale,       label: 'Jurídico' },
-      ...(isAnalyst ? [{ to: '/grupos', icon: UsersRound, label: 'Grupos a cerrar' }] : []),
       ...(isAnalyst ? [{ to: '/coordination', icon: Network, label: 'Actividad coordinada' }] : []),
       ...(isAnalyst ? [{ to: '/settings/rules', icon: Settings2, label: 'Reglas de alerta' }] : []),
     ],
@@ -50,16 +49,7 @@ const NAV_SECTIONS = (isAdmin, isAnalyst, isSuperAdmin, unread, inbox) => [
       { to: '/platforms',        icon: Activity,  label: 'Plataformas' },
     ],
   },
-  // Sección propia. Hoy solo admin; para abrir a más roles cambiar este gate
-  // por `isAnalyst` (y CASE_MANAGER_ROLES en el backend + la ruta en App.jsx).
-  ...(isAdmin ? [{
-    id:    'seguimiento',
-    label: 'SEGUIMIENTO',
-    items: [
-      { to: '/cases',          icon: FolderSearch,  label: 'Seguimiento a caso' },
-      { to: '/cases/reportes',  icon: FileBarChart, label: 'Reportes' },
-    ],
-  }] : []),
+  // "Seguimiento a caso", "Grupos a cerrar" y sus reportes viven ahora dentro de Rizoma (pestañas).
   ...(isAdmin ? [{
     id:    'administracion',
     label: 'ADMINISTRACIÓN',
@@ -146,7 +136,7 @@ export default function Sidebar({ open, onClose }) {
                       <NavLink
                         key={to}
                         to={to}
-                        end={to === '/' || to === '/cases'}
+                        end={to === '/'}
                         onClick={onClose}
                         className={({ isActive }) => clsx(
                           'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',

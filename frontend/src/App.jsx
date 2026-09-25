@@ -28,9 +28,6 @@ import TwitterKeywordSearch from './pages/TwitterKeywordSearch'
 import MediaSearch          from './pages/MediaSearch'
 import ReplyAccounts       from './pages/ReplyAccounts'
 import TopicKeywords       from './pages/TopicKeywords'
-import FacebookGroups      from './pages/FacebookGroups'
-import Cases               from './pages/Cases'
-import CaseReports         from './pages/CaseReports'
 import Coordination        from './pages/Coordination'
 
 export default function App() {
@@ -68,7 +65,8 @@ export default function App() {
             <Route element={<AnalystRoute />}>
               <Route path="/settings/rules"  element={<AlertRules />} />
               <Route path="/topic-keywords"  element={<TopicKeywords />} />
-              <Route path="/grupos"          element={<FacebookGroups />} />
+              {/* Grupos a cerrar vive ahora en Rizoma */}
+              <Route path="/grupos"          element={<Navigate to="/rizoma?tab=groups" replace />} />
               <Route path="/coordination"    element={<Coordination />} />
             </Route>
 
@@ -78,10 +76,10 @@ export default function App() {
               <Route path="/admin/audit"           element={<Audit />} />
               <Route path="/admin/twitter-search"  element={<TwitterKeywordSearch />} />
               <Route path="/admin/reply-accounts"  element={<ReplyAccounts />} />
-              {/* Seguimiento a caso — hoy solo admin. Para abrir a analistas:
-                  mover esta ruta a <AnalystRoute> y ajustar CASE_MANAGER_ROLES en el backend. */}
-              <Route path="/cases"                 element={<Cases />} />
-              <Route path="/cases/reportes"        element={<CaseReports />} />
+              {/* Seguimiento a caso vive ahora en Rizoma (pestañas, hoy solo admin). Para abrirlo a
+                  analistas: ajustar CASE_MANAGER_ROLES en el backend y el rol de las pestañas en pages/Rizoma.jsx. */}
+              <Route path="/cases"                 element={<Navigate to="/rizoma?tab=cases" replace />} />
+              <Route path="/cases/reportes"        element={<Navigate to="/rizoma?tab=monthly" replace />} />
             </Route>
           </Route>
         </Route>
