@@ -54,9 +54,8 @@ facebook-scraper>=0.2.59  # Facebook búsqueda por keyword con cookies de sesió
 lxml-html-clean             # lxml.html.clean separado como paquete independiente en lxml>=5
 
 # ─── Phase 2 ─────────────────────────────────────────────────
-twscrape==0.20.0          # Scraper Twitter/X (sin API key oficial). FIJADO: 0.20.0 añadió get(proxy=)
+twscrape==0.20.1          # Scraper Twitter/X (sin API key oficial). FIJADO: 0.20.1 entiende el formato nuevo de scripts de X (hashes de 16 hex) y trae queryId actualizados
                           # que el monkey-patch en scrapers/twitter.py maneja; no subir sin revisar ese parche
-xclienttransaction>=1.0.2  # Genera x-client-transaction-id requerido por Twitter GraphQL
 # playwright>=1.44.0      ← Solo en Dockerfile.facebook-worker (worker local)
 # TikTokApi>=6.0.0        ← Solo en Dockerfile.facebook-worker (worker local)
 

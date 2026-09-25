@@ -42,87 +42,20 @@ DELAY_BETWEEN_SEARCHES = 4   # segundos entre búsquedas
 TWSCRAPE_TIMEOUT       = 30  # segundos máx esperando twscrape por query
 
 
-# ── Patch queue_client.py — usa xclienttransaction para x-client-transaction-id
+# ── Compatibilidad de twscrape con el formato actual de X ──────────────────────
 def _patch_queue_client():
     """
-    twscrape 0.17.0 usa xclid.py para generar x-client-transaction-id, pero
-    xclid.py falla porque Twitter cambió cómo carga sus JS chunks.
+    Desde twscrape 0.20.1 la librería genera sola el x-client-transaction-id (entiende el formato nuevo de
+    scripts de X, con hashes de 16 hex) y trae los queryId de GraphQL actualizados. Antes se reemplazaba
+    XClIdGenStore por la librería `xclienttransaction` y se fijaban los queryId a mano: cuando X cambió su
+    página, ese parche dejó de encontrar el archivo ondemand.s y cada búsqueda fallaba con
+    "'NoneType' object has no attribute 'group'" (cuentas en cooldown y corridas de 17+ min que bloqueaban
+    el worker de concurrencia 1). Ya no se toca nada de eso.
 
-    La librería xclienttransaction (PyPI: xclienttransaction) resuelve esto con
-    un patrón diferente para encontrar el archivo ondemand.s.*.js.
-
-    Parcheamos queue_client.XClIdGenStore.get() para que use xclienttransaction
-    en lugar de xclid.py. Esto hace que cada búsqueda genere un header válido
-    y Twitter responda 200 en lugar de 404.
+    Solo queda el parche de to_old_obj (campos que X movió de legacy a core/avatar).
     """
     try:
-        import httpx as _httpx
-        from x_client_transaction import ClientTransaction as _CT
-        from x_client_transaction.utils import (
-            handle_x_migration_async as _migrate,
-            get_ondemand_file_url as _ondemand_url,
-        )
-        from twscrape import queue_client as _qc
-
-        # Cache: (home_page_soup, ondemand_text) — se refresca cada 30 min
-        _cache: dict = {}
-
-        async def _get_ct() -> _CT:
-            import time
-            now = time.time()
-            if "ct" not in _cache or now - _cache.get("ts", 0) > 1800:
-                async with _httpx.AsyncClient(
-                    follow_redirects=True,
-                    headers={
-                        "User-Agent": (
-                            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                            "AppleWebKit/537.36 (KHTML, like Gecko) "
-                            "Chrome/134.0.0.0 Safari/537.36"
-                        ),
-                        "X-Twitter-Active-User": "yes",
-                        "X-Twitter-Client-Language": "en",
-                    },
-                ) as client:
-                    home = await _migrate(client)
-                    od_url = _ondemand_url(home)
-                    od_rep = await client.get(od_url)
-                _cache["ct"] = _CT(home, od_rep)
-                _cache["ts"] = now
-                logger.info("[Twitter] xclienttransaction cache actualizado")
-            return _cache["ct"]
-
-        # Monkey-patch: reemplaza XClIdGenStore.get con nuestra implementación
-        class _PatchedXClIdGenStore:
-            @staticmethod
-            async def get(username: str, fresh: bool = False, proxy=None, **kwargs):
-                """Retorna un objeto compatible con .calc() usando xclienttransaction.
-
-                Acepta e ignora `proxy` (y cualquier kwarg futuro): versiones
-                recientes de twscrape llaman get(..., proxy=...) y sin esto se
-                lanza TypeError en cada request, bloqueando el worker."""
-                ct = await _get_ct()
-
-                class _Wrapper:
-                    def __init__(self, ct_obj):
-                        self._ct = ct_obj
-
-                    def calc(self, method: str, path: str) -> str:
-                        try:
-                            return self._ct.generate_transaction_id(
-                                method=method, path=path
-                            )
-                        except Exception as e:
-                            logger.warning(f"[Twitter] xclienttransaction calc error: {e}")
-                            return ""
-
-                return _Wrapper(ct)
-
-        _qc.XClIdGenStore = _PatchedXClIdGenStore
-
-        # ── También parchear to_old_obj en utils.py (campos movidos de legacy a core/avatar)
         from twscrape import utils as _twutils
-
-        _orig_to_old_obj = _twutils.to_old_obj
 
         def _patched_to_old_obj(obj: dict):
             # Twitter 2026: screen_name/name/created_at → core{}
@@ -146,29 +79,10 @@ def _patch_queue_client():
                 "legacy": None,
             }
 
-        _twutils.to_old_obj = _patched_to_old_obj
-        # Actualizar referencia en utils (to_old_rep llama to_old_obj en el mismo módulo)
-        import twscrape.utils as _twutils2
-        _twutils2.to_old_obj = _patched_to_old_obj
-
-        # ── Actualizar queryIds de twscrape a los actuales (capturados de main.js)
-        import twscrape.api as _tw_api
-        _tw_api.OP_SearchTimeline          = "pCd62NDD9dlCDgEGgEVHMg/SearchTimeline"
-        _tw_api.OP_UserByScreenName        = "IGgvgiOx4QZndDHuD3x9TQ/UserByScreenName"
-        _tw_api.OP_TweetDetail             = "rU08O-YiXdr0IZfE7qaUMg/TweetDetail"
-        _tw_api.OP_Followers               = "-WcGoRt8IQuPm-l1ymgy6g/Followers"
-        _tw_api.OP_Following               = "vWCjN9gcTJiXzzMPR5Oxzw/Following"
-        _tw_api.OP_UserTweets              = "x3B_xLqC0yZawOB7WQhaVQ/UserTweets"
-        _tw_api.OP_UserTweetsAndReplies    = "Yt1JzwcBsBWYEEi3jMTe2Q/UserTweetsAndReplies"
-        _tw_api.OP_ListLatestTweetsTimeline = "qcQY-EkEWjJ-wwJhsKdxYQ/ListLatestTweetsTimeline"
-        _tw_api.OP_UserMedia               = "y4E0HTZKPhAOXewRMqMqgw/UserMedia"
-        _tw_api.OP_GenericTimelineById     = "2My6Exw3i3JLnuoxc4my8A/GenericTimelineById"
-
-        logger.info("[Twitter] queue_client + to_old_obj + queryIds patches aplicados OK")
-    except ImportError:
-        logger.warning("[Twitter] xclienttransaction no instalado — x-client-transaction-id no se generará")
+        _twutils.to_old_obj = _patched_to_old_obj   # to_old_rep llama to_old_obj en el mismo módulo
+        logger.info("[Twitter] parche to_old_obj aplicado OK")
     except Exception as e:
-        logger.warning(f"[Twitter] No se pudo patchear queue_client: {e}")
+        logger.warning(f"[Twitter] No se pudo aplicar el parche to_old_obj: {e}")
 
 
 _patch_queue_client()
