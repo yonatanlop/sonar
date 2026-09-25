@@ -15,6 +15,9 @@ import matplotlib.pyplot as plt
 from jinja2 import Environment, FileSystemLoader
 from weasyprint import HTML
 
+# Urgencia "alta": tramo >= 60 de la escala 0-100 (ver urgency_level en workers/nlp/urgency.py)
+HIGH_URGENCY_MIN = 60
+
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 STORAGE_DIR   = Path("/app/storage/reports")
 STORAGE_DIR.mkdir(parents=True, exist_ok=True)
@@ -395,7 +398,7 @@ def _generate_entity(report, db) -> str:
         db.query(func.count(Mention.id))
         .filter(Mention.entity_id == entity.id,
                 Mention.collected_at.between(dt_from, dt_to),
-                Mention.urgency_score >= 0.7,
+                Mention.urgency_score >= HIGH_URGENCY_MIN,   # escala 0-100 (tramo "alta")
                 Mention.urgency_score.isnot(None))
         .scalar() or 0
     )

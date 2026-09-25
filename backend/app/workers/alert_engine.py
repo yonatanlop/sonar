@@ -11,6 +11,10 @@ Evaluadores implementados:
   - NEGATIVE_MENTION   : una alerta por cada mención negativa/muy negativa
                          (deduplicación por mention_id, sin cooldown temporal)
 
+Criterios unificados con el Dashboard (app/core/metrics.py): solo cuentan las menciones
+relevantes a las keywords, el % negativo se calcula sobre las clasificadas y los bots son cuentas
+distintas con puntaje >= BOT_THRESHOLD. Las entidades de los Explorer ("Monitor …") se excluyen.
+
 Cooldown: no se dispara la misma regla dos veces en menos de COOLDOWN_MINUTES.
 Excepción: negative_mention usa deduplicación por mention_id, no por cooldown.
 """
@@ -26,10 +30,11 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.explorer import explorer_entity_ids_subq
+from app.core.metrics import bot_authors_count, classified, negative, relevant
 from app.database import SessionLocal
 from app.models.alert import Alert, AlertRule
-from app.models.bot import AccountProfile, BotAnalysis
-from app.models.entity import Entity, EntityType, Keyword
+from app.models.entity import Entity, Keyword
 from app.models.mention import Mention
 from app.models.user import User
 
@@ -74,6 +79,7 @@ def _historical_average(db: Session, entity_id, window_minutes: int) -> float:
             Mention.entity_id   == entity_id,
             Mention.collected_at >= sample_start,
             Mention.collected_at <  sample_end,
+            relevant(),
         ).scalar() or 0
         samples.append(count)
 
@@ -91,6 +97,7 @@ def _check_volume_spike(db: Session, rule: AlertRule) -> Optional[str]:
     current = db.query(func.count(Mention.id)).filter(
         Mention.entity_id   == rule.entity_id,
         Mention.collected_at >= since,
+        relevant(),
     ).scalar() or 0
 
     avg = _historical_average(db, rule.entity_id, rule.window_minutes)
@@ -115,10 +122,12 @@ def _check_negative_threshold(db: Session, rule: AlertRule) -> Optional[str]:
     rule.threshold = porcentaje (ej: 70 → 70%)
     """
     since = _window_start(rule.window_minutes)
+    # Igual que el Dashboard: relevantes y CLASIFICADAS (las sin clasificar no cuentan en la base)
     total = db.query(func.count(Mention.id)).filter(
         Mention.entity_id   == rule.entity_id,
         Mention.collected_at >= since,
-        Mention.processed   == True,
+        relevant(),
+        classified(),
     ).scalar() or 0
 
     if total < MIN_MENTIONS_FOR_PCT:
@@ -127,15 +136,15 @@ def _check_negative_threshold(db: Session, rule: AlertRule) -> Optional[str]:
     negatives = db.query(func.count(Mention.id)).filter(
         Mention.entity_id     == rule.entity_id,
         Mention.collected_at  >= since,
-        Mention.processed     == True,
-        Mention.sentiment_label.in_(["negative", "very_negative"]),
+        relevant(),
+        negative(),
     ).scalar() or 0
 
     pct = (negatives / total) * 100
     if pct >= rule.threshold:
         return (
             f"{pct:.1f}% de menciones son negativas "
-            f"({negatives} de {total} en los últimos {rule.window_minutes} min · "
+            f"({negatives} de {total} clasificadas en los últimos {rule.window_minutes} min · "
             f"umbral: {rule.threshold}%)."
         )
     return None
@@ -148,20 +157,13 @@ def _check_bot_activity(db: Session, rule: AlertRule) -> Optional[str]:
     """
     since = _window_start(rule.window_minutes)
 
-    # Bots que publicaron menciones de esta entidad en la ventana
-    bot_accounts = (
-        db.query(func.count(func.distinct(Mention.author_ext_id)))
-        .join(AccountProfile,
-              (AccountProfile.platform_id    == Mention.platform_id) &
-              (AccountProfile.external_user_id == Mention.author_ext_id))
-        .join(BotAnalysis,
-              BotAnalysis.account_profile_id == AccountProfile.id)
-        .filter(
-            Mention.entity_id    == rule.entity_id,
-            Mention.collected_at >= since,
-            BotAnalysis.classification == "bot",
-        )
-        .scalar() or 0
+    # Cuentas distintas con puntaje >= BOT_THRESHOLD que publicaron menciones relevantes de la
+    # entidad en la ventana (mismo criterio que el Dashboard)
+    bot_accounts = bot_authors_count(
+        db,
+        Mention.entity_id    == rule.entity_id,
+        Mention.collected_at >= since,
+        relevant(),
     )
 
     if bot_accounts >= rule.threshold:
@@ -199,6 +201,7 @@ def _check_keyword_critical(db: Session, rule: AlertRule) -> Optional[str]:
         .filter(
             Mention.entity_id    == rule.entity_id,
             Mention.collected_at >= since,
+            relevant(),
             mention_keywords.c.keyword_id.in_(list(kw_map.keys())),
         )
         .all()
@@ -237,6 +240,7 @@ def _check_hate_speech(db: Session, rule: AlertRule) -> Optional[str]:
     count = db.query(func.count(Mention.id)).filter(
         Mention.entity_id    == rule.entity_id,
         Mention.collected_at >= since,
+        relevant(),
         Mention.is_hate_speech == True,
     ).scalar() or 0
 
@@ -260,6 +264,7 @@ def _check_campaign_detected(db: Session, rule: AlertRule) -> Optional[str]:
     mentions = db.query(Mention).filter(
         Mention.entity_id    == rule.entity_id,
         Mention.collected_at >= since,
+        relevant(),
         Mention.content_clean.isnot(None),
     ).limit(200).all()
 
@@ -326,7 +331,8 @@ def _check_negative_mention(db: Session, rule: AlertRule) -> list[tuple]:
         db.query(Mention)
         .filter(
             Mention.entity_id == rule.entity_id,
-            Mention.sentiment_label.in_(["negative", "very_negative"]),
+            relevant(),
+            negative(),
             Mention.processed == True,
             Mention.collected_at >= since,
             Mention.id.notin_(alerted_ids),
@@ -512,13 +518,10 @@ def run_alert_engine() -> dict:
             .all()
         )
 
-        # Excluir reglas cuya entidad es un feed del Twitter Explorer
+        # Excluir reglas cuya entidad es interna de un Explorer (Monitor Twitter/Facebook/
+        # Instagram/TikTok): no son entidades parametrizadas y no deben generar alertas.
         feed_entity_ids = {
-            row[0] for row in
-            db.query(Entity.id)
-            .join(EntityType, Entity.entity_type_id == EntityType.id)
-            .filter(EntityType.name == "Monitor Twitter")
-            .all()
+            row[0] for row in db.query(Entity.id).filter(Entity.id.in_(explorer_entity_ids_subq())).all()
         }
         rules = [r for r in rules if r.entity_id not in feed_entity_ids]
 

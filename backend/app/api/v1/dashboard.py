@@ -1,4 +1,5 @@
 import json
+import uuid
 import logging
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional, List
@@ -11,6 +12,10 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user
 from app.core.config import settings
 from app.core.explorer import explorer_entity_ids_subq, explorer_type_ids_subq
+from app.core.metrics import (
+    authors_join, bot_authors_count, classified, negative, negative_pct as pct_negative, relevant,
+)
+from app.core.timezone import co_midnight
 from app.database import get_db
 from app.models.entity import Entity
 from app.models.mention import Mention, SocialPlatform
@@ -61,28 +66,17 @@ def _not_explorer():
     return ~Mention.entity_id.in_(explorer_entity_ids_subq())
 
 
-def _authors_join(query):
-    """Une menciones con el perfil de su autor (plataforma + id externo)."""
-    return query.select_from(Mention).join(
-        AccountProfile,
-        and_(AccountProfile.platform_id == Mention.platform_id,
-             AccountProfile.external_user_id == Mention.author_ext_id),
-    )
+_authors_join = authors_join   # criterio compartido: app/core/metrics.py
 
 
 def _bot_authors_count(db: Session, start, end=None) -> int:
     """Cuentas DISTINTAS que publicaron menciones relevantes de entidades monitoreadas en
     [start, end) y cuyo puntaje de bot alcanza el umbral. Antes se contaban filas de análisis
     hechas hoy (eventos del clasificador), que no reflejan la conversación monitoreada."""
-    q = _authors_join(db.query(func.count(func.distinct(AccountProfile.id)))).filter(
-        Mention.collected_at >= start,
-        Mention.is_relevant == True,  # noqa: E712
-        _not_explorer(),
-        AccountProfile.bot_probability >= settings.BOT_THRESHOLD,
-    )
+    conds = [Mention.collected_at >= start, relevant(), _not_explorer()]
     if end is not None:
-        q = q.filter(Mention.collected_at < end)
-    return q.scalar() or 0
+        conds.append(Mention.collected_at < end)
+    return bot_authors_count(db, *conds)
 
 
 def _delta(current: float, previous: float) -> dict:
@@ -465,11 +459,24 @@ def compare_entities(
     _=Depends(get_current_user),
 ):
     """
-    Compara métricas de 2-4 entidades en el período: volumen, % negativo,
-    bots, urgencia promedio y plataforma dominante.
+    Compara métricas de 2-4 entidades en el período: volumen, % negativo, bots, urgencia
+    promedio y plataforma dominante. Usa los mismos criterios que el Dashboard y el detalle de
+    la entidad (app/core/metrics.py): solo menciones relevantes, % negativo sobre las clasificadas,
+    bots = cuentas distintas y períodos por día calendario de Colombia.
     """
-    ids = [i.strip() for i in entity_ids.split(",") if i.strip()][:4]
-    since = datetime.now(timezone.utc) - timedelta(days=days)
+    ids = []
+    for raw in entity_ids.split(","):
+        raw = raw.strip()
+        if not raw:
+            continue
+        try:
+            ids.append(uuid.UUID(raw))
+        except ValueError:
+            continue
+    ids = ids[:4]
+
+    since = co_midnight(days)          # mismo período que "Total N días" del detalle de entidad
+    today = co_midnight()
     result = []
 
     for eid in ids:
@@ -477,43 +484,29 @@ def compare_entities(
         if not entity:
             continue
 
-        rows = db.query(
-            Mention.sentiment_label,
-            func.count(Mention.id).label("cnt"),
-        ).filter(
-            Mention.entity_id    == eid,
-            Mention.collected_at >= since,
-            Mention.is_relevant == True,
-            _not_explorer(),
-        ).group_by(Mention.sentiment_label).all()
+        base = [Mention.entity_id == eid, Mention.collected_at >= since, relevant(), _not_explorer()]
 
-        counts   = {r.sentiment_label: r.cnt for r in rows}
-        total    = sum(counts.values())
-        neg_cnt  = counts.get("negative", 0) + counts.get("very_negative", 0)
-        neg_pct  = round(neg_cnt / total * 100, 1) if total else 0
+        agg = db.query(
+            func.count(Mention.id).label("total"),
+            func.count(Mention.id).filter(classified()).label("classified"),
+            func.count(Mention.id).filter(negative()).label("negative"),
+            func.count(func.distinct(Mention.author_ext_id)).label("authors"),
+            # Las menciones aún sin procesar traen urgencia 0 por defecto: no deben bajar el promedio.
+            func.avg(Mention.urgency_score).filter(Mention.processed == True).label("urgency"),  # noqa: E712
+        ).filter(*base).one()
 
-        avg_urgency = db.query(func.avg(Mention.urgency_score)).filter(
-            Mention.entity_id    == eid,
-            Mention.collected_at >= since,
-            Mention.is_relevant == True,
-            _not_explorer(),
-        ).scalar() or 0
+        sentiment_rows = db.query(
+            Mention.sentiment_label, func.count(Mention.id),
+        ).filter(*base).group_by(Mention.sentiment_label).all()
+        counts = {(lbl or "unclassified"): cnt for lbl, cnt in sentiment_rows}
 
-        bot_count = db.query(func.count(AccountProfile.id)).join(
-            Mention, Mention.author_ext_id == AccountProfile.external_user_id
-        ).filter(
-            Mention.entity_id    == eid,
-            Mention.collected_at >= since,
-            Mention.is_relevant == True,
-            _not_explorer(),
-            AccountProfile.bot_probability >= 0.7,
-        ).scalar() or 0
+        bot_count = bot_authors_count(db, *base)
 
         # Plataforma dominante
         plat_row = (
             db.query(SocialPlatform.code, func.count(Mention.id).label("cnt"))
             .join(Mention, Mention.platform_id == SocialPlatform.id)
-            .filter(Mention.entity_id == eid, Mention.collected_at >= since, Mention.is_relevant == True)
+            .filter(*base)
             .group_by(SocialPlatform.code)
             .order_by(func.count(Mention.id).desc())
             .first()
@@ -522,12 +515,22 @@ def compare_entities(
         result.append({
             "entity_id":      str(entity.id),
             "entity_name":    entity.name,
-            "total_mentions": total,
-            "negative_pct":   neg_pct,
+            "total_mentions": agg.total,
+            "classified":     agg.classified,
+            "unclassified":   agg.total - agg.classified,
+            "negative_count": agg.negative,
+            "negative_pct":   pct_negative(agg.negative, agg.classified),
             "bot_count":      bot_count,
-            "avg_urgency":    round(float(avg_urgency), 1),
+            "authors_count":  agg.authors,
+            "avg_urgency":    round(float(agg.urgency), 1) if agg.urgency is not None else 0,
             "top_platform":   plat_row.code if plat_row else None,
             "sentiment":      counts,
         })
 
-    return {"days": days, "entities": result}
+    return {
+        "days":      days,
+        "date_from": since.strftime("%Y-%m-%d"),
+        "date_to":   today.strftime("%Y-%m-%d"),
+        "bot_threshold": settings.BOT_THRESHOLD,
+        "entities":  result,
+    }

@@ -1,36 +1,14 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import ReactECharts from 'echarts-for-react'
-import { TrendingUp, TrendingDown, MessageSquare, AlertTriangle, Bot, Building2, Minus, Info } from 'lucide-react'
+import { TrendingUp, TrendingDown, MessageSquare, AlertTriangle, Bot, Building2, Minus } from 'lucide-react'
 import client from '../api/client'
+import InfoTip from '../components/InfoTip'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 
 const fetchDashboard = () => client.get('/dashboard').then(r => r.data)
 const fetchSOV       = (days) => client.get('/dashboard/share-of-voice', { params: { days } }).then(r => r.data)
-
-// Ícono de ayuda con tooltip al pasar el mouse. Explica qué representa cada caja.
-function InfoTip({ text, align = 'center' }) {
-  const pos = align === 'left'
-    ? 'left-0'
-    : align === 'right'
-    ? 'right-0'
-    : 'left-1/2 -translate-x-1/2'
-  return (
-    <span className="relative inline-flex items-center group align-middle">
-      <Info className="w-3.5 h-3.5 text-gray-300 hover:text-gray-500 cursor-help" />
-      <span
-        role="tooltip"
-        className={`pointer-events-none absolute bottom-full mb-1.5 w-60 z-30 ${pos}
-                    opacity-0 group-hover:opacity-100 transition-opacity duration-150
-                    bg-gray-900 text-white text-xs font-normal normal-case leading-snug
-                    rounded-lg px-3 py-2 shadow-lg`}
-      >
-        {text}
-      </span>
-    </span>
-  )
-}
 
 function DeltaBadge({ delta }) {
   if (!delta) return null

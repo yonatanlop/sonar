@@ -7,6 +7,9 @@ Métricas analizadas:
   volume       — número de menciones diarias
   negative_pct — porcentaje de menciones negativas diarias
 
+Criterios unificados con el Dashboard (app/core/metrics.py): solo menciones relevantes, % negativo
+sobre las clasificadas y días calendario de Colombia. Las entidades de los Explorer se excluyen.
+
 Flujo:
   1. Para cada entidad activa, obtener conteos diarios D-7 a D-1 (baseline)
   2. Obtener el valor del día actual (D-0)
@@ -26,6 +29,9 @@ from datetime import date, datetime, timedelta, timezone
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.core.explorer import explorer_type_ids_subq
+from app.core.metrics import classified, negative, relevant
+from app.core.timezone import CO_TZ
 from app.models.alert import Alert, AlertRule
 from app.models.anomaly import Anomaly
 from app.models.entity import Entity
@@ -41,26 +47,28 @@ COOLDOWN_HOURS    = 6     # horas mínimas entre dos anomalías del mismo tipo p
 # ── Helpers ────────────────────────────────────────────────────────────────
 
 def _daily_volume(db: Session, entity_id, target_date: date) -> int:
-    """Menciones de la entidad en un día calendario."""
-    day_start = datetime(target_date.year, target_date.month, target_date.day, tzinfo=timezone.utc)
+    """Menciones relevantes de la entidad en un día calendario de Colombia."""
+    day_start = datetime(target_date.year, target_date.month, target_date.day, tzinfo=CO_TZ)
     day_end   = day_start + timedelta(days=1)
     return db.query(func.count(Mention.id)).filter(
         Mention.entity_id    == entity_id,
         Mention.collected_at >= day_start,
         Mention.collected_at <  day_end,
+        relevant(),
     ).scalar() or 0
 
 
 def _daily_negative_pct(db: Session, entity_id, target_date: date) -> float | None:
-    """Porcentaje de menciones negativas de la entidad en un día."""
-    day_start = datetime(target_date.year, target_date.month, target_date.day, tzinfo=timezone.utc)
+    """% de menciones negativas (sobre las clasificadas y relevantes) de la entidad en un día de Colombia."""
+    day_start = datetime(target_date.year, target_date.month, target_date.day, tzinfo=CO_TZ)
     day_end   = day_start + timedelta(days=1)
 
     total = db.query(func.count(Mention.id)).filter(
         Mention.entity_id    == entity_id,
         Mention.collected_at >= day_start,
         Mention.collected_at <  day_end,
-        Mention.processed    == True,
+        relevant(),
+        classified(),
     ).scalar() or 0
 
     if total < 5:   # insuficiente para calcular porcentaje
@@ -70,8 +78,8 @@ def _daily_negative_pct(db: Session, entity_id, target_date: date) -> float | No
         Mention.entity_id     == entity_id,
         Mention.collected_at  >= day_start,
         Mention.collected_at  <  day_end,
-        Mention.processed     == True,
-        Mention.sentiment_label.in_(["negative", "very_negative"]),
+        relevant(),
+        negative(),
     ).scalar() or 0
 
     return (negatives / total) * 100.0
@@ -183,7 +191,7 @@ def detect_for_entity(db: Session, entity: Entity) -> list[Anomaly]:
     Analiza una entidad y retorna la lista de anomalías nuevas detectadas.
     Las anomalías ya están añadidas a la sesión (pendientes de commit).
     """
-    today     = date.today()
+    today     = datetime.now(CO_TZ).date()   # día calendario de Colombia
     detected  = []
 
     # ── Métrica 1: volumen ───────────────────────────────────────
@@ -248,7 +256,10 @@ def run_anomaly_detection(db: Session) -> dict:
     Recorre todas las entidades activas y detecta anomalías.
     Llamado por la tarea Celery cada 30 minutos.
     """
-    entities = db.query(Entity).filter(Entity.active == True).all()
+    entities = db.query(Entity).filter(
+        Entity.active == True,
+        ~Entity.entity_type_id.in_(explorer_type_ids_subq()),
+    ).all()
     total_anomalies = 0
     errors          = 0
 
