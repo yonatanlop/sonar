@@ -5,7 +5,7 @@ from typing import Optional, List
 
 import redis as redis_lib
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import func, case
+from sqlalchemy import and_, func
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
@@ -61,6 +61,30 @@ def _not_explorer():
     return ~Mention.entity_id.in_(explorer_entity_ids_subq())
 
 
+def _authors_join(query):
+    """Une menciones con el perfil de su autor (plataforma + id externo)."""
+    return query.select_from(Mention).join(
+        AccountProfile,
+        and_(AccountProfile.platform_id == Mention.platform_id,
+             AccountProfile.external_user_id == Mention.author_ext_id),
+    )
+
+
+def _bot_authors_count(db: Session, start, end=None) -> int:
+    """Cuentas DISTINTAS que publicaron menciones relevantes de entidades monitoreadas en
+    [start, end) y cuyo puntaje de bot alcanza el umbral. Antes se contaban filas de análisis
+    hechas hoy (eventos del clasificador), que no reflejan la conversación monitoreada."""
+    q = _authors_join(db.query(func.count(func.distinct(AccountProfile.id)))).filter(
+        Mention.collected_at >= start,
+        Mention.is_relevant == True,  # noqa: E712
+        _not_explorer(),
+        AccountProfile.bot_probability >= settings.BOT_THRESHOLD,
+    )
+    if end is not None:
+        q = q.filter(Mention.collected_at < end)
+    return q.scalar() or 0
+
+
 def _delta(current: float, previous: float) -> dict:
     """Calcula variación porcentual entre dos períodos."""
     if previous == 0:
@@ -109,10 +133,7 @@ def compute_dashboard(db: Session) -> dict:
     ).scalar() or 0
     negative_pct = round((today_negative / today_classified * 100), 1) if today_classified else 0
 
-    bots_today = db.query(func.count(BotAnalysis.id)).filter(
-        BotAnalysis.analyzed_at >= today,
-        BotAnalysis.classification == "bot"
-    ).scalar() or 0
+    bots_today = _bot_authors_count(db, today)
 
     active_entities = db.query(func.count(Entity.id)).filter(
         Entity.active == True,
@@ -144,11 +165,7 @@ def compute_dashboard(db: Session) -> dict:
     ).scalar() or 0
     prev_negative_pct = round((prev_negative_cnt / prev_classified * 100), 1) if prev_classified else 0
 
-    prev_bots = db.query(func.count(BotAnalysis.id)).filter(
-        BotAnalysis.analyzed_at >= yesterday,
-        BotAnalysis.analyzed_at < today,
-        BotAnalysis.classification == "bot"
-    ).scalar() or 0
+    prev_bots = _bot_authors_count(db, yesterday, today)
 
     # ── Timeline: últimos 14 días ─────────────────────────────
     # UNA sola consulta agrupada por día (date_trunc) en vez de 14 queries.
@@ -247,20 +264,32 @@ def compute_dashboard(db: Session) -> dict:
     ]
 
     # ── Bots por plataforma (v2) ──────────────────────────────
+    # Solo las cuentas que publicaron sobre entidades monitoreadas (30 días), no los ~213 K
+    # perfiles del ruido de los Explorer. total = cuentas con puntaje; las sin puntaje van aparte.
+    since_30 = today - timedelta(days=30)
+    author_base = [
+        Mention.collected_at >= since_30,
+        Mention.is_relevant == True,  # noqa: E712
+        _not_explorer(),
+    ]
     bot_rows = (
-        db.query(
+        _authors_join(db.query(
             SocialPlatform.name.label("platform_name"),
             SocialPlatform.code.label("platform_code"),
-            func.count(AccountProfile.id).label("total"),
-            func.sum(
-                case((AccountProfile.bot_probability >= 0.7, 1), else_=0)
+            func.count(func.distinct(AccountProfile.id)).label("total"),
+            func.count(func.distinct(AccountProfile.id)).filter(
+                AccountProfile.bot_probability >= settings.BOT_THRESHOLD
             ).label("bots"),
-        )
-        .join(AccountProfile, AccountProfile.platform_id == SocialPlatform.id)
-        .filter(AccountProfile.bot_probability.isnot(None))
+        ))
+        .join(SocialPlatform, SocialPlatform.id == Mention.platform_id)
+        .filter(*author_base, AccountProfile.bot_probability.isnot(None))
         .group_by(SocialPlatform.id, SocialPlatform.name, SocialPlatform.code)
         .all()
     )
+    authors_total = _authors_join(db.query(func.count(func.distinct(AccountProfile.id)))).filter(*author_base).scalar() or 0
+    authors_unscored = _authors_join(db.query(func.count(func.distinct(AccountProfile.id)))).filter(
+        *author_base, AccountProfile.bot_probability.is_(None)
+    ).scalar() or 0
 
     bots_by_platform = [
         {
@@ -298,6 +327,11 @@ def compute_dashboard(db: Session) -> dict:
         "top_entities":      top_entities,
         "recent_alerts":     recent_alerts,
         "bots_by_platform":  bots_by_platform,
+        "bots_meta": {
+            "authors_30d": authors_total,        # cuentas que publicaron sobre entidades monitoreadas
+            "unscored":    authors_unscored,     # de ellas, sin puntaje todavía
+            "threshold":   settings.BOT_THRESHOLD,
+        },
     }
 
 

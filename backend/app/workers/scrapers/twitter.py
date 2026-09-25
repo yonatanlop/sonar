@@ -33,7 +33,7 @@ from app.core.config import settings
 from app.models.entity import Entity, Keyword
 from app.workers.scrapers.base import (
     BaseScraper, build_search_terms, save_mention, text_matches_any_term,
-    upsert_account_profile,
+    twitter_has_custom_photo, upsert_account_profile,
 )
 
 logger = logging.getLogger(__name__)
@@ -137,8 +137,10 @@ def _patch_queue_client():
             return {
                 **obj,
                 **core,
-                **compat,
                 **obj["legacy"],
+                # compat va DESPUÉS de legacy: legacy trae profile_image_url_https='' y pisaba el
+                # avatar recuperado de avatar.image_url (todas las cuentas salían "sin foto").
+                **compat,
                 "id_str": str(obj["rest_id"]),
                 "id": int(obj["rest_id"]),
                 "legacy": None,
@@ -301,10 +303,10 @@ async def _scrape_feed_query(api, query: str, platform_id: int, entity_id, db,
                         followers_count=getattr(user, "followersCount", None),
                         following_count=getattr(user, "friendsCount", None),
                         post_count=getattr(user, "statusesCount", None),
-                        has_profile_photo=bool(getattr(user, "profileImageUrl", None)),
+                        has_profile_photo=twitter_has_custom_photo(user),
                         verified=(
                             bool(getattr(user, "verified", False))
-                            or bool(getattr(user, "blue", False))
+                            # 'blue' = suscripción de pago, no verificación: no se cuenta como verificada
                         ),
                         account_created=(
                             user.created.date()
@@ -469,10 +471,10 @@ class TwitterScraper(BaseScraper):
                             followers_count=getattr(user, "followersCount", None),
                             following_count=getattr(user, "friendsCount", None),
                             post_count=getattr(user, "statusesCount", None),
-                            has_profile_photo=bool(getattr(user, "profileImageUrl", None)),
+                            has_profile_photo=twitter_has_custom_photo(user),
                             verified=(
                                 bool(getattr(user, "verified", False))
-                                or bool(getattr(user, "blue", False))
+                                # 'blue' = suscripción de pago, no verificación: no se cuenta como verificada
                             ),
                             account_created=(
                                 user.created.date()

@@ -240,7 +240,7 @@ export default function Dashboard() {
           value={data?.stats?.bots_today?.value}
           delta={data?.stats?.bots_today}
           color="yellow"
-          info="Cuentas clasificadas como bots por el modelo hoy. Haz clic para ver publicaciones de hoy de cuentas señaladas como probables bots."
+          info="Cuentas distintas que publicaron hoy sobre tus entidades y que el sistema califica como probables bots (puntaje ≥ 70 %). Haz clic para ver sus publicaciones de hoy."
           onClick={() => setDrawer({ title: 'Publicaciones de hoy de posibles bots', params: { min_bot_score: 0.7, date_from: todayStr } })} />
         <StatCard icon={Building2} label="Entidades activas"
           value={data?.stats?.active_entities}
@@ -353,9 +353,12 @@ export default function Dashboard() {
         <div className="card">
           <h2 className="font-semibold text-gray-800 mb-1 flex items-center gap-1.5">
             % Bots por plataforma
-            <InfoTip text="De las cuentas analizadas en cada red, qué porcentaje son probablemente bots (probabilidad ≥ 70% según el modelo). Clic en una porción para ver sus publicaciones." align="left" />
+            <InfoTip text="De las cuentas que publicaron sobre tus entidades en los últimos 30 días y ya tienen puntaje, cuántas son probablemente bots (puntaje ≥ 70 %). Es una estimación por reglas sobre el perfil (bio, antigüedad, actividad, ratio seguidores/seguidos), no un modelo entrenado. Clic en una porción para ver sus publicaciones." align="left" />
           </h2>
-          <p className="text-xs text-gray-400 mb-3">Clasificación ML — cuentas analizadas</p>
+          <p className="text-xs text-gray-400 mb-3">
+            Cuentas que hablan de tus entidades · 30 días
+            {(data?.bots_meta?.unscored ?? 0) > 0 && ` · ${data.bots_meta.unscored} de ${data.bots_meta.authors_30d} sin calificar aún`}
+          </p>
           {(data?.bots_by_platform?.length ?? 0) > 0 ? (
             <ReactECharts option={botPlatformOption} style={{ height: 220 }}
               onEvents={{
@@ -367,7 +370,7 @@ export default function Dashboard() {
             />
           ) : (
             <div className="text-center text-gray-400 py-10 text-sm">
-              Sin datos aún — el clasificador corre cada 6h
+              Sin cuentas calificadas aún — el clasificador corre cada hora
             </div>
           )}
         </div>

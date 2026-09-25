@@ -1,44 +1,46 @@
 """
-Clasificador de Bots con ML — v2
+Clasificador de Bots — v3 (heurística calibrada; el modelo ML es opcional)
 
-Usa un GradientBoostingClassifier entrenado con datos sintéticos basados
-en patrones reales de cuentas bot (Botometer research, Twitter bot studies).
+Estado real (auditado 2026-09-25): el modelo /app/storage/models/bot_model.pkl NO existe en producción,
+así que TODA la clasificación usa la heurística. Además el script de entrenamiento usa datos sintéticos.
+No hay hoy un modelo entrenado con bots reales; la calibración con etiquetas reales (Drive del cliente:
+"Semáforo de inautenticidad" / "Ataque coordinado") es la segunda etapa.
 
-Features del modelo (8 variables):
-  ff_ratio          — followers / max(following, 1)  [bots: extremo alto o bajo]
-  posts_per_day     — post_count / max(account_age_days, 1)  [bots: muy alto]
-  has_photo         — 1 si tiene foto de perfil, 0 si no  [bots: 0]
-  has_bio           — 1 si tiene bio, 0 si no  [bots: 0]
-  is_verified       — 1 si cuenta verificada  [bots: siempre 0]
-  digit_ratio       — proporción de dígitos en username  [bots: alto]
-  username_length   — longitud del username  [bots: muy corto o muy largo]
-  account_age_days  — días desde creación  [bots: reciente]
+Features (8 variables, las mismas que espera un modelo pkl si existe):
+  ff_ratio, posts_per_day, has_photo, has_bio, is_verified, digit_ratio, username_length,
+  account_age_days.
 
-Flujo:
-  1. Cargar modelo desde /app/storage/models/bot_model.pkl
-  2. Si no existe → usar reglas heurísticas como fallback
-  3. Extraer features de AccountProfile
-  4. Predecir probabilidad de ser bot (0.0 – 1.0)
-  5. Crear/actualizar BotAnalysis con clasificación y indicadores
-  6. Guardar bot_probability en AccountProfile
+Cambios v3 respecto a v2:
+  • Solo se califican cuentas con datos básicos (seguidores y fecha de creación). YouTube/RSS/Facebook
+    no los tienen: antes recibían valores por defecto (180 días, sin foto, sin bio) y salían
+    "sospechosas" por FALTA DE DATOS (5.708 de 5.738 cuentas de YouTube).
+  • La heurística ya no usa las señales rotas: `is_verified` (Twitter retiró la verificación clásica;
+    quedaba 'blue' = cuenta de pago) y `has_photo=False` (la foto llegaba vacía por un bug del
+    scraper). Solo una foto propia CONFIRMADA (True) resta puntaje. El puntaje se normaliza sobre las
+    señales fiables (máx. 0,90) para conservar la escala 0-1.
+  • Selección por prioridad: 1) autores de menciones de entidades monitoreadas, 2) cuentas nunca
+    calificadas, 3) recalificar las más antiguas. Antes no había ORDER BY y las cuentas activas
+    quedaban fuera (upsert_account_profile reseteaba last_analyzed_at).
+  • Un solo BotAnalysis por cuenta, actualizado en sitio (antes se insertaba una fila por corrida:
+    hasta 35 por cuenta).
 
-Para entrenar y generar el modelo pkl:
+Para entrenar un modelo pkl (opcional):
   docker compose exec backend python scripts/train_bot_model.py
 """
 import logging
-import math
 import os
 import pickle
-import re
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Optional
 
-from sqlalchemy import func
+from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.explorer import explorer_entity_ids_subq
 from app.models.bot import AccountProfile, BotAnalysis
+from app.models.mention import Mention
 
 logger = logging.getLogger(__name__)
 
@@ -49,12 +51,25 @@ FEATURE_ORDER = [
     "username_length", "account_age_days",
 ]
 
+HEURISTIC_VERSION = "heuristic_v3"
+REANALYZE_AFTER_DAYS = 7       # recalificar una cuenta ya calificada cada N días
+DEFAULT_BATCH = 1000           # cuentas por corrida (la tarea corre cada hora)
+MONITORED_WINDOW_DAYS = 30     # "autor de conversación monitoreada" = publicó en los últimos N días
+_HEURISTIC_MAX = 0.90          # suma de las señales fiables (bio .20 + dígitos .20 + nueva .15 + posts .20 + ratio .15)
+
+
+# ── Datos mínimos ──────────────────────────────────────────────────────────
+
+def has_enough_data(profile: AccountProfile) -> bool:
+    """Una cuenta se califica solo si conocemos seguidores y fecha de creación."""
+    return profile.followers_count is not None and profile.account_created is not None
+
 
 # ── Extracción de features ─────────────────────────────────────────────────
 
 def _account_age_days(account_created: Optional[date]) -> float:
     if not account_created:
-        return 180.0   # valor medio si se desconoce
+        return 180.0   # valor medio si se desconoce (no ocurre: has_enough_data lo exige)
     delta = date.today() - account_created
     return max(float(delta.days), 1.0)
 
@@ -69,13 +84,10 @@ def extract_features(profile: AccountProfile) -> dict:
 
     # Ratio followers/following (bots tienden a extremos)
     ff_ratio = followers / max(following, 1.0)
-    # Saturar en 500 para evitar outliers
-    ff_ratio = min(ff_ratio, 500.0)
+    ff_ratio = min(ff_ratio, 500.0)          # saturar outliers
 
     # Posts por día (bots publican muy frecuente)
-    posts_per_day = posts / age_days
-    # Saturar en 200
-    posts_per_day = min(posts_per_day, 200.0)
+    posts_per_day = min(posts / age_days, 200.0)
 
     # Proporción de dígitos en username
     digits = sum(1 for c in username if c.isdigit())
@@ -97,10 +109,10 @@ def features_to_array(features: dict) -> list:
     return [features[k] for k in FEATURE_ORDER]
 
 
-# ── Modelo / Fallback heurístico ───────────────────────────────────────────
+# ── Modelo / heurística ────────────────────────────────────────────────────
 
 def _load_model():
-    """Carga el modelo pkl. Retorna None si no existe."""
+    """Carga el modelo pkl. Retorna None si no existe (caso actual en producción)."""
     if os.path.exists(MODEL_PATH):
         try:
             with open(MODEL_PATH, "rb") as f:
@@ -112,14 +124,12 @@ def _load_model():
 
 def _heuristic_score(features: dict) -> float:
     """
-    Fallback heurístico cuando el modelo pkl no está disponible.
-    Devuelve probabilidad bot 0.0–1.0 basada en reglas ponderadas.
+    Probabilidad de bot 0.0–1.0 con reglas ponderadas sobre señales FIABLES.
+
+    No se usan `is_verified` (dato obsoleto: 'blue' es una suscripción) ni `has_photo=False`
+    (el scraper no recuperaba la foto). Solo una foto propia confirmada resta puntaje.
     """
     score = 0.0
-
-    # Sin foto → +0.25
-    if features["has_photo"] == 0:
-        score += 0.25
 
     # Sin bio → +0.20
     if features["has_bio"] == 0:
@@ -132,7 +142,7 @@ def _heuristic_score(features: dict) -> float:
     if features["account_age_days"] < 30:
         score += 0.15
 
-    # Posts muy frecuentes (> 50/día) → +0.20
+    # Posts muy frecuentes (> 50/día) → +0.20 ; (> 20/día) → +0.10
     if features["posts_per_day"] > 50:
         score += 0.20
     elif features["posts_per_day"] > 20:
@@ -142,9 +152,11 @@ def _heuristic_score(features: dict) -> float:
     if features["ff_ratio"] < 0.1:
         score += 0.15
 
-    # Verificado → -0.30 (muy improbable que sea bot)
-    if features["is_verified"] == 1:
-        score -= 0.30
+    score = score / _HEURISTIC_MAX          # renormalizar a escala 0-1 sobre las señales fiables
+
+    # Foto propia confirmada → -0.10
+    if features["has_photo"] == 1:
+        score -= 0.10
 
     return max(0.0, min(score, 1.0))
 
@@ -154,10 +166,7 @@ _MODEL_LOADED = False
 
 
 def predict_bot_probability(profile: AccountProfile) -> tuple[float, dict]:
-    """
-    Predice la probabilidad de bot para un perfil.
-    Retorna (probability, features_dict).
-    """
+    """Predice la probabilidad de bot para un perfil. Retorna (probability, features_dict)."""
     global _MODEL_CACHE, _MODEL_LOADED
 
     features = extract_features(profile)
@@ -190,60 +199,135 @@ def _classify(probability: float) -> str:
     return "anonymous"
 
 
-def analyze_account(db: Session, profile: AccountProfile) -> BotAnalysis:
+def analyze_account(db: Session, profile: AccountProfile,
+                    existing: Optional[BotAnalysis] = None) -> BotAnalysis:
     """
-    Clasifica una cuenta y crea/actualiza su BotAnalysis.
+    Clasifica una cuenta y crea/actualiza su ÚNICO BotAnalysis (se actualiza en sitio).
     """
     probability, features = predict_bot_probability(profile)
     classification = _classify(probability)
+    engine = "ml_v2" if _MODEL_CACHE else HEURISTIC_VERSION
+    now = datetime.now(timezone.utc)
 
-    analysis = BotAnalysis(
-        account_profile_id = profile.id,
-        bot_score          = Decimal(str(round(probability, 3))),
-        classification     = classification,
-        indicators         = {k: round(v, 4) for k, v in features.items()},
-        analyzed_by        = "ml_v2" if _MODEL_CACHE else "heuristic_v2",
-    )
-    db.add(analysis)
+    if existing is not None:
+        analysis = existing
+        analysis.bot_score      = Decimal(str(round(probability, 3)))
+        analysis.classification = classification
+        analysis.indicators     = {k: round(v, 4) for k, v in features.items()}
+        analysis.analyzed_by    = engine
+        analysis.analyzed_at    = now
+    else:
+        analysis = BotAnalysis(
+            account_profile_id = profile.id,
+            bot_score          = Decimal(str(round(probability, 3))),
+            classification     = classification,
+            indicators         = {k: round(v, 4) for k, v in features.items()},
+            analyzed_by        = engine,
+        )
+        db.add(analysis)
 
-    # Actualizar bot_probability en el perfil
     profile.bot_probability  = round(probability, 4)
-    profile.last_analyzed_at = datetime.now(timezone.utc)
-
+    profile.last_analyzed_at = now
     return analysis
+
+
+# ── Selección por prioridad ────────────────────────────────────────────────
+
+def monitored_author_ids(db: Session, days: int = MONITORED_WINDOW_DAYS) -> list:
+    """IDs de perfiles que publicaron menciones relevantes de entidades parametrizadas (sin Explorer)."""
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+    rows = (
+        db.query(AccountProfile.id)
+        .join(Mention, and_(Mention.platform_id == AccountProfile.platform_id,
+                            Mention.author_ext_id == AccountProfile.external_user_id))
+        .filter(
+            Mention.is_relevant == True,  # noqa: E712
+            Mention.collected_at >= since,
+            ~Mention.entity_id.in_(explorer_entity_ids_subq()),
+        )
+        .distinct()
+        .all()
+    )
+    return [r[0] for r in rows]
+
+
+def select_profiles_to_analyze(db: Session, limit: int, reanalyze_after_days: int = REANALYZE_AFTER_DAYS):
+    """
+    Devuelve (perfiles, desglose_por_nivel) en este orden de prioridad:
+      1) autores de menciones monitoreadas que necesitan (re)cálculo,
+      2) cuentas que nunca han tenido puntaje,
+      3) las ya calificadas hace más de `reanalyze_after_days`, las más antiguas primero.
+    Solo cuentas con datos básicos (seguidores + fecha de creación).
+    """
+    cutoff = datetime.now(timezone.utc) - timedelta(days=reanalyze_after_days)
+    data_ok = and_(AccountProfile.followers_count.isnot(None), AccountProfile.account_created.isnot(None))
+    needs = or_(
+        AccountProfile.bot_probability.is_(None),
+        AccountProfile.last_analyzed_at.is_(None),
+        AccountProfile.last_analyzed_at < cutoff,
+    )
+    chosen: list = []
+    seen: set = set()
+    tiers = {"monitoreados": 0, "sin_puntaje": 0, "recalculo": 0}
+
+    def add(rows, tier):
+        for p in rows:
+            if p.id not in seen and len(chosen) < limit:
+                seen.add(p.id)
+                chosen.append(p)
+                tiers[tier] += 1
+
+    monitored = monitored_author_ids(db)
+    if monitored:
+        q1 = (db.query(AccountProfile)
+                .filter(AccountProfile.id.in_(monitored), data_ok, needs)
+                .order_by(AccountProfile.bot_probability.is_(None).desc(),
+                          AccountProfile.last_analyzed_at.asc().nullsfirst())
+                .limit(limit))
+        add(q1.all(), "monitoreados")
+
+    if len(chosen) < limit:
+        q2 = db.query(AccountProfile).filter(data_ok, AccountProfile.bot_probability.is_(None))
+        if seen:
+            q2 = q2.filter(~AccountProfile.id.in_(seen))
+        add(q2.limit(limit - len(chosen)).all(), "sin_puntaje")
+
+    if len(chosen) < limit:
+        q3 = (db.query(AccountProfile).filter(data_ok, needs))
+        if seen:
+            q3 = q3.filter(~AccountProfile.id.in_(seen))
+        q3 = q3.order_by(AccountProfile.last_analyzed_at.asc().nullsfirst()).limit(limit - len(chosen))
+        add(q3.all(), "recalculo")
+
+    return chosen, tiers
 
 
 # ── Orquestador ────────────────────────────────────────────────────────────
 
-def run_bot_classification(db: Session, hours_since_last: int = 24) -> dict:
+def run_bot_classification(db: Session, limit: int = DEFAULT_BATCH,
+                           reanalyze_after_days: int = REANALYZE_AFTER_DAYS) -> dict:
     """
-    Clasifica cuentas que no han sido analizadas en las últimas N horas.
-    Llamado por la tarea Celery.
+    Califica hasta `limit` cuentas en orden de prioridad (ver select_profiles_to_analyze).
+    Llamado por la tarea Celery (cada hora).
     """
-    from datetime import timedelta
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours_since_last)
-
-    profiles = (
-        db.query(AccountProfile)
-        .filter(
-            (AccountProfile.last_analyzed_at.is_(None)) |
-            (AccountProfile.last_analyzed_at < cutoff)
-        )
-        .limit(500)   # procesar máx 500 por ciclo
-        .all()
-    )
-
+    profiles, tiers = select_profiles_to_analyze(db, limit, reanalyze_after_days)
     if not profiles:
-        return {"status": "ok", "analyzed": 0, "bots": 0, "suspicious": 0}
+        return {"status": "ok", "analyzed": 0, "bots": 0, "suspicious": 0, "tiers": tiers}
 
-    analyzed   = 0
-    bots       = 0
-    suspicious = 0
-    errors     = 0
+    # Análisis existentes de este lote (uno por cuenta; si hubiera duplicados históricos, el más reciente)
+    ids = [p.id for p in profiles]
+    existing_by_profile = {
+        a.account_profile_id: a
+        for a in (db.query(BotAnalysis)
+                    .filter(BotAnalysis.account_profile_id.in_(ids))
+                    .order_by(BotAnalysis.analyzed_at.asc())
+                    .all())
+    }
 
+    analyzed = bots = suspicious = errors = 0
     for profile in profiles:
         try:
-            analysis = analyze_account(db, profile)
+            analysis = analyze_account(db, profile, existing_by_profile.get(profile.id))
             analyzed += 1
             if analysis.classification == "bot":
                 bots += 1
@@ -260,12 +344,13 @@ def run_bot_classification(db: Session, hours_since_last: int = 24) -> dict:
         logger.error(f"[BotML] Error en commit: {exc}", exc_info=True)
 
     summary = {
-        "status":    "ok",
-        "analyzed":  analyzed,
-        "bots":      bots,
+        "status":     "ok",
+        "analyzed":   analyzed,
+        "bots":       bots,
         "suspicious": suspicious,
-        "errors":    errors,
-        "model":     "ml_v2" if _MODEL_CACHE else "heuristic_v2",
+        "errors":     errors,
+        "tiers":      tiers,
+        "model":      "ml_v2" if _MODEL_CACHE else HEURISTIC_VERSION,
     }
     logger.info(f"[BotML] Completado: {summary}")
     return summary

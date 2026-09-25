@@ -195,7 +195,7 @@ async def _scrape_keywords_query(api, query: str, platform_id: int, entity_id, d
                                   country_code: str | None = None) -> int:
     """Wraps _scrape_feed_query añadiendo el filtro de fecha de corte."""
     import json as _json
-    from app.workers.scrapers.base import save_mention, upsert_account_profile
+    from app.workers.scrapers.base import save_mention, twitter_has_custom_photo, upsert_account_profile
 
     saved = 0
     try:
@@ -220,10 +220,10 @@ async def _scrape_keywords_query(api, query: str, platform_id: int, entity_id, d
                         followers_count=getattr(user, "followersCount", None),
                         following_count=getattr(user, "friendsCount", None),
                         post_count=getattr(user, "statusesCount", None),
-                        has_profile_photo=bool(getattr(user, "profileImageUrl", None)),
+                        has_profile_photo=twitter_has_custom_photo(user),
                         verified=(
                             bool(getattr(user, "verified", False))
-                            or bool(getattr(user, "blue", False))
+                            # 'blue' = suscripción de pago, no verificación: no se cuenta como verificada
                         ),
                         account_created=(
                             user.created.date() if getattr(user, "created", None) else None

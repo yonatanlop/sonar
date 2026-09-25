@@ -140,7 +140,7 @@ celery_app.conf.beat_schedule = {
     },
     "classify-bots": {
         "task": "app.workers.tasks.analytics.classify_bots",
-        "schedule": crontab(minute=0, hour="*/6"),  # cada 6 horas
+        "schedule": crontab(minute=15),  # cada hora (1000 cuentas por prioridad: monitoreadas primero)
     },
     "geocode-mentions": {
         "task": "app.workers.tasks.analytics.geocode_mentions",

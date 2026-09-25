@@ -102,8 +102,9 @@ def detect_topics(self):
 )
 def classify_bots(self):
     """
-    Clasifica cuentas no analizadas en las últimas 24h con el modelo ML de bots.
-    Si el modelo pkl no existe usa heurísticas como fallback.
+    Califica cuentas por prioridad (cada hora, hasta 1000): 1) autores de menciones de entidades
+    monitoreadas, 2) cuentas nunca calificadas, 3) recalcular las más antiguas (>7 días).
+    Solo cuentas con datos básicos. Sin modelo pkl (caso actual) usa la heurística v3.
     """
     db = SessionLocal()
     try:
@@ -112,6 +113,60 @@ def classify_bots(self):
     except Exception as exc:
         logger.error(f"[BotML] Error en tarea: {exc}", exc_info=True)
         raise self.retry(exc=exc)
+    finally:
+        db.close()
+
+
+@celery_app.task(
+    name="app.workers.tasks.analytics.cleanup_bot_data",
+    bind=True,
+    max_retries=0,
+)
+def cleanup_bot_data(self, dry_run: bool = True):
+    """
+    Limpieza única de los datos derivados de bots tras corregir el clasificador (v3):
+      A) borra los análisis de cuentas SIN datos básicos (YouTube/RSS/Facebook): eran artefactos
+         (defaults por falta de datos) y pone su bot_probability en NULL;
+      B) deja un solo análisis por cuenta (el más reciente): antes se insertaba uno por corrida;
+      C) marca todas las cuentas para recalificar con la lógica nueva (last_analyzed_at = NULL).
+         NO borra los puntajes existentes: las cuentas se recalculan por prioridad (monitoreadas
+         primero) y las alertas/reportes/filtros siguen teniendo datos mientras tanto.
+    dry_run=True (por defecto) solo cuenta. Son datos derivados: se regeneran solos.
+    """
+    from sqlalchemy import text
+
+    db = SessionLocal()
+    try:
+        no_data = "(followers_count IS NULL OR account_created IS NULL)"
+        counts = {
+            "cuentas_sin_datos_con_puntaje": db.execute(text(
+                f"SELECT count(*) FROM account_profiles WHERE {no_data} AND bot_probability IS NOT NULL")).scalar(),
+            "analisis_de_cuentas_sin_datos": db.execute(text(
+                f"SELECT count(*) FROM bot_analysis WHERE account_profile_id IN "
+                f"(SELECT id FROM account_profiles WHERE {no_data})")).scalar(),
+            "analisis_duplicados": db.execute(text(
+                "SELECT count(*) FROM (SELECT row_number() OVER (PARTITION BY account_profile_id "
+                "ORDER BY analyzed_at DESC) AS rn FROM bot_analysis) t WHERE t.rn > 1")).scalar(),
+            "cuentas_a_recalificar": db.execute(text(
+                f"SELECT count(*) FROM account_profiles WHERE NOT {no_data}")).scalar(),
+        }
+        if dry_run:
+            return {"dry_run": True, **counts}
+
+        db.execute(text(
+            f"DELETE FROM bot_analysis WHERE account_profile_id IN (SELECT id FROM account_profiles WHERE {no_data})"))
+        db.execute(text(
+            f"UPDATE account_profiles SET bot_probability = NULL, last_analyzed_at = NULL WHERE {no_data}"))
+        db.execute(text(
+            "DELETE FROM bot_analysis WHERE id IN (SELECT id FROM (SELECT id, row_number() OVER "
+            "(PARTITION BY account_profile_id ORDER BY analyzed_at DESC) AS rn FROM bot_analysis) t WHERE t.rn > 1)"))
+        db.execute(text(f"UPDATE account_profiles SET last_analyzed_at = NULL WHERE NOT {no_data}"))
+        db.commit()
+        return {"dry_run": False, **counts}
+    except Exception as exc:
+        db.rollback()
+        logger.error(f"[BotCleanup] Error: {exc}", exc_info=True)
+        return {"status": "error", "error": str(exc)}
     finally:
         db.close()
 

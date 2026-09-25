@@ -49,6 +49,16 @@ def get_platform(db: Session, code: str) -> Optional[SocialPlatform]:
     return db.query(SocialPlatform).filter(SocialPlatform.code == code).first()
 
 
+def twitter_has_custom_photo(user) -> bool:
+    """True si la cuenta de Twitter tiene foto propia (no el avatar por defecto).
+
+    twscrape entrega la URL en profileImageUrl; el avatar por defecto contiene 'default_profile'.
+    Si la URL viene vacía (dato no recuperado) devuelve False, que el clasificador de bots trata
+    como 'sin información' y no como penalización."""
+    url = getattr(user, "profileImageUrl", None) or ""
+    return bool(url) and "default_profile" not in url
+
+
 def upsert_account_profile(
     db: Session,
     platform_id: int,
@@ -61,7 +71,6 @@ def upsert_account_profile(
     para evitar UniqueViolation cuando dos workers concurrentes procesan el mismo perfil.
     """
     import uuid as _uuid
-    now = datetime.now(timezone.utc)
 
     # Campos a insertar
     values = {
@@ -69,7 +78,10 @@ def upsert_account_profile(
         "platform_id":      platform_id,
         "username":         username,
         "external_user_id": external_user_id,
-        "last_analyzed_at": now,
+        # OJO: NO se fija last_analyzed_at aquí. Antes se ponía en cada upsert (INSERT y UPDATE), y
+        # como el clasificador de bots toma cuentas "no analizadas en 24 h", las cuentas activas
+        # (las que el scraper ve seguido) parecían siempre analizadas y nunca se calificaban.
+        # Solo lo escribe el clasificador de bots.
     }
     for k, v in kwargs.items():
         if v is not None:
