@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import ModuleHelp from '../components/ModuleHelp'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import {
@@ -740,6 +741,7 @@ export default function Platforms() {
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <BarChart2 className="w-6 h-6 text-primary-500" />
             Estado de Plataformas
+            <ModuleHelp id="platforms" />
           </h1>
           <p className="text-gray-500 text-sm mt-0.5">
             Monitorea qué redes sociales están activas y recolectando menciones

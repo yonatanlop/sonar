@@ -4,6 +4,7 @@
  * real para medir y calibrar el detector.
  */
 import { useState } from 'react'
+import ModuleHelp from '../components/ModuleHelp'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Network, X, ExternalLink, CheckCircle, XCircle, RotateCcw, Users, Repeat, Info, AlertCircle,
@@ -80,7 +81,7 @@ export default function Coordination() {
         <div className="flex items-center gap-2">
           <Network className="w-6 h-6 text-primary-600" />
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Actividad coordinada</h1>
+            <h1 className="text-xl font-bold text-gray-900">Actividad coordinada <ModuleHelp id="coordination" /></h1>
             <p className="text-sm text-gray-500">Cuentas distintas publicando el mismo texto (o casi) en pocas horas</p>
           </div>
         </div>

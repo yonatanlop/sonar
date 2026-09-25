@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import ModuleHelp from '../components/ModuleHelp'
 import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Search, Building2, ChevronRight, ToggleLeft, ToggleRight, EyeOff, RefreshCw, Pencil, X } from 'lucide-react'
@@ -104,7 +105,7 @@ export default function Entities() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Líderes/Instituciones/Keywords</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Líderes/Instituciones/Keywords <ModuleHelp id="entities" /></h1>
           <p className="text-gray-500 text-sm mt-0.5">Gestión de entidades monitoreadas</p>
         </div>
         {isAnalyst && (

@@ -4,6 +4,7 @@
  * en una entidad o en el buscador global de Twitter; o lanza búsqueda en vivo.
  */
 import { useState } from 'react'
+import ModuleHelp from '../components/ModuleHelp'
 import {
   Wand2, Sparkles, Loader2, Save, Radio, Building2, Globe,
   CheckCircle2, AlertCircle, X,
@@ -159,7 +160,7 @@ export default function TopicKeywords() {
           <Wand2 className="w-6 h-6 text-primary-600" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Generar Keywords con IA</h1>
+          <h1 className="text-xl font-bold text-gray-900">Generar Keywords con IA <ModuleHelp id="topickw" /></h1>
           <p className="text-sm text-gray-500">
             Describe un tema y la IA genera expresiones de búsqueda con operadores lógicos
           </p>

@@ -18,6 +18,7 @@ import {
   ExternalLink, Search, ShieldAlert, ImageOff,
 } from 'lucide-react'
 import api from '../api/client'
+import ModuleHelp from './ModuleHelp'
 
 // ── Card de publicación ───────────────────────────────────────
 
@@ -194,7 +195,7 @@ function AddFeedModal({ apiBase, feedTypes, theme, onClose, onAdded }) {
 // ── Página principal ──────────────────────────────────────────
 
 export default function PlatformExplorer({
-  apiBase, title, subtitle, HeaderIcon, itemNoun = 'publicaciones', feedTypes, theme,
+  apiBase, title, subtitle, HeaderIcon, itemNoun = 'publicaciones', feedTypes, theme, helpId,
 }) {
   const [feeds, setFeeds]               = useState([])
   const [selectedFeed, setSelectedFeed] = useState(null)
@@ -279,7 +280,7 @@ export default function PlatformExplorer({
             <HeaderIcon className={`w-5 h-5 ${theme.iconText}`} />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">{title}</h1>
+            <h1 className="text-xl font-bold text-gray-900">{title}{helpId && <> <ModuleHelp id={helpId} /></>}</h1>
             <p className="text-xs text-gray-500">{subtitle}</p>
           </div>
         </div>

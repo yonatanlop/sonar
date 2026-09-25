@@ -4,6 +4,7 @@
  * Panel derecho: keywords del canal seleccionado + búsqueda + resultados.
  */
 import { useState, useCallback } from 'react'
+import ModuleHelp from '../components/ModuleHelp'
 import {
   Youtube, Plus, Trash2, Search, ExternalLink, BookmarkPlus,
   CheckCircle, ToggleLeft, ToggleRight, Eye, MessageSquare, Clock,
@@ -479,6 +480,7 @@ export default function YoutubeExplorer() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <Youtube className="w-6 h-6 text-red-500" /> YouTube Explorer
+            <ModuleHelp id="youtube-explorer" />
           </h1>
           <p className="text-sm text-gray-500 mt-0.5">Monitorea canales específicos por palabras clave</p>
         </div>

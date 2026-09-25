@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import ModuleHelp from '../components/ModuleHelp'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { MessageSquareReply, Plus, Pencil, Trash2, UserCheck, UserX, X, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -139,7 +140,7 @@ export default function ReplyAccounts() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Cuentas de Respuesta</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Cuentas de Respuesta <ModuleHelp id="reply-accounts" /></h1>
           <p className="text-gray-500 text-sm mt-0.5">Cuentas del equipo que responden a posts monitoreados</p>
         </div>
         <button onClick={openCreate} className="btn-primary">

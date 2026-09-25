@@ -26,6 +26,7 @@ const FEED_TYPES = [
 export default function TiktokExplorer() {
   return (
     <PlatformExplorer
+      helpId="tiktok-explorer"
       apiBase="/tiktok-feeds"
       title="TikTok Explorer"
       subtitle="Monitorea palabras clave, hashtags y creadores de TikTok"

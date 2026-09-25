@@ -25,6 +25,7 @@ const FEED_TYPES = [
 export default function InstagramExplorer() {
   return (
     <PlatformExplorer
+      helpId="instagram-explorer"
       apiBase="/instagram-feeds"
       title="Instagram Explorer"
       subtitle="Monitorea hashtags y cuentas de Instagram"

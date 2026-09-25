@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import ModuleHelp from '../components/ModuleHelp'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Trash2, ToggleLeft, ToggleRight, Settings2, Users } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -122,7 +123,7 @@ export default function AlertRules() {
       {/* Encabezado */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Reglas de alerta</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Reglas de alerta <ModuleHelp id="rules" /></h1>
           <p className="text-gray-500 text-sm mt-0.5">
             Configura cuándo y cómo se disparan las alertas automáticas
           </p>

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import ModuleHelp from '../components/ModuleHelp'
 import { useQuery } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -109,7 +110,7 @@ export default function Audit() {
     <div className="space-y-4">
       <div className="flex items-center gap-2">
         <ScrollText className="w-5 h-5 text-primary-600" />
-        <h1 className="text-xl font-bold text-gray-900">Auditoría del sistema</h1>
+        <h1 className="text-xl font-bold text-gray-900">Auditoría del sistema <ModuleHelp id="audit" /></h1>
       </div>
 
       {/* Filtros */}

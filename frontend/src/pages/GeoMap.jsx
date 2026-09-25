@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import ModuleHelp from '../components/ModuleHelp'
 import { useQuery } from '@tanstack/react-query'
 import { MapPin } from 'lucide-react'
 import client from '../api/client'
@@ -29,7 +30,7 @@ export default function GeoMap() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Mapa Geográfico</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Mapa Geográfico <ModuleHelp id="geomap" /></h1>
         <p className="text-gray-500 text-sm mt-0.5">Distribución de menciones por país de origen del autor</p>
       </div>
 

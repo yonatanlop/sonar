@@ -3,6 +3,7 @@
  * Encuentra dónde fue publicada una imagen o video y quién la publicó.
  */
 import { useState, useRef, useCallback, useEffect } from 'react'
+import ModuleHelp from '../components/ModuleHelp'
 import { useSearchParams } from 'react-router-dom'
 import {
   ScanSearch, Upload, Link2, X, ExternalLink, ImageOff,
@@ -340,7 +341,7 @@ export default function MediaSearch() {
           <ScanSearch className="w-6 h-6 text-primary-600" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Búsqueda por Imagen</h1>
+          <h1 className="text-xl font-bold text-gray-900">Búsqueda por Imagen <ModuleHelp id="media" /></h1>
           <p className="text-sm text-gray-500">Encuentra dónde fue publicada una imagen o video, quién la publicó y si fue generada por IA</p>
         </div>
       </div>

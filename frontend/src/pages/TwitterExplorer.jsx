@@ -4,6 +4,7 @@
  * Panel derecho: tweets del feed seleccionado con filtros
  */
 import { useState, useEffect, useCallback } from 'react'
+import ModuleHelp from '../components/ModuleHelp'
 import {
   Twitter, Plus, Trash2, ChevronRight, RefreshCw,
   Calendar, Filter, ExternalLink, User, Hash, Search, ShieldAlert,
@@ -310,7 +311,7 @@ export default function TwitterExplorer() {
             <Twitter className="w-5 h-5 text-sky-500" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Twitter Explorer</h1>
+            <h1 className="text-xl font-bold text-gray-900">Twitter Explorer <ModuleHelp id="twitter-explorer" /></h1>
             <p className="text-xs text-gray-500">Monitorea cuentas, hashtags y palabras clave en tiempo real</p>
           </div>
         </div>

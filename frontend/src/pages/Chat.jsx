@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import ModuleHelp from '../components/ModuleHelp'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { Send, Bot, User, ChevronDown, ChevronUp, AlertCircle, Sparkles, ExternalLink } from 'lucide-react'
 import { format } from 'date-fns'
@@ -175,6 +176,7 @@ export default function Chat() {
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <Sparkles className="w-6 h-6 text-primary-500" />
             Asistente MIRA
+            <ModuleHelp id="chat" />
           </h1>
           <p className="text-gray-500 text-sm mt-0.5">
             Pregunta en lenguaje natural sobre las menciones recolectadas

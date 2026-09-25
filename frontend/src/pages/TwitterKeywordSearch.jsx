@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import ModuleHelp from '../components/ModuleHelp'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'react-hot-toast'
 import {
@@ -61,7 +62,7 @@ export default function TwitterKeywordSearch() {
   return (
     <div className="p-6 space-y-6 max-w-3xl mx-auto">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Búsqueda Twitter Global</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Búsqueda Twitter Global <ModuleHelp id="twitter-search" /></h1>
         <p className="text-sm text-gray-500 mt-1">
           Monitoreo continuo de keywords y hashtags. Se activa automáticamente a las <strong>8:00 PM hora Colombia</strong>.
         </p>

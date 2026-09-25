@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import ModuleHelp from '../components/ModuleHelp'
 import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
@@ -171,7 +172,7 @@ export default function MentionInbox() {
         <div className="px-4 py-4 border-b border-gray-100 space-y-3">
           <div className="flex items-center gap-2">
             <Inbox className="w-5 h-5 text-primary-600" />
-            <h1 className="font-semibold text-gray-900">Bandeja de menciones</h1>
+            <h1 className="font-semibold text-gray-900">Bandeja de menciones <ModuleHelp id="inbox" /></h1>
           </div>
           <p className="text-xs text-gray-500">
             {isLoading ? 'Cargando…' : `${items.length} elemento${items.length !== 1 ? 's' : ''}`}

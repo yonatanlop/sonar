@@ -4,6 +4,7 @@
  * El estado (En proceso / Cerrado) se deriva de la fecha fin.
  */
 import { useState } from 'react'
+import ModuleHelp from '../components/ModuleHelp'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { UsersRound, Plus, Pencil, Trash2, X, ExternalLink, AlertCircle, CheckCircle, Clock } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -93,7 +94,7 @@ export default function FacebookGroups() {
         <div className="flex items-center gap-2">
           <UsersRound className="w-6 h-6 text-primary-600" />
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Grupos administrar y cerrar</h1>
+            <h1 className="text-xl font-bold text-gray-900">Grupos administrar y cerrar <ModuleHelp id="groups" /></h1>
             <p className="text-sm text-gray-500">
               Registro de grupos de Facebook a cerrar · {closedCount} de {groups.length} cerrados
             </p>

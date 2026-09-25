@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import ModuleHelp from '../components/ModuleHelp'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Scale, CheckCircle, Clock, Globe, User, ExternalLink,
@@ -57,7 +58,7 @@ export default function LegalInbox() {
       <div>
         <div className="flex items-center gap-2 mb-1">
           <Scale className="w-5 h-5 text-primary-600" />
-          <h1 className="text-xl font-bold text-gray-900">Bandeja jurídica</h1>
+          <h1 className="text-xl font-bold text-gray-900">Bandeja jurídica <ModuleHelp id="legal" /></h1>
         </div>
         <p className="text-sm text-gray-500">
           Menciones escaladas al equipo jurídico para seguimiento formal

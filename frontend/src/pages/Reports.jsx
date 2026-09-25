@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import ModuleHelp from '../components/ModuleHelp'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { FileText, Download, Plus, Loader } from 'lucide-react'
 import { format } from 'date-fns'
@@ -59,7 +60,7 @@ export default function Reports() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Reportes</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Reportes <ModuleHelp id="reports" /></h1>
           <p className="text-gray-500 text-sm mt-0.5">Generación y descarga de reportes PDF</p>
         </div>
         <button onClick={() => setShowForm(!showForm)} className="btn-primary">

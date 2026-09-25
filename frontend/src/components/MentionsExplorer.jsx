@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import ModuleHelp from './ModuleHelp'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ExternalLink, Bot, Flame, Search, SlidersHorizontal, Camera, MessageSquare, MapPin, Users, Flag, EyeOff, X } from 'lucide-react'
 import { format } from 'date-fns'
@@ -330,7 +331,7 @@ export default function MentionsExplorer({ entityId = null, keywords = [], prese
       <div className="flex items-start justify-between flex-wrap gap-3">
         {showHeader ? (
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Menciones</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Menciones <ModuleHelp id="mentions" /></h1>
             <p className="text-gray-500 text-sm mt-0.5">Publicaciones recolectadas de redes sociales</p>
           </div>
         ) : <div />}

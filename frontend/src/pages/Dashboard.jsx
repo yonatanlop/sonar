@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import ModuleHelp from '../components/ModuleHelp'
 import { useQuery } from '@tanstack/react-query'
 import ReactECharts from 'echarts-for-react'
 import { TrendingUp, TrendingDown, MessageSquare, AlertTriangle, Bot, Building2, Minus } from 'lucide-react'
@@ -195,7 +196,7 @@ export default function Dashboard() {
     <div className="space-y-6">
       {/* Encabezado */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Dashboard <ModuleHelp id="dashboard" /></h1>
         <p className="text-gray-500 text-sm mt-0.5">
           {format(new Date(), "EEEE d 'de' MMMM yyyy", { locale: es })}
         </p>

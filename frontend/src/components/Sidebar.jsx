@@ -9,6 +9,7 @@ import {
 import { clsx } from 'clsx'
 import { useAuthStore } from '../store/authStore'
 import { useAlertStore } from '../store/alertStore'
+import { NAV_HELP } from '../data/moduleHelp'
 
 const NAV_SECTIONS = (isAdmin, isAnalyst, isSuperAdmin, unread, inbox) => [
   {
@@ -138,6 +139,7 @@ export default function Sidebar({ open, onClose }) {
                         to={to}
                         end={to === '/'}
                         onClick={onClose}
+                        title={NAV_HELP[to]}
                         className={({ isActive }) => clsx(
                           'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
                           isActive

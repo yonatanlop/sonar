@@ -25,6 +25,7 @@ const FEED_TYPES = [
 export default function FacebookExplorer() {
   return (
     <PlatformExplorer
+      helpId="facebook-explorer"
       apiBase="/facebook-feeds"
       title="Facebook Explorer"
       subtitle="Monitorea temas y páginas de Facebook"

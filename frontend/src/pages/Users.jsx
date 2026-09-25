@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import ModuleHelp from '../components/ModuleHelp'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, UserCheck, UserX, Pencil, X } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -56,7 +57,7 @@ export default function Users() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Usuarios</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Usuarios <ModuleHelp id="users" /></h1>
           <p className="text-gray-500 text-sm mt-0.5">Gestión de acceso al sistema</p>
         </div>
         <button onClick={() => { setShowForm(!showForm); setEditingUser(null) }} className="btn-primary">

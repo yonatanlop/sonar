@@ -4,6 +4,7 @@
  * de su cuenta. Cada cuenta lleva su estado (¿eliminada?, ¿creó cuenta nueva?).
  */
 import { useState } from 'react'
+import ModuleHelp from '../components/ModuleHelp'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   FolderSearch, Plus, Pencil, Trash2, X, ExternalLink, AlertCircle, CheckCircle,
@@ -158,7 +159,7 @@ function CaseList({ onOpen, qc }) {
         <div className="flex items-center gap-2">
           <FolderSearch className="w-6 h-6 text-primary-600" />
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Seguimiento a caso</h1>
+            <h1 className="text-xl font-bold text-gray-900">Seguimiento a caso <ModuleHelp id="cases" /></h1>
             <p className="text-sm text-gray-500">
               {cases.length} {cases.length === 1 ? 'caso' : 'casos'} · {totalAccounts} cuentas en seguimiento
             </p>

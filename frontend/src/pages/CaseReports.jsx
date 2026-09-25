@@ -6,6 +6,7 @@
  * - Descarga del reporte en PDF.
  */
 import { useState } from 'react'
+import ModuleHelp from '../components/ModuleHelp'
 import { useQuery } from '@tanstack/react-query'
 import { FileBarChart, Ban, Download, ExternalLink, AlertCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -50,7 +51,7 @@ export default function CaseReports() {
         <div className="flex items-center gap-2">
           <FileBarChart className="w-6 h-6 text-primary-600" />
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Reporte de Seguimiento</h1>
+            <h1 className="text-xl font-bold text-gray-900">Reporte de Seguimiento <ModuleHelp id="monthly" /></h1>
             <p className="text-sm text-gray-500">Distribución geográfica y cierres del mes</p>
           </div>
         </div>

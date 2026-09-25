@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import ModuleHelp from '../components/ModuleHelp'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Bell, Check, ChevronDown, ChevronUp, Sparkles, X, MessageSquare } from 'lucide-react'
 import { format } from 'date-fns'
@@ -67,7 +68,7 @@ export default function Alerts() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Alertas</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Alertas <ModuleHelp id="alerts" /></h1>
           <p className="text-gray-500 text-sm mt-0.5">Historial de alertas generadas por el sistema</p>
         </div>
       </div>

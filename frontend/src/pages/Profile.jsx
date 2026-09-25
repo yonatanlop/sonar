@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import ModuleHelp from '../components/ModuleHelp'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { User, Bell, Lock, CheckCircle2, Eye, EyeOff } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -86,7 +87,7 @@ export default function Profile() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Mi perfil</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Mi perfil <ModuleHelp id="profile" /></h1>
         <p className="text-gray-500 text-sm mt-0.5">Configuración personal y notificaciones</p>
       </div>
 
