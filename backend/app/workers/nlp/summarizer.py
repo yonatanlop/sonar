@@ -27,6 +27,8 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.explorer import explorer_type_ids_subq
+from app.core.timezone import CO_TZ
 from app.models.entity import Entity
 from app.models.mention import Mention
 from app.models.summary import DailySummary
@@ -74,7 +76,7 @@ def _build_prompt(entity_name: str, mentions: list[Mention]) -> str:
         lines.append(line)
 
     mentions_block = "\n".join(lines)
-    today_str = date.today().strftime("%d de %B de %Y")
+    today_str = datetime.now(CO_TZ).strftime("%d/%m/%Y")
 
     return f"""Eres un analista de reputación digital experto en monitoreo de redes sociales para América Latina.
 
@@ -138,7 +140,7 @@ def summarize_entity(db: Session, entity: Entity) -> DailySummary | None:
     Genera y guarda el resumen del día para una entidad.
     Retorna el objeto DailySummary creado, o None si se saltea.
     """
-    today = date.today()
+    today = datetime.now(CO_TZ).date()   # día calendario de Colombia (la tarea corre a las 23:50 hora local)
 
     # ── Verificar si ya existe resumen para hoy ──────────────────
     existing = db.query(DailySummary).filter(
@@ -207,7 +209,12 @@ def run_daily_summaries(db: Session) -> dict:
         logger.warning("[Summary] GROQ_API_KEY no configurada — tarea saltada.")
         return {"status": "skipped", "reason": "GROQ_API_KEY not set"}
 
-    entities = db.query(Entity).filter(Entity.active == True).all()
+    # Solo entidades parametrizadas (Líderes/Instituciones/Keywords): las internas de los Explorer
+    # ("Monitor …", "[Explorer] …") no tienen sección de resumen y multiplicaban las llamadas a la IA.
+    entities = db.query(Entity).filter(
+        Entity.active == True,
+        ~Entity.entity_type_id.in_(explorer_type_ids_subq()),
+    ).all()
     generated = 0
     skipped   = 0
     errors    = 0

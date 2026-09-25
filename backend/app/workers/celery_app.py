@@ -189,3 +189,29 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(minute="*/30"),  # cada 30 min
     },
 }
+
+
+# ── Caducidad de las tareas programadas ────────────────────────
+# Beat encola cada tarea aunque la anterior siga sin ejecutarse. Con un solo worker (concurrencia 1) y un
+# scraping de Twitter que puede durar más que su intervalo, la cola crecía sin límite (41 000 tareas en
+# septiembre de 2026): los resúmenes diarios, anomalías, etc. quedaban al final de la fila y no se ejecutaban.
+# Ahora cada tarea caduca a los 2 períodos de su programación: si el worker no llegó a tiempo, se descarta y
+# corre la siguiente; así la cola no se acumula.
+def _cyclic_min_gap(values, cycle):
+    v = sorted(values)
+    if len(v) < 2:
+        return cycle
+    return min([b - a for a, b in zip(v, v[1:])] + [v[0] + cycle - v[-1]])
+
+
+def _period_seconds(cron) -> int:
+    """Período (en segundos) entre dos ejecuciones consecutivas de un crontab."""
+    if len(cron.day_of_week) < 7 or len(cron.day_of_month) < 31 or len(cron.month_of_year) < 12:
+        return 7 * 86400
+    if len(cron.hour) == 24:
+        return _cyclic_min_gap(cron.minute, 60) * 60
+    return _cyclic_min_gap(cron.hour, 24) * 3600
+
+
+for _entry in celery_app.conf.beat_schedule.values():
+    _entry.setdefault("options", {})["expires"] = _period_seconds(_entry["schedule"]) * 2
