@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Building2, MessageSquare,
   Bell, Inbox, FileText, Users, Settings2, Radio, UserCircle, Activity, Twitter,
   GitCompareArrows, Youtube, ChevronDown, ScrollText, ShieldAlert, Scale, Reply, Search, ScanSearch, MessageSquareReply, Wand2,
-  Facebook, Instagram, Music2, UsersRound, FolderSearch, FileBarChart,
+  Facebook, Instagram, Music2, UsersRound, FolderSearch, FileBarChart, Network,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useAuthStore } from '../store/authStore'
@@ -30,6 +30,7 @@ const NAV_SECTIONS = (isAdmin, isAnalyst, isSuperAdmin, unread, inbox) => [
       { to: '/rizoma',  icon: ShieldAlert, label: 'Rizoma' },
       { to: '/legal',   icon: Scale,       label: 'Jurídico' },
       ...(isAnalyst ? [{ to: '/grupos', icon: UsersRound, label: 'Grupos a cerrar' }] : []),
+      ...(isAnalyst ? [{ to: '/coordination', icon: Network, label: 'Actividad coordinada' }] : []),
       ...(isAnalyst ? [{ to: '/settings/rules', icon: Settings2, label: 'Reglas de alerta' }] : []),
     ],
   },

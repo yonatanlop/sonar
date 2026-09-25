@@ -118,6 +118,31 @@ def classify_bots(self):
 
 
 @celery_app.task(
+    name="app.workers.tasks.analytics.detect_coordination",
+    bind=True,
+    max_retries=0,
+)
+def detect_coordination(self, days: int = 14, persist: bool = True):
+    """
+    Detecta actividad coordinada (mismo texto o casi, cuentas distintas, ventana corta) en las
+    menciones de entidades monitoreadas de Twitter/YouTube de los últimos `days` días y guarda los
+    grupos candidatos para revisión (pantalla "Actividad coordinada"). Corre cada 3 horas.
+    """
+    db = SessionLocal()
+    try:
+        from app.workers.analytics.coordination import run_detection
+        result = run_detection(db, days=days, persist=persist)
+        logger.info(f"[Coordination] {result}")
+        return result
+    except Exception as exc:
+        db.rollback()
+        logger.error(f"[Coordination] Error: {exc}", exc_info=True)
+        return {"status": "error", "error": str(exc)}
+    finally:
+        db.close()
+
+
+@celery_app.task(
     name="app.workers.tasks.analytics.cleanup_bot_data",
     bind=True,
     max_retries=0,

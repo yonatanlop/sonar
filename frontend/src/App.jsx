@@ -31,6 +31,7 @@ import TopicKeywords       from './pages/TopicKeywords'
 import FacebookGroups      from './pages/FacebookGroups'
 import Cases               from './pages/Cases'
 import CaseReports         from './pages/CaseReports'
+import Coordination        from './pages/Coordination'
 
 export default function App() {
   return (
@@ -68,6 +69,7 @@ export default function App() {
               <Route path="/settings/rules"  element={<AlertRules />} />
               <Route path="/topic-keywords"  element={<TopicKeywords />} />
               <Route path="/grupos"          element={<FacebookGroups />} />
+              <Route path="/coordination"    element={<Coordination />} />
             </Route>
 
             {/* Solo admin */}
