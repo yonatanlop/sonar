@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, String, Text, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -132,6 +132,7 @@ class CaseRecord(Base):
     report_detail: Mapped[str | None]  = mapped_column(Text, nullable=True)         # detalle de la denuncia
     post_removed:  Mapped[bool | None] = mapped_column(nullable=True)               # ¿la publicación fue eliminada?
     post_removed_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)  # fecha de eliminación de la publicación
+    reported_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)  # fecha en que se denunció (balance de denuncias)
 
     created_by: Mapped[uuid.UUID]      = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     created_at: Mapped[datetime]       = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -139,3 +140,27 @@ class CaseRecord(Base):
 
     account: Mapped["CaseAccount"] = relationship("CaseAccount", back_populates="records")
     creator: Mapped["User"]        = relationship("User", foreign_keys=[created_by])  # noqa: F821
+
+
+class CaseAccountEvent(Base):
+    """
+    Historial de una cuenta de atacante: registro, publicaciones agregadas, denuncias,
+    eliminaciones, cierre de la cuenta y creación de cuentas nuevas.
+
+    `event_date` es la fecha real del hecho (NULL = sin fecha registrada); `created_at` es cuándo
+    se anotó en el sistema.
+    """
+    __tablename__ = "case_account_events"
+
+    id:         Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("case_accounts.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    case_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("cases.id", ondelete="CASCADE"), nullable=False
+    )
+    event_type: Mapped[str]                 = mapped_column(String(30), nullable=False)
+    event_date: Mapped[datetime | None]     = mapped_column(DateTime(timezone=True), nullable=True)
+    detail:     Mapped[dict | None]         = mapped_column(JSONB, nullable=True)
+    created_by: Mapped[uuid.UUID]           = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    created_at: Mapped[datetime]            = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)

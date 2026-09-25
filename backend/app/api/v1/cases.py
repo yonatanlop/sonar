@@ -12,7 +12,7 @@ Acceso: rol de administrador (extensible vía CASE_MANAGER_ROLES en deps.py).
 """
 import re
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -23,7 +23,7 @@ from sqlalchemy.orm import Session
 from app.api.audit_utils import log_action
 from app.api.deps import require_case_manager
 from app.database import get_db
-from app.models.case import Case, CaseAccount, CaseRecord
+from app.models.case import Case, CaseAccount, CaseAccountEvent, CaseRecord
 from app.models.user import User
 
 router = APIRouter(prefix="/cases", tags=["Seguimiento a caso"])
@@ -95,6 +95,7 @@ class RecordBase(BaseModel):
     report_detail: Optional[str] = None
     post_removed:  Optional[bool] = None
     post_removed_date: Optional[datetime] = None
+    reported_date:     Optional[datetime] = None
 
 
 class RecordCreate(RecordBase):
@@ -158,6 +159,7 @@ def _record_dict(r: CaseRecord) -> dict:
         "report_detail": r.report_detail,
         "post_removed":  r.post_removed,
         "post_removed_date": r.post_removed_date.isoformat() if r.post_removed_date else None,
+        "reported_date":     r.reported_date.isoformat() if r.reported_date else None,
         "created_by":    str(r.created_by),
         "created_at":    r.created_at.isoformat() if r.created_at else None,
         "updated_at":    r.updated_at.isoformat() if r.updated_at else None,
@@ -260,6 +262,57 @@ def _get_record_or_404(db: Session, account_id: uuid.UUID, record_id: uuid.UUID)
     return r
 
 
+# ── Historial de eventos ──────────────────────────────────────
+# Cada cambio relevante de una cuenta o de sus publicaciones queda anotado en `case_account_events`
+# (con la fecha real del hecho y el usuario). Al marcar algo como cerrado/denunciado sin fecha,
+# se toma la fecha de hoy.
+
+def _now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _add_event(db: Session, user: User, account_id, case_id, event_type: str,
+               event_date: Optional[datetime] = None, detail: Optional[dict] = None) -> None:
+    db.add(CaseAccountEvent(
+        account_id=account_id, case_id=case_id, event_type=event_type,
+        event_date=event_date or _now(), detail=detail, created_by=user.id,
+    ))
+
+
+def _account_transitions(db: Session, user: User, a: CaseAccount, was_closed: bool, was_new: bool) -> None:
+    """Anota cierre/reapertura de la cuenta y creación de cuenta nueva; completa la fecha de cierre."""
+    if a.account_removed is True and not was_closed:
+        if a.removed_date is None:
+            a.removed_date = _now()
+        _add_event(db, user, a.id, a.case_id, "account_closed", a.removed_date)
+    elif was_closed and a.account_removed is not True:
+        a.removed_date = None
+        _add_event(db, user, a.id, a.case_id, "account_reopened")
+    if a.created_new_account is True and not was_new:
+        _add_event(db, user, a.id, a.case_id, "new_account_created", None, {"info": a.new_account_info})
+    elif was_new and a.created_new_account is not True:
+        _add_event(db, user, a.id, a.case_id, "new_account_cleared")
+
+
+def _record_transitions(db: Session, user: User, r: CaseRecord, was_reported: bool, was_removed: bool) -> None:
+    """Anota denuncia/eliminación de la publicación; completa las fechas que falten."""
+    detail = {"post_id": r.post_id}
+    if r.reported is True and not was_reported:
+        if r.reported_date is None:
+            r.reported_date = _now()
+        _add_event(db, user, r.account_id, r.case_id, "report_added", r.reported_date, detail)
+    elif was_reported and r.reported is not True:
+        r.reported_date = None
+        _add_event(db, user, r.account_id, r.case_id, "report_removed", None, detail)
+    if r.post_removed is True and not was_removed:
+        if r.post_removed_date is None:
+            r.post_removed_date = _now()
+        _add_event(db, user, r.account_id, r.case_id, "post_removed", r.post_removed_date, detail)
+    elif was_removed and r.post_removed is not True:
+        r.post_removed_date = None
+        _add_event(db, user, r.account_id, r.case_id, "post_restored", None, detail)
+
+
 # ── Aplicación de campos ──────────────────────────────────────
 
 _ACCOUNT_TEXT = ("author", "profile_url", "user_id", "account_age_months", "bio", "city", "new_account_info")
@@ -281,7 +334,7 @@ _RECORD_TEXT = ("affects", "publication_url", "content_text", "media_type", "rep
 _RECORD_PASS = (
     "publication_date", "likes", "shares", "comments_count",
     "organic_criticism", "opposition_criticism", "coordinated_attack", "reported",
-    "post_removed", "post_removed_date",
+    "post_removed", "post_removed_date", "reported_date",
 )
 
 
@@ -385,6 +438,8 @@ def create_account(
     _apply_account_fields(a, data.model_dump(exclude_unset=True))
     db.add(a)
     db.flush()
+    _add_event(db, user, a.id, a.case_id, "account_created")
+    _account_transitions(db, user, a, was_closed=False, was_new=False)
     log_action(db, user.id, "case_account_created", request, "case_accounts", a.id,
                {"case": c.name, "medium": a.medium})
     db.commit()
@@ -398,7 +453,9 @@ def update_account(
     db: Session = Depends(get_db), user: User = Depends(require_case_manager),
 ):
     a = _get_account_or_404(db, case_id, account_id)
+    was_closed, was_new = a.account_removed is True, a.created_new_account is True
     _apply_account_fields(a, data.model_dump(exclude_unset=True))
+    _account_transitions(db, user, a, was_closed, was_new)
     log_action(db, user.id, "case_account_updated", request, "case_accounts", a.id, None)
     db.commit()
     db.refresh(a)
@@ -440,6 +497,8 @@ def create_record(
     _apply_record_fields(r, data.model_dump(exclude_unset=True))
     db.add(r)
     db.flush()
+    _add_event(db, user, r.account_id, r.case_id, "post_added", None, {"post_id": r.post_id})
+    _record_transitions(db, user, r, was_reported=False, was_removed=False)
     log_action(db, user.id, "case_record_created", request, "case_records", r.id, {"post_id": r.post_id})
     db.commit()
     db.refresh(r)
@@ -453,7 +512,9 @@ def update_record(
 ):
     _get_account_or_404(db, case_id, account_id)
     r = _get_record_or_404(db, account_id, record_id)
+    was_reported, was_removed = r.reported is True, r.post_removed is True
     _apply_record_fields(r, data.model_dump(exclude_unset=True))
+    _record_transitions(db, user, r, was_reported, was_removed)
     log_action(db, user.id, "case_record_updated", request, "case_records", r.id, None)
     db.commit()
     db.refresh(r)
