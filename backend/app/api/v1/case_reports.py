@@ -457,6 +457,16 @@ def attacker_accounts(
                 .group_by(CaseAccount.medium).all())
     medium_counts = {(m or "Sin red"): n for m, n in med_rows}
 
+    # Distribución geográfica (ciudad de origen) de las cuentas que pasan TODOS los filtros
+    city_col = func.trim(CaseAccount.city)
+    geo_q = (db.query(city_col.label("city"), func.count(CaseAccount.id).label("cnt"))
+             .join(Case, Case.id == CaseAccount.case_id)
+             .filter(*base_filters, CaseAccount.city.isnot(None), city_col != ""))
+    if medium:
+        geo_q = geo_q.filter(CaseAccount.medium == medium)
+    geo = [{"city": c, "count": n} for c, n in
+           geo_q.group_by(city_col).order_by(func.count(CaseAccount.id).desc(), city_col.asc()).all()]
+
     rec = (db.query(
         CaseRecord.account_id.label("aid"),
         func.count().label("n"),
@@ -494,6 +504,8 @@ def attacker_accounts(
         "items": items, "total": total, "page": page,
         "pages": max(1, -(-total // _ACCOUNTS_PAGE)),
         "medium_counts": medium_counts,
+        "geo": geo,
+        "geo_accounts": sum(g["count"] for g in geo),   # cuentas (con estos filtros) que tienen ciudad
     }
 
 

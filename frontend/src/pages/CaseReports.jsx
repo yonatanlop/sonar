@@ -7,30 +7,10 @@
  */
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { FileBarChart, MapPin, Ban, Download, ExternalLink, AlertCircle } from 'lucide-react'
+import { FileBarChart, Ban, Download, ExternalLink, AlertCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import client from '../api/client'
-import { CITY_COORDS } from '../data/colombiaCities'
-
-// Contorno de Colombia (GeoJSON público proyectado a este viewBox)
-const GEO = { lonMin: -78.9909, lonMax: -66.8763, latMax: 12.4373, W: 520, H: 718.3 }
-const SX = GEO.W / (GEO.lonMax - GEO.lonMin)
-const proj = (lon, lat) => [(lon - GEO.lonMin) * SX, (GEO.latMax - lat) * SX]
-const COL_PATH = "M155.3 540.4 L136.9 530.2 L115.8 516.0 L103.6 522.8 L67.2 516.9 L56.8 498.4 L48.8 499.1 L5.8 474.6 L0.0 461.3 L16.0 458.0 L14.1 436.5 L24.2 421.0 L45.5 418.1 L63.5 391.1 L80.0 368.6 L64.2 358.4 L72.3 333.5 L62.6 294.2 L71.8 282.9 L65.0 246.6 L47.6 223.8 L53.1 202.9 L67.0 206.0 L75.0 193.2 L65.1 168.0 L70.3 161.7 L92.5 163.0 L124.7 133.1 L142.3 128.5 L142.8 114.3 L150.7 78.0 L175.3 58.1 L202.3 57.3 L205.8 48.4 L239.3 51.9 L273.1 30.3 L289.9 20.7 L310.6 0.0 L325.8 2.6 L337.1 13.9 L328.8 28.4 L301.2 35.6 L290.3 57.0 L273.7 69.3 L261.2 85.3 L256.0 115.9 L244.1 141.0 L266.2 143.9 L271.7 163.6 L281.2 173.1 L284.6 190.4 L279.5 206.2 L281.0 215.2 L291.6 218.8 L301.8 233.7 L357.0 229.6 L381.9 235.1 L412.1 272.0 L429.5 267.4 L460.4 269.7 L484.9 264.8 L500.0 272.2 L492.3 295.3 L482.7 309.7 L479.4 340.5 L488.0 369.0 L500.2 381.8 L501.7 391.4 L479.9 412.8 L495.5 422.2 L506.9 437.2 L520.0 480.1 L511.9 485.3 L503.5 460.0 L491.6 446.4 L477.4 461.2 L393.8 460.2 L394.3 487.1 L419.5 491.5 L418.0 508.0 L409.4 503.5 L385.3 510.6 L385.0 541.8 L404.1 557.5 L410.8 582.0 L409.8 600.7 L390.5 718.3 L369.0 695.5 L356.2 694.5 L383.9 650.8 L351.0 630.7 L325.2 634.4 L309.7 627.0 L286.1 638.3 L254.1 633.0 L228.8 588.0 L209.0 576.9 L195.3 556.6 L166.7 536.3 L155.3 540.4 Z"
-
-// NFD descompone acentos (é → e + marca) y [^a-z ] elimina las marcas y símbolos
-const norm = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[^a-z ]/g, '').replace(/\s+/g, ' ').trim()
-const coordOf = (city) => CITY_COORDS[norm(city)] || null
-
-// Punto proyectado en el mapa, o null si la ciudad no está o cae fuera del lienzo
-// (p. ej. San Andrés, muy al oeste). Esas van a la lista de "no ubicadas".
-function mapPointOf(city) {
-  const c = coordOf(city)
-  if (!c) return null
-  const [x, y] = proj(c[1], c[0])
-  if (x < 0 || x > GEO.W || y < 0 || y > GEO.H) return null
-  return [x, y]
-}
+import CityMap from '../components/rizoma/CityMap'
 
 function fmtDate(dt) {
   if (!dt) return '—'
@@ -50,9 +30,6 @@ export default function CaseReports() {
   const { data, isLoading } = useQuery({ queryKey: ['case-report', month], queryFn: () => fetchSummary(month) })
 
   const geo = data?.geo || []
-  const maxCount = geo.reduce((m, g) => Math.max(m, g.count), 0) || 1
-  const located = geo.filter(g => mapPointOf(g.city))
-  const foreign = geo.filter(g => !mapPointOf(g.city))
 
   async function downloadPdf() {
     setDownloading(true)
@@ -97,57 +74,7 @@ export default function CaseReports() {
             <div className="card text-center"><p className="text-2xl font-bold text-orange-600">{data.totals.posts_closed}</p><p className="text-xs text-gray-500 mt-0.5">Publicaciones cerradas · {data.month_label}</p></div>
           </div>
 
-          {/* Distribución geográfica */}
-          <div className="card">
-            <h2 className="font-semibold text-gray-800">Distribución geográfica de las cuentas identificadas</h2>
-            <p className="text-sm text-gray-500 mt-0.5">De las {data.totals.accounts_with_city} cuentas con ciudad registrada, provienen de:</p>
-            {geo.length === 0 ? (
-              <div className="text-center py-12 text-gray-400">
-                <MapPin className="w-10 h-10 mx-auto mb-3 opacity-30" />
-                <p className="font-medium">Aún no hay cuentas con ciudad de origen</p>
-                <p className="text-sm mt-1">Diligencia la "Ciudad de origen" en el perfil de cada cuenta.</p>
-              </div>
-            ) : (
-              <div className="grid md:grid-cols-2 gap-6 mt-4">
-                {/* Mapa */}
-                <div className="flex justify-center">
-                  <svg viewBox={`0 0 ${GEO.W} ${GEO.H}`} className="w-full max-w-[320px] h-auto">
-                    <path d={COL_PATH} fill="#dbeafe" stroke="#93c5fd" strokeWidth="1.5" />
-                    {located.map(g => {
-                      const [x, y] = mapPointOf(g.city)
-                      const r = 6 + 4 * Math.sqrt(g.count)
-                      return (
-                        <g key={g.city}>
-                          <circle cx={x} cy={y} r={r} fill="#ef4444" fillOpacity="0.55" stroke="#b91c1c" strokeWidth="1" />
-                          <text x={x} y={y + 4} textAnchor="middle" fontSize="16" fontWeight="700" fill="#7f1d1d">{g.count}</text>
-                          <title>{g.city}: {g.count}</title>
-                        </g>
-                      )
-                    })}
-                  </svg>
-                </div>
-                {/* Ranking */}
-                <div className="space-y-1.5">
-                  {geo.map(g => (
-                    <div key={g.city} className="flex items-center gap-2">
-                      <div className="w-32 shrink-0 text-sm text-gray-700 truncate flex items-center gap-1">
-                        {!mapPointOf(g.city) && <span title="No ubicada en el mapa">🌐</span>}
-                        {g.city}
-                      </div>
-                      <div className="flex-1 bg-gray-100 rounded-full h-4 overflow-hidden">
-                        <div className="h-full bg-primary-500 rounded-full flex items-center justify-end pr-1.5" style={{ width: `${Math.max(8, (g.count / maxCount) * 100)}%` }}>
-                          <span className="text-[10px] font-bold text-white">{g.count}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                  {foreign.length > 0 && (
-                    <p className="text-xs text-gray-400 pt-2">🌐 Fuera de Colombia o sin ubicar en el mapa: {foreign.map(f => f.city).join(', ')}</p>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
+          <CityMap geo={geo} accounts={data.totals.accounts_with_city} />
 
           {/* Cuentas cerradas */}
           <div className="card p-0 overflow-hidden">

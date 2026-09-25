@@ -6,9 +6,12 @@
  */
 import { useEffect, useState } from 'react'
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
-import { Search, History, ExternalLink, X, ChevronLeft, ChevronRight, Ban, UserPlus } from 'lucide-react'
+import { Search, History, ExternalLink, X, ChevronLeft, ChevronRight, Ban, UserPlus, MapPin } from 'lucide-react'
 import client from '../../api/client'
+import CityMap from './CityMap'
 import { MEDIUM_BADGE, fmtDateTime, fmtDay } from './shared'
+
+const STATUS_LABEL = { activa: 'activas', cerrada: 'cerradas', cuenta_nueva: 'con cuenta nueva' }
 
 const EVENT_STYLE = {
   account_created:     'bg-gray-400',
@@ -154,6 +157,7 @@ function AccountsList({ onOpen }) {
   const [qInput, setQInput] = useState('')
   const [q, setQ]           = useState('')
   const [page, setPage]     = useState(1)
+  const [showMap, setShowMap] = useState(true)
 
   useEffect(() => {
     const t = setTimeout(() => { setQ(qInput.trim()); setPage(1) }, 350)
@@ -194,6 +198,23 @@ function AccountsList({ onOpen }) {
           </select>
         </div>
       </div>
+
+      {/* Mapa: de dónde provienen las cuentas (respeta red, estado y búsqueda) */}
+      {data && (
+        <div className="space-y-2">
+          <button onClick={() => setShowMap(v => !v)} className="text-sm text-primary-600 hover:underline flex items-center gap-1.5">
+            <MapPin className="w-4 h-4" /> {showMap ? 'Ocultar mapa' : 'Ver mapa de origen de las cuentas'}
+            <span className="text-gray-400">({data.geo_accounts} con ciudad de {data.total})</span>
+          </button>
+          {showMap && (
+            <CityMap
+              geo={data.geo}
+              accounts={data.geo_accounts}
+              title={`Distribución geográfica de las cuentas${medium ? ` · ${medium}` : ''}${status ? ` · ${STATUS_LABEL[status]}` : ''}`}
+            />
+          )}
+        </div>
+      )}
 
       <div className="card p-0 overflow-hidden">
         {isLoading ? (
