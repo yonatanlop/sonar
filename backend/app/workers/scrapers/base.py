@@ -7,6 +7,8 @@ import re
 from datetime import datetime, timezone
 from typing import Optional
 
+from sqlalchemy import text as sa_text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
@@ -105,7 +107,25 @@ def upsert_account_profile(
             set_=update_fields,
         )
 
-    db.execute(stmt)
+    # SAVEPOINT: si el INSERT falla, solo se deshace este paso y la sesión sigue utilizable. Antes un fallo
+    # dejaba la transacción abortada y TODOS los tweets siguientes del lote se perdían.
+    def _run():
+        with db.begin_nested():
+            db.execute(stmt)
+
+    try:
+        _run()
+    except IntegrityError as exc:
+        if "uq_account_profiles_platform_username" not in str(exc.orig):
+            raise
+        # X reutiliza los @usuarios: otra cuenta (otro id) tenía este nombre y luego lo cambió o lo borró.
+        # Se libera el nombre en el perfil antiguo (queda como "nombre~id") y se reintenta.
+        with db.begin_nested():
+            db.execute(sa_text(
+                "UPDATE account_profiles SET username = left(username, 100) || '~' || coalesce(external_user_id, id::text) "
+                "WHERE platform_id = :p AND username = :u AND external_user_id IS DISTINCT FROM CAST(:e AS VARCHAR)"
+            ), {"p": platform_id, "u": username, "e": external_user_id})
+        _run()
     db.flush()
 
     # Retornar el objeto actualizado
@@ -159,7 +179,7 @@ def save_mention(
         content_clean=truncate(content_clean),
         author_username=author_username,
         author_ext_id=author_ext_id,
-        url=url,
+        url=url[:1000] if url else url,   # columna VARCHAR(1000): las URLs de Google News la superan
         published_at=published_at,
         language=language[:2] if language else None,
         country_code=country_code[:2] if country_code else None,
@@ -168,12 +188,12 @@ def save_mention(
         media_urls=media_urls,
         conversation_id=conversation_id,
     )
-    db.add(mention)
-
-    if matched_keywords:
-        mention.keywords.extend(matched_keywords)
-
-    db.flush()
+    # SAVEPOINT: si esta mención no se puede guardar, solo se deshace ella y el resto del lote sigue.
+    with db.begin_nested():
+        db.add(mention)
+        if matched_keywords:
+            mention.keywords.extend(matched_keywords)
+        db.flush()
 
     # Encolar para NLP
     try:
