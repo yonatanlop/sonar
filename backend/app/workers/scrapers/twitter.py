@@ -24,6 +24,7 @@ Rate limits:
 import asyncio
 import json
 import logging
+import re
 import time
 from datetime import datetime, timezone, timedelta
 
@@ -40,6 +41,18 @@ logger = logging.getLogger(__name__)
 
 DELAY_BETWEEN_SEARCHES = 4   # segundos entre búsquedas
 TWSCRAPE_TIMEOUT       = 30  # segundos máx esperando twscrape por query
+
+_BOOL_OP_RE = re.compile(r"\b(AND|OR|NOT)\b", re.IGNORECASE)
+
+
+def _quote_if_simple(term: str) -> str:
+    """Envuelve `term` entre comillas para que Twitter lo busque como frase exacta — pero NO si ya es
+    una expresión booleana (keyword_expression con AND/OR/NOT/paréntesis), porque entonces Twitter
+    buscaría la expresión completa como una frase literal ("Partido Mira AND (Colombia OR...)"), que
+    nadie escribe así, y la búsqueda no devuelve nada. Se detectó porque ninguna keyword con
+    keyword_expression de este sistema había recibido jamás una mención de Twitter (todo su volumen
+    venía de RSS/YouTube/TikTok, que no pasan por este armado de query)."""
+    return term if _BOOL_OP_RE.search(term) else f'"{term}"'
 
 
 # ── Compatibilidad de twscrape con el formato actual de X ──────────────────────
@@ -176,7 +189,7 @@ async def scrape_feeds(db) -> dict:
         elif feed.feed_type == "hashtag":
             query = f"#{term} since:{since}"
         else:
-            query = f'"{term}" (lang:es OR lang:en) -is:retweet since:{since}'
+            query = f'{_quote_if_simple(term)} (lang:es OR lang:en) -is:retweet since:{since}'
 
         try:
             saved = await asyncio.wait_for(
@@ -324,7 +337,7 @@ class TwitterScraper(BaseScraper):
         self, term: str, entity: Entity, keyword_obj: Keyword
     ) -> int:
         since = _since_date()
-        query = f'"{term}" (lang:es OR lang:en) -is:retweet since:{since}'
+        query = f'{_quote_if_simple(term)} (lang:es OR lang:en) -is:retweet since:{since}'
 
         try:
             api = self._build_api()
