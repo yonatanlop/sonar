@@ -225,6 +225,33 @@ def _fold(s: str) -> str:
     return "".join(c for c in s if not unicodedata.combining(c))
 
 
+def _contains_term(haystack: str, term: str) -> bool:
+    """True si `term` aparece en `haystack` como palabra o frase completa, no como parte de otra
+    palabra. Antes se comparaba con "in" (substring), así que una keyword como "mira" coincidía
+    dentro de "admira" o "mirador", y "partido" dentro de "compartido".
+
+    Solo exige un límite de palabra en el lado donde el propio término empieza o termina en letra o
+    dígito: un término que empieza con un símbolo (p. ej. "@usuario", "#hashtag") no necesita límite
+    a la izquierda, porque ese símbolo ya no se puede confundir con parte de otra palabra.
+
+    `haystack` y `term` deben venir ya normalizados con `_fold` (minúsculas, sin tildes)."""
+    if not term:
+        return False
+    check_left = term[0].isalnum()
+    check_right = term[-1].isalnum()
+    start = 0
+    while True:
+        idx = haystack.find(term, start)
+        if idx == -1:
+            return False
+        left_ok = not check_left or idx == 0 or not haystack[idx - 1].isalnum()
+        end = idx + len(term)
+        right_ok = not check_right or end == len(haystack) or not haystack[end].isalnum()
+        if left_ok and right_ok:
+            return True
+        start = idx + 1
+
+
 def _eval_expression_legacy(t: str, expr: str) -> bool:
     """Evaluación izquierda→derecha sin precedencia (respaldo si la sintaxis es inválida)."""
     import re
@@ -236,7 +263,7 @@ def _eval_expression_legacy(t: str, expr: str) -> bool:
         if upper in ("AND", "OR", "NOT"):
             pending_op = upper
             continue
-        match = _fold(tok) in t
+        match = _contains_term(t, _fold(tok))
         if result is None:
             result = match
         elif pending_op == "OR":
@@ -319,7 +346,7 @@ def _eval_expression(text: str, expr: str) -> bool:
             return val
         if isinstance(nxt, tuple):
             take()
-            return _fold(nxt[1]) in t
+            return _contains_term(t, _fold(nxt[1]))
         raise ValueError(f"token inesperado: {nxt!r}")
 
     try:
@@ -366,13 +393,13 @@ def keyword_matches_text(text: str, kw: "Keyword") -> bool:
     secondary = _fold((kw.keyword_secondary or "").strip())
     op = getattr(kw, "logic_op", "AND")
 
-    has_primary = primary in t
+    has_primary = _contains_term(t, primary)
     if not has_primary:
         return False
     if not secondary:
         return True
 
-    has_secondary = secondary in t
+    has_secondary = _contains_term(t, secondary)
     if op == "OR":
         return True
     if op == "NOT":
@@ -391,7 +418,7 @@ def text_matches_any_term(text: str, keywords, alias_texts) -> bool:
     t = _fold(text)
     for a in alias_texts or ():
         a = _fold((a or "").strip())
-        if a and a in t:
+        if a and _contains_term(t, a):
             return True
     return any(keyword_matches_text(text, kw) for kw in (keywords or ()))
 
