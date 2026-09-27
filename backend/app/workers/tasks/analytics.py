@@ -329,13 +329,34 @@ def reclassify_relevance(self, days: int = 30, dry_run: bool = True, batch: int 
     dry_run=True (por defecto) NO modifica nada: solo cuenta y devuelve una muestra.
     Ejecución manual (no está en el beat); procesa por lotes para cuidar la memoria.
     """
+    import random
+    import time
     from datetime import datetime, timedelta, timezone
     from collections import Counter
     from sqlalchemy import update
+    from sqlalchemy.exc import OperationalError
     from sqlalchemy.orm import selectinload
     from app.models.entity import EntityAlias
     from app.models.mention import Mention, SocialPlatform
     from app.workers.scrapers.base import text_matches_any_term
+
+    def _update_batch_with_retry(db, ids, max_attempts=5):
+        """UPDATE con reintento: la tabla mentions se sigue escribiendo en vivo (scraping, NLP), así
+        que un lote grande puede chocar con un DeadlockDetected/serialization failure de Postgres.
+        Es transitorio — se resuelve con rollback + reintento (con espera creciente)."""
+        for attempt in range(1, max_attempts + 1):
+            try:
+                db.execute(update(Mention).where(Mention.id.in_(ids)).values(is_relevant=False))
+                db.commit()
+                return
+            except OperationalError as exc:
+                db.rollback()
+                if attempt == max_attempts:
+                    raise
+                wait = 0.5 * attempt + random.uniform(0, 0.5)
+                logger.warning(f"[Relevance] Lote chocó con la BD (intento {attempt}/{max_attempts}): "
+                               f"{type(exc.orig).__name__ if exc.orig else exc} — reintentando en {wait:.1f}s")
+                time.sleep(wait)
 
     db = SessionLocal()
     try:
@@ -383,8 +404,7 @@ def reclassify_relevance(self, days: int = 30, dry_run: bool = True, batch: int 
             if flagged_ids:
                 flagged_total += len(flagged_ids)
                 if not dry_run:
-                    db.execute(update(Mention).where(Mention.id.in_(flagged_ids)).values(is_relevant=False))
-                    db.commit()
+                    _update_batch_with_retry(db, flagged_ids)
             db.expunge_all()
 
         names = {p.id: p.name for p in db.query(SocialPlatform).all()}
