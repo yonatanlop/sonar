@@ -28,7 +28,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.models.entity import Entity, Keyword
 from app.workers.scrapers.base import (
-    BaseScraper, build_search_terms, save_mention, upsert_account_profile,
+    BaseScraper, build_search_terms, save_mention, text_matches_any_term, upsert_account_profile,
 )
 
 logger = logging.getLogger(__name__)
@@ -51,6 +51,8 @@ class YouTubeScraper(BaseScraper):
     def scrape_entity(self, entity: Entity, keywords: list[Keyword]) -> int:
         saved_total = 0
         search_terms = build_search_terms(entity, keywords)
+        # Alias de la entidad: cuentan como coincidencia válida en el post-filtro (igual que Twitter).
+        self._alias_texts = [a.alias for a in (entity.aliases or [])]
 
         # Limitar a los 5 términos de mayor peso para conservar cuota
         for term, keyword_obj in search_terms[:5]:
@@ -99,6 +101,15 @@ class YouTubeScraper(BaseScraper):
             title         = snippet.get("title", "")
             description   = snippet.get("description", "")
 
+            # Post-filtro: la búsqueda de YouTube es difusa (por relevancia, no exacta) y devolvía
+            # videos sin ninguna relación (deportes, tenis, contenido en otros idiomas) etiquetados
+            # con la keyword. Solo se guarda lo que cumple la keyword parametrizada o un alias de la
+            # entidad, igual que Twitter/RSS/Reddit/Facebook/TikTok. Si el video no cumple, tampoco se
+            # guarda el canal ni se gastan sus comentarios (ahorra cuota).
+            content = f"{title}\n\n{description}".strip()
+            if not text_matches_any_term(content, [keyword_obj], self._alias_texts):
+                continue
+
             # Guardar canal como account_profile
             if channel_id:
                 upsert_account_profile(
@@ -108,8 +119,6 @@ class YouTubeScraper(BaseScraper):
                     external_user_id=channel_id,
                 )
 
-            # Guardar el video como mención (título + descripción)
-            content = f"{title}\n\n{description}".strip()
             published_at = self._parse_dt(snippet.get("publishedAt"))
 
             # Thumbnail como media_url para reconocimiento visual (módulo 7)
@@ -165,6 +174,12 @@ class YouTubeScraper(BaseScraper):
             comment_text = top.get("textDisplay", "")
 
             if not comment_text:
+                continue
+
+            # Post-filtro: antes se guardaba TODO comentario de un video encontrado por la búsqueda,
+            # sin revisar el texto del comentario mismo — así llegaba ruido total (p. ej. un
+            # comentario que solo dice "flamengo") etiquetado con la keyword del video.
+            if not text_matches_any_term(comment_text, [keyword_obj], self._alias_texts):
                 continue
 
             author_name      = top.get("authorDisplayName", "")
