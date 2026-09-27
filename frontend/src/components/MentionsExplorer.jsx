@@ -260,9 +260,9 @@ export default function MentionsExplorer({ entityId = null, keywords = [], prese
               <span className="text-[10px] uppercase tracking-wider text-gray-400">Keyword</span>
               {m.keywords.map(k => (
                 <button key={k.id} type="button" onClick={() => setFilter('keyword_id', k.id)}
-                  className="badge bg-primary-50 text-primary-700 hover:bg-primary-100"
-                  title="Filtrar por esta keyword">
-                  {k.label}
+                  className="badge bg-primary-50 text-primary-700 hover:bg-primary-100 max-w-[220px] truncate"
+                  title={`Filtrar por esta keyword: ${k.label}`}>
+                  {k.label.length > 60 ? `${k.label.slice(0, 57)}…` : k.label}
                 </button>
               ))}
             </div>
@@ -378,7 +378,9 @@ export default function MentionsExplorer({ entityId = null, keywords = [], prese
                   title="Solo menciones que coincidieron con esta keyword">
                   <option value="">Todas las keywords</option>
                   {keywords.map(k => (
-                    <option key={k.id} value={k.id}>{kwLabel(k)}{k.active === false ? ' (pausada)' : ''}</option>
+                    <option key={k.id} value={k.id}>
+                      {(l => l.length > 60 ? `${l.slice(0, 57)}…` : l)(kwLabel(k))}{k.active === false ? ' (pausada)' : ''}
+                    </option>
                   ))}
                 </select>
               )}
