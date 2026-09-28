@@ -762,30 +762,39 @@ def delete_facebook_account(account_id: int, db: Session = Depends(get_db), _=De
 @router.post("/facebook/test")
 def test_facebook_connection(_=Depends(require_admin)):
     """
-    Prueba real de conectividad: llama a search_posts() con un término genérico
-    y retorna si las cookies funcionan o el error exacto.
+    Prueba real de conectividad: encola check_facebook_accounts en la cola "facebook" (la que
+    consume el worker residencial, el único con Playwright + IP no bloqueada por Meta) y espera
+    su resultado. Si nadie la consume en el tiempo de espera, avisa que el worker no responde
+    en vez de fallar con un error de librería que no aplica (bug anterior: usaba `facebook_scraper`,
+    una librería distinta de la que realmente usa el scraper — y ni siquiera está instalada aquí).
     """
-    from app.workers.scrapers.facebook import _load_cookies
+    from celery.exceptions import TimeoutError as CeleryTimeoutError
+    from app.workers.tasks.scraping import check_facebook_accounts
 
-    cookies = _load_cookies(settings.FB_COOKIES_FILE)
-    if not cookies:
-        return {"ok": False, "error": "Archivo de cookies no encontrado en el servidor", "message": "Archivo de cookies no encontrado en el servidor"}
-
+    task = check_facebook_accounts.apply_async(expires=300)
     try:
-        import facebook_scraper as fb
-        count = 0
-        gen = fb.get_posts_by_search(
-            "noticias",
-            page_limit=1,
-            cookies=cookies,
-        )
-        for _ in gen:
-            count += 1
-            if count >= 5:
-                break
-        return {"ok": True, "posts_found": count, "message": f"Conexión exitosa — {count} posts encontrados"}
+        result = task.get(timeout=90)
+    except CeleryTimeoutError:
+        return {
+            "ok": False,
+            "message": "El worker residencial de Facebook no respondió en 90s — revisa que el "
+                       "túnel y el contenedor worker-facebook estén corriendo.",
+        }
     except Exception as e:
-        return {"ok": False, "error": str(e), "message": "Error al conectar con Facebook — las cookies pueden haber expirado"}
+        return {"ok": False, "error": str(e), "message": "Error esperando la respuesta del worker."}
+
+    if result.get("status") != "ok":
+        return {"ok": False, "error": result.get("error"), "message": "Error al probar las cuentas."}
+
+    accounts = result.get("accounts") or []
+    ok_labels = [a["label"] for a in accounts if a.get("ok")]
+    lines = [f"{'✅' if a.get('ok') else '❌'} {a.get('label') or '(archivo de cookies)'}: {a.get('message')}"
+             for a in accounts]
+    return {
+        "ok": len(ok_labels) > 0,
+        "posts_found": None,
+        "message": "\n".join(lines) if lines else "No hay cuentas para probar.",
+    }
 
 
 @router.post("/facebook/trigger")

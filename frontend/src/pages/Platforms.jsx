@@ -579,7 +579,7 @@ function FacebookAccountsPanel() {
               {testResult.ok
                 ? <CheckCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                 : <XCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />}
-              <span>
+              <span className="whitespace-pre-line">
                 {testResult.message}
                 {!testResult.ok && testResult.error && (
                   <code className="block mt-0.5 text-[10px] opacity-70 break-all">{testResult.error.slice(0, 120)}</code>

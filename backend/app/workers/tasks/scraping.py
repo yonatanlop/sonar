@@ -301,8 +301,9 @@ def scrape_instagram(self):
 )
 def scrape_facebook(self):
     """
-    Scraping de Facebook usando facebook-scraper con cookies de sesión.
-    Requiere FB_COOKIES_FILE apuntando a cookies exportadas de facebook.com.
+    Scraping de Facebook con Playwright + cookies de sesión (pool en `facebook_accounts`, con
+    fallback a FB_COOKIES_FILE). Corre en la cola "facebook", que solo consume el worker
+    residencial (ver docker-compose.facebook-worker.yml) — Meta bloquea las IPs de datacenter.
     """
     try:
         from app.workers.scrapers.facebook import FacebookScraper
@@ -402,6 +403,24 @@ def scrape_facebook_feeds(self):
     except Exception as exc:
         logger.error(f"[FacebookFeeds] Fallo, reintentando: {exc}", exc_info=True)
         raise self.retry(exc=exc)
+
+
+@celery_app.task(name="app.workers.tasks.scraping.check_facebook_accounts", bind=True, max_retries=0)
+def check_facebook_accounts(self):
+    """
+    Prueba cada cuenta del pool de Facebook (sesión activa / vencida / bloqueada / checkpoint).
+    Worker residencial — lo dispara "Probar conexión" en Plataformas → Facebook.
+    """
+    from app.database import SessionLocal
+    from app.workers.scrapers.facebook import check_accounts
+    db = SessionLocal()
+    try:
+        return {"status": "ok", "accounts": check_accounts(db)}
+    except Exception as exc:
+        logger.error(f"[Facebook] Error probando cuentas: {exc}", exc_info=True)
+        return {"status": "error", "error": str(exc)}
+    finally:
+        db.close()
 
 
 @celery_app.task(name="app.workers.tasks.scraping.scrape_instagram_feeds", bind=True, max_retries=2, default_retry_delay=180)

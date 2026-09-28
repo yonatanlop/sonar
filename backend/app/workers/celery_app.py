@@ -26,8 +26,9 @@ celery_app.conf.update(
     # Enruta scrape_facebook a una queue separada para que pueda
     # ser consumida por un worker con IP residencial (no datacenter)
     task_routes={
-        "app.workers.tasks.scraping.scrape_facebook":       {"queue": "facebook"},
-        "app.workers.tasks.scraping.scrape_facebook_feeds": {"queue": "facebook"},
+        "app.workers.tasks.scraping.scrape_facebook":         {"queue": "facebook"},
+        "app.workers.tasks.scraping.scrape_facebook_feeds":   {"queue": "facebook"},
+        "app.workers.tasks.scraping.check_facebook_accounts": {"queue": "facebook"},
         "app.workers.tasks.scraping.scrape_tiktok":         {"queue": "tiktok"},
         "app.workers.tasks.scraping.scrape_tiktok_feeds":   {"queue": "tiktok"},
     },

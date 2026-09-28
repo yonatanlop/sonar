@@ -315,6 +315,79 @@ def _diagnose_fb_page(page, term: str) -> None:
         logger.debug(f"[Facebook] No se pudo guardar screenshot: {ss_err}")
 
 
+def check_accounts(db) -> list[dict]:
+    """
+    Prueba cada cuenta activa del pool: navega a facebook.com con sus cookies (y su proxy, si
+    tiene) y detecta si la sesión sigue activa, si Facebook la redirigió a login (cookies
+    vencidas), si pide verificación adicional (checkpoint) o si la bloqueó.
+
+    Se ejecuta en el worker residencial (Playwright + IP residencial) vía la cola "facebook";
+    correrlo en el backend de Oracle fallaría siempre (sin Playwright y con IP de datacenter).
+    """
+    from playwright.sync_api import sync_playwright
+
+    accounts = _load_fb_accounts(db)
+    if not accounts:
+        return [{"label": None, "ok": False,
+                 "message": "No hay cuentas configuradas. Agrega una en Plataformas → Facebook."}]
+
+    results = []
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch(
+            headless=True,
+            args=["--no-sandbox", "--disable-setuid-sandbox",
+                  "--disable-blink-features=AutomationControlled", "--disable-dev-shm-usage"],
+        )
+        for acc in accounts:
+            entry = {"label": acc["label"], "ok": False, "message": ""}
+            try:
+                ctx = browser.new_context(
+                    user_agent=USER_AGENT,
+                    viewport={"width": 1366, "height": 768},
+                    locale="es-CO",
+                    timezone_id="America/Bogota",
+                    proxy=_parse_proxy_url(acc.get("proxy")),
+                )
+                ctx.add_cookies(_playwright_cookies(acc["cookies"]))
+                ctx.add_init_script("""
+                    Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+                    Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3] });
+                    window.chrome = { runtime: {} };
+                """)
+                page = ctx.new_page()
+                page.goto("https://www.facebook.com", wait_until="domcontentloaded", timeout=30000)
+                time.sleep(3)
+                url = page.url
+
+                if "checkpoint" in url or "two_step" in url:
+                    entry["message"] = ("Facebook exige verificación adicional (checkpoint). "
+                                        "Abre facebook.com con esta cuenta desde un navegador y complétala.")
+                elif "login" in url or page.query_selector('input[name="email"]'):
+                    entry["message"] = "Sesión inválida — cookies vencidas o cuenta desconectada. Exporta cookies nuevas."
+                else:
+                    body = ""
+                    try:
+                        body = (page.query_selector("body") or page).inner_text().lower()
+                    except Exception:
+                        pass
+                    block_kw = ("temporarily blocked", "bloqueado temporalmente",
+                                "you're blocked", "te hemos bloqueado", "unusual activity")
+                    if any(kw in body for kw in block_kw):
+                        entry["message"] = "La cuenta está bloqueada temporalmente por Facebook."
+                    elif not body.strip():
+                        entry["message"] = "Facebook devolvió una página vacía — posible bloqueo por detección de bot."
+                    else:
+                        entry["ok"] = True
+                        entry["message"] = f"Sesión activa ({url})"
+                ctx.close()
+            except Exception as e:
+                entry["message"] = f"Error de conexión: {e}"
+            results.append(entry)
+        browser.close()
+
+    return results
+
+
 class FacebookScraper(BaseScraper):
     """
     Scraper de Facebook usando Playwright con cookies de sesión.
