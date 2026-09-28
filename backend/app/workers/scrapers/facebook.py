@@ -317,9 +317,12 @@ def _diagnose_fb_page(page, term: str) -> None:
 
 def check_accounts(db) -> list[dict]:
     """
-    Prueba cada cuenta activa del pool: navega a facebook.com con sus cookies (y su proxy, si
-    tiene) y detecta si la sesión sigue activa, si Facebook la redirigió a login (cookies
-    vencidas), si pide verificación adicional (checkpoint) o si la bloqueó.
+    Prueba cada cuenta activa del pool en dos pasos:
+      1. Sesión: navega a facebook.com y detecta login vencido / checkpoint / bloqueo total.
+      2. Búsqueda: la sesión puede estar activa (se puede navegar) pero tener la búsqueda
+         restringida — Facebook le sirve una página "Not Found" solo a esa acción, sin avisar
+         explícitamente del bloqueo. Es justo lo que usa el scraper para recolectar, así que sin
+         este paso el botón podría decir "ok" con una cuenta que en la práctica no trae nada.
 
     Se ejecuta en el worker residencial (Playwright + IP residencial) vía la cola "facebook";
     correrlo en el backend de Oracle fallaría siempre (sin Playwright y con IP de datacenter).
@@ -377,8 +380,37 @@ def check_accounts(db) -> list[dict]:
                     elif not body.strip():
                         entry["message"] = "Facebook devolvió una página vacía — posible bloqueo por detección de bot."
                     else:
-                        entry["ok"] = True
-                        entry["message"] = f"Sesión activa ({url})"
+                        # Paso 2: la sesión navega bien — probar si la búsqueda (lo que usa el
+                        # scraper) también funciona, o si está restringida solo para esa acción.
+                        search_page = ctx.new_page()
+                        try:
+                            search_page.goto(
+                                "https://www.facebook.com/search/posts/?q=noticias",
+                                wait_until="domcontentloaded", timeout=30000,
+                            )
+                            time.sleep(3)
+                            try:
+                                search_page.wait_for_selector('[role="feed"]', timeout=12000)
+                                entry["ok"] = True
+                                entry["message"] = f"Sesión activa y la búsqueda funciona ({url})"
+                            except Exception:
+                                s_body = ""
+                                try:
+                                    s_body = (search_page.query_selector("body") or search_page).inner_text().lower()
+                                except Exception:
+                                    pass
+                                if s_body.strip() in ("", "not found", "error"):
+                                    entry["message"] = (
+                                        f"Sesión activa ({url}), pero la BÚSQUEDA está bloqueada — "
+                                        "Facebook le sirve una página vacía/\"Not Found\" solo a esa acción "
+                                        "(bloqueo específico para scraping, no cierre de sesión)."
+                                    )
+                                else:
+                                    entry["message"] = f"Sesión activa ({url}), pero no se pudo confirmar que la búsqueda funcione."
+                        except Exception as se:
+                            entry["message"] = f"Sesión activa ({url}), pero la prueba de búsqueda falló: {se}"
+                        finally:
+                            search_page.close()
                 ctx.close()
             except Exception as e:
                 entry["message"] = f"Error de conexión: {e}"
