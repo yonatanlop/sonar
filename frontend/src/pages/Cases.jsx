@@ -38,6 +38,14 @@ function toLocalInput(dt) {
   return new Date(d.getTime() - off * 60000).toISOString().slice(0, 16)
 }
 const nowLocal = () => toLocalInput(new Date().toISOString())   // fecha de hoy por defecto al marcar un hecho
+function localInputToISO(v) {
+  // input type="datetime-local" a veces entrega solo la fecha sin hora (p.ej. "2026-09-30");
+  // sin hora, `new Date(...)` da una fecha inválida y `.toISOString()` revienta, perdiendo
+  // el guardado completo en silencio. Si falta la hora, se completa con 00:00.
+  if (!v) return null
+  const d = new Date(v.length === 10 ? `${v}T00:00` : v)
+  return isNaN(d.getTime()) ? null : d.toISOString()
+}
 const boolToSel = (v) => (v === true ? 'si' : v === false ? 'no' : '')
 const selToBool = (s) => (s === 'si' ? true : s === 'no' ? false : null)
 const numToStr  = (n) => (n === null || n === undefined ? '' : String(n))
@@ -328,7 +336,7 @@ function CaseDetail({ caseId, onBack, onOpenAccount, qc }) {
       verified: selToBool(form.verified),
       bio: form.bio.trim() || null,
       account_removed: selToBool(form.account_removed),
-      removed_date: form.removed_date ? new Date(form.removed_date).toISOString() : null,
+      removed_date: localInputToISO(form.removed_date),
       created_new_account: selToBool(form.created_new_account),
       new_account_info: form.new_account_info.trim() || null,
     }
@@ -548,16 +556,16 @@ function AccountDetail({ caseId, accountId, onBack, qc }) {
     const body = {
       affects: form.affects.trim() || null, sentiment: form.sentiment || null,
       media_type: form.media_type.trim() || null,
-      publication_date: form.publication_date ? new Date(form.publication_date).toISOString() : null,
+      publication_date: localInputToISO(form.publication_date),
       publication_url: form.publication_url.trim() || null, content_text: form.content_text.trim() || null,
       likes: strToNum(form.likes), shares: strToNum(form.shares), comments_count: strToNum(form.comments_count),
       inauthenticity_flag: form.inauthenticity_flag || null,
       organic_criticism: selToBool(form.organic_criticism), opposition_criticism: selToBool(form.opposition_criticism),
       coordinated_attack: selToBool(form.coordinated_attack),
       reporter_name: form.reporter_name.trim() || null, reported: selToBool(form.reported),
-      reported_date: form.reported === 'si' && form.reported_date ? new Date(form.reported_date).toISOString() : null,
+      reported_date: form.reported === 'si' ? localInputToISO(form.reported_date) : null,
       report_detail: form.report_detail.trim() || null, post_removed: selToBool(form.post_removed),
-      post_removed_date: form.post_removed_date ? new Date(form.post_removed_date).toISOString() : null,
+      post_removed_date: localInputToISO(form.post_removed_date),
     }
     if (!editing) body.image = form.image || null
     else if (imageTouched) body.image = form.image || ''
