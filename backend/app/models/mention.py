@@ -13,7 +13,7 @@ mention_keywords = Table(
     "mention_keywords",
     Base.metadata,
     Column("mention_id", UUID(as_uuid=True), ForeignKey("mentions.id"), primary_key=True),
-    Column("keyword_id", UUID(as_uuid=True), ForeignKey("keywords.id"), primary_key=True),
+    Column("keyword_id", UUID(as_uuid=True), ForeignKey("keywords.id", ondelete="CASCADE"), primary_key=True),
     extend_existing=True,
 )
 
