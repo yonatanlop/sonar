@@ -424,6 +424,62 @@ def reclassify_relevance(self, days: int = 30, dry_run: bool = True, batch: int 
 
 
 @celery_app.task(
+    name="app.workers.tasks.analytics.reclassify_entity_orphans",
+    bind=True,
+    max_retries=0,
+)
+def reclassify_entity_orphans(self, entity_id: str):
+    """
+    Se dispara al borrar una keyword (ver entities.py::delete_keyword): si esa keyword
+    era muy amplia (sin AND, p. ej. solo "Inteligencia Artificial") y estuvo activa un
+    rato, pudo haber guardado menciones de ruido antes de que alguien la borrara. Borrar
+    la keyword no limpia lo ya guardado — esas menciones quedan "huérfanas" (sin ninguna
+    keyword vinculada en mention_keywords) pero siguen marcadas is_relevant=True.
+
+    Reevalúa solo esas huérfanas de la entidad contra las keywords/alias ACTUALES (mismo
+    criterio que usa la ingesta) y marca is_relevant=False las que ya no cumplen nada.
+    Nunca toca menciones que sí tienen alguna keyword vinculada.
+    """
+    from sqlalchemy import select, update
+    from app.models.entity import Entity, EntityAlias, Keyword
+    from app.models.mention import Mention, mention_keywords
+    from app.workers.scrapers.base import text_matches_any_term
+
+    db = SessionLocal()
+    try:
+        entity = db.query(Entity).filter(Entity.id == entity_id).first()
+        if not entity:
+            return {"status": "skipped", "reason": "entity_not_found"}
+
+        keywords = db.query(Keyword).filter(Keyword.entity_id == entity_id).all()
+        alias_texts = [a.alias for a in db.query(EntityAlias).filter(EntityAlias.entity_id == entity_id).all()]
+
+        linked_ids_subq = select(mention_keywords.c.mention_id)
+        orphans = (
+            db.query(Mention)
+            .filter(Mention.entity_id == entity_id, Mention.is_relevant.is_(True))
+            .filter(~Mention.id.in_(linked_ids_subq))
+            .all()
+        )
+
+        flagged_ids = [m.id for m in orphans if not text_matches_any_term(m.content, keywords, alias_texts)]
+        if flagged_ids:
+            db.execute(update(Mention).where(Mention.id.in_(flagged_ids)).values(is_relevant=False))
+            db.commit()
+
+        logger.info(f"[Relevance] Huérfanas de '{entity.name}': {len(orphans)} revisadas, "
+                    f"{len(flagged_ids)} marcadas no relevantes")
+        return {"status": "ok", "entity": entity.name, "revisadas": len(orphans),
+                "marcadas_no_relevantes": len(flagged_ids)}
+    except Exception as exc:
+        db.rollback()
+        logger.error(f"[Relevance] Error reclasificando huérfanas de {entity_id}: {exc}", exc_info=True)
+        return {"status": "error", "error": str(exc)}
+    finally:
+        db.close()
+
+
+@celery_app.task(
     name="app.workers.tasks.analytics.reclassify_sentiment",
     bind=True,
     max_retries=0,

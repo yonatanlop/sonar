@@ -324,6 +324,11 @@ def delete_keyword(
     db.delete(kw)
     db.commit()
 
+    # Si esta keyword era muy amplia (sin AND) y alcanzó a capturar ruido antes de
+    # borrarla, limpia en segundo plano lo que quedó huérfano sin ninguna keyword.
+    from app.workers.tasks.analytics import reclassify_entity_orphans
+    reclassify_entity_orphans.delay(str(entity_id))
+
 
 # ── Anomalías (v2) ─────────────────────────────────────────────
 
