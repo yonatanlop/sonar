@@ -14,6 +14,7 @@ from app.models.instagram_feed import InstagramFeed
 from app.models.tiktok_feed import TiktokFeed
 from app.models.facebook_group import FacebookGroup
 from app.models.case import Case, CaseAccount, CaseAccountEvent, CaseRecord
+from app.models.entity_event import EntityDayEvent
 from app.models.coordination import CoordinationCluster, CoordinationMember
 from app.models.legal_escalation import LegalEscalation
 # YoutubeChannel must be imported before YtKeywordHit (bidirectional back_populates)

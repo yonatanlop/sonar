@@ -170,6 +170,8 @@ MODULE_HELP.groups  = RIZOMA_TAB_HELP.groups
 MODULE_HELP.cases   = RIZOMA_TAB_HELP.cases
 MODULE_HELP.monthly = RIZOMA_TAB_HELP.monthly
 
+MODULE_HELP['entity-activity'] = 'Muestra en qué días, meses y años se concentran las menciones de las entidades elegidas, qué keywords y cuentas las impulsan, y si esas cuentas ya están en Rizoma. Registra el evento del día para explicar cada pico. Filtra por fecha con los campos o con los accesos rápidos.'
+
 // Ayuda de cada ítem del menú lateral (por ruta)
 export const NAV_HELP = {
   '/':                       MODULE_HELP.dashboard,

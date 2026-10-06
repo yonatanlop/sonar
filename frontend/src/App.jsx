@@ -23,6 +23,7 @@ import ResponseTool    from './pages/ResponseTool'
 import MentionInbox    from './pages/MentionInbox'
 import Audit                from './pages/Audit'
 import Rizoma               from './pages/Rizoma'
+import EntityReports        from './pages/EntityReports'
 import LegalInbox           from './pages/LegalInbox'
 import TwitterKeywordSearch from './pages/TwitterKeywordSearch'
 import MediaSearch          from './pages/MediaSearch'
@@ -57,6 +58,7 @@ export default function App() {
             <Route path="/response-tool"     element={<ResponseTool />} />
             <Route path="/inbox"             element={<MentionInbox />} />
             <Route path="/rizoma"            element={<Rizoma />} />
+            <Route path="/informe-entidades" element={<EntityReports />} />
             <Route path="/legal"             element={<LegalInbox />} />
             <Route path="/profile"           element={<Profile />} />
             <Route path="/media-search"      element={<MediaSearch />} />
