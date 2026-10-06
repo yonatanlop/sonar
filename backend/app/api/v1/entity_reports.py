@@ -144,8 +144,7 @@ def entity_activity_report(
                 .join(SocialPlatform, SocialPlatform.id == Mention.platform_id)
                 .filter(*conds, Mention.author_username.isnot(None))
                 .group_by(SocialPlatform.code, Mention.author_username, Mention.author_ext_id, Mention.entity_id)
-                .order_by(func.count(Mention.id).desc())
-                .limit(TOP_ACCOUNTS).all())
+                .order_by(func.count(Mention.id).desc()).all())
     by_handle, by_name, by_numeric = _rizoma_index(db)
     accounts = []
     for code, username, ext_id, eid, n in acc_rows:
@@ -162,6 +161,7 @@ def entity_activity_report(
             "platform": code, "author": username, "mentions": n,
             "entity_name": names.get(eid, ""), "rizoma": rizoma,
         })
+    accounts = [a for i, a in enumerate(accounts) if i < TOP_ACCOUNTS or a["rizoma"]]
 
     ev_rows = (db.query(EntityDayEvent, User.full_name, Entity.name)
                .join(User, User.id == EntityDayEvent.created_by)
