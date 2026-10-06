@@ -62,20 +62,27 @@ def _conditions(entity_ids, date_from: str, date_to: str):
     ]
 
 
+def _handle(value: str) -> str:
+    return value.strip().lstrip("@").lower()
+
+
 def _rizoma_index(db: Session):
-    """Cuentas de atacantes de Rizoma indexadas por (red, autor normalizado) y (red, id de usuario)."""
-    by_name, by_id = {}, {}
+    """Cuentas de Rizoma indexadas por red + identificador. En Rizoma el @usuario suele estar en
+    `user_id` (y `author` es el nombre para mostrar), así que se indexan ambos, más el id numérico."""
+    by_handle, by_name, by_numeric = {}, {}, {}
     rows = db.query(CaseAccount, Case.name).join(Case, Case.id == CaseAccount.case_id).all()
     for acc, case_name in rows:
         info = {
             "case_id": str(acc.case_id), "case_name": case_name, "account_id": str(acc.id),
             "medium": acc.medium, "account_removed": bool(acc.account_removed),
         }
-        if acc.author:
-            by_name.setdefault((acc.medium, acc.author.strip().lstrip("@").lower()), info)
         if acc.user_id:
-            by_id.setdefault((acc.medium, str(acc.user_id).strip()), info)
-    return by_name, by_id
+            by_handle.setdefault((acc.medium, _handle(acc.user_id)), info)
+            if acc.user_id.strip().isdigit():
+                by_numeric.setdefault((acc.medium, acc.user_id.strip()), info)
+        if acc.author:
+            by_name.setdefault((acc.medium, _handle(acc.author)), info)
+    return by_handle, by_name, by_numeric
 
 
 @router.get("")
@@ -139,15 +146,18 @@ def entity_activity_report(
                 .group_by(SocialPlatform.code, Mention.author_username, Mention.author_ext_id, Mention.entity_id)
                 .order_by(func.count(Mention.id).desc())
                 .limit(TOP_ACCOUNTS).all())
-    by_name, by_id = _rizoma_index(db)
+    by_handle, by_name, by_numeric = _rizoma_index(db)
     accounts = []
     for code, username, ext_id, eid, n in acc_rows:
         medium = RIZOMA_MEDIUM.get(code)
         rizoma = None
         if medium:
-            rizoma = by_id.get((medium, str(ext_id).strip())) if ext_id else None
+            if ext_id and str(ext_id).strip().isdigit():
+                rizoma = by_numeric.get((medium, str(ext_id).strip()))
             if rizoma is None:
-                rizoma = by_name.get((medium, username.strip().lstrip("@").lower()))
+                rizoma = by_handle.get((medium, _handle(username)))
+            if rizoma is None:
+                rizoma = by_name.get((medium, _handle(username)))
         accounts.append({
             "platform": code, "author": username, "mentions": n,
             "entity_name": names.get(eid, ""), "rizoma": rizoma,
