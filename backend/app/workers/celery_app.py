@@ -189,6 +189,12 @@ celery_app.conf.beat_schedule = {
         "task": "app.workers.tasks.scraping.scrape_tiktok",
         "schedule": crontab(minute="*/30"),  # cada 30 min
     },
+    # Mantiene las estadísticas de `mentions` al día aunque un reinicio de Postgres
+    # borre el progreso del autovacuum (ver docstring de analyze_mentions_table).
+    "analyze-mentions-table": {
+        "task": "app.workers.tasks.analytics.analyze_mentions_table",
+        "schedule": crontab(minute=0, hour="*/6"),  # cada 6 horas
+    },
 }
 
 

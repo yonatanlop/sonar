@@ -610,3 +610,35 @@ def compute_trends(self):
         raise self.retry(exc=exc)
     finally:
         db.close()
+
+
+@celery_app.task(
+    name="app.workers.tasks.analytics.analyze_mentions_table",
+    bind=True,
+    max_retries=0,
+)
+def analyze_mentions_table(self):
+    """
+    ANALYZE sobre `mentions` (885k+ filas y creciendo) cada 6 horas.
+
+    Por qué no basta con el autovacuum automático: cada vez que Postgres se reinicia de
+    golpe (frecuente en esta VM de 1GB por falta de memoria), pg_stat_user_tables pierde
+    el registro de la última vez que se analizó la tabla, así que el autovacuum nunca
+    llega a completar un ciclo aquí. Sin estadísticas al día el planificador elige "seq
+    scan" para consultas que deberían usar un índice — una consulta de <1s pasa a tardar
+    18s+ y agota el pool de conexiones (causa real de los 500 "server error" al listar
+    menciones o agregar una keyword, diagnosticado el 2026-10-09). ANALYZE es liviano
+    (muestrea, no bloquea) así que correrlo seguido no tiene costo real.
+    """
+    from sqlalchemy import text
+    db = SessionLocal()
+    try:
+        db.execute(text("ANALYZE mentions"))
+        db.commit()
+        return {"status": "ok"}
+    except Exception as exc:
+        db.rollback()
+        logger.error(f"[Analyze] Error: {exc}", exc_info=True)
+        return {"status": "error", "error": str(exc)}
+    finally:
+        db.close()
