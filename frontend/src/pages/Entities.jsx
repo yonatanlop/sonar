@@ -143,9 +143,9 @@ export default function Entities() {
               </select>
             </div>
             <div>
-              <label className="label">País</label>
-              <input className="input" placeholder="CO, MX, US..."
-                value={form.country_code} onChange={e => setForm(f => ({ ...f, country_code: e.target.value }))} />
+              <label className="label">País (código de 2 letras)</label>
+              <input className="input" placeholder="CO, MX, US..." maxLength={2}
+                value={form.country_code} onChange={e => setForm(f => ({ ...f, country_code: e.target.value.toUpperCase() }))} />
             </div>
             <div>
               <label className="label">Descripción</label>
@@ -205,10 +205,10 @@ export default function Entities() {
                 </select>
               </div>
               <div>
-                <label className="label">País</label>
-                <input className="input" placeholder="CO, MX, US..."
+                <label className="label">País (código de 2 letras)</label>
+                <input className="input" placeholder="CO, MX, US..." maxLength={2}
                   value={editForm.country_code}
-                  onChange={e => setEditForm(f => ({ ...f, country_code: e.target.value }))} />
+                  onChange={e => setEditForm(f => ({ ...f, country_code: e.target.value.toUpperCase() }))} />
               </div>
               <div>
                 <label className="label">Descripción</label>

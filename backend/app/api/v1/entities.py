@@ -25,6 +25,18 @@ router = APIRouter(prefix="/entities", tags=["Entidades"])
 
 # ── Schemas ───────────────────────────────────────────────────
 
+def _validate_country_code(v):
+    """País: código ISO de 2 letras (FK a la tabla countries). Antes se guardaba lo que
+    fuera (p. ej. "Colombia - Cauca") y la base lo rechazaba con un 500 sin mensaje claro
+    (StringDataRightTruncation, la columna es VARCHAR(2))."""
+    if not v or not v.strip():
+        return None
+    v = v.strip().upper()
+    if len(v) != 2:
+        raise ValueError('El país debe ser un código de 2 letras (ej: "CO"), no el nombre completo')
+    return v
+
+
 class EntityCreate(BaseModel):
     name: str
     entity_type_id: int
@@ -32,6 +44,11 @@ class EntityCreate(BaseModel):
     description: Optional[str] = None
     photo_url: Optional[str] = None
     monitoring_type: Optional[str] = None
+
+    @field_validator("country_code")
+    @classmethod
+    def _check_country(cls, v):
+        return _validate_country_code(v)
 
     def model_dump(self, **kwargs):
         d = super().model_dump(**kwargs)
@@ -49,6 +66,11 @@ class EntityPatch(BaseModel):
     monitoring_type: Optional[str] = None
     entity_type_id: Optional[int] = None
     country_code: Optional[str] = None
+
+    @field_validator("country_code")
+    @classmethod
+    def _check_country(cls, v):
+        return _validate_country_code(v)
 
 
 class AliasCreate(BaseModel):
@@ -157,6 +179,8 @@ def create_entity(
 ):
     if not db.query(EntityType).filter(EntityType.id == data.entity_type_id).first():
         raise HTTPException(status_code=400, detail="Tipo de entidad no existe")
+    if data.country_code and not db.query(Country.code).filter(Country.code == data.country_code).first():
+        raise HTTPException(status_code=422, detail=f'País "{data.country_code}" no está en el catálogo')
 
     entity = Entity(**data.model_dump(), created_by=current_user.id)
     db.add(entity)
@@ -230,6 +254,8 @@ def patch_entity(
     if data.entity_type_id is not None:
         if not db.query(EntityType).filter(EntityType.id == data.entity_type_id).first():
             raise HTTPException(status_code=400, detail="Tipo de entidad no existe")
+    if data.country_code and not db.query(Country.code).filter(Country.code == data.country_code).first():
+        raise HTTPException(status_code=422, detail=f'País "{data.country_code}" no está en el catálogo')
     for field, value in data.model_dump(exclude_none=True).items():
         setattr(entity, field, value)
     log_action(db, current_user.id, "entity_updated", request, "entities", entity.id,
