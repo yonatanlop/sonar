@@ -479,11 +479,31 @@ def scrape_youtube_channels(self):
         raise self.retry(exc=exc)
 
 
+def _cleanup_fb_debug_screenshots(max_age_days: int = 2) -> int:
+    """Borra capturas de diagnóstico de Facebook (/app/storage/fb_debug_*.png) más
+    viejas que max_age_days. Se generan en cada búsqueda fallida (_diagnose_fb_page);
+    sin esta limpieza se acumulan indefinidamente mientras Facebook esté bloqueado."""
+    import glob
+    import os
+    import time as _time
+
+    cutoff = _time.time() - max_age_days * 86400
+    deleted = 0
+    for path in glob.glob("/app/storage/fb_debug_*.png"):
+        try:
+            if os.path.getmtime(path) < cutoff:
+                os.remove(path)
+                deleted += 1
+        except OSError:
+            pass
+    return deleted
+
+
 @celery_app.task(name="app.workers.tasks.scraping.cleanup_old_mentions")
 def cleanup_old_mentions():
     """
-    Elimina menciones con más de 12 meses de antigüedad.
-    Se ejecuta diariamente a las 3am (configurado en celery_app.py).
+    Elimina menciones con más de 12 meses de antigüedad, y capturas de diagnóstico
+    de Facebook con más de 2 días. Se ejecuta diariamente a las 3am (celery_app.py).
     """
     db = SessionLocal()
     try:
@@ -494,7 +514,12 @@ def cleanup_old_mentions():
         ).delete(synchronize_session=False)
         db.commit()
         logger.info(f"[Cleanup] {deleted} menciones antiguas eliminadas (antes de {cutoff.date()})")
-        return {"status": "ok", "deleted": deleted}
+
+        deleted_screenshots = _cleanup_fb_debug_screenshots()
+        if deleted_screenshots:
+            logger.info(f"[Cleanup] {deleted_screenshots} capturas de diagnóstico de Facebook eliminadas")
+
+        return {"status": "ok", "deleted": deleted, "deleted_fb_screenshots": deleted_screenshots}
     except Exception as e:
         db.rollback()
         logger.error(f"[Cleanup] Error: {e}", exc_info=True)
@@ -650,9 +675,10 @@ async def _detect_reply_interactions(db) -> dict:
                 ).first():
                     continue
 
-                # Buscar la mención original en la BD
+                # Buscar la mención original en la BD. Los scrapers de Twitter guardan
+                # external_id = str(tweet.id), sin prefijo "tw_" (ver twitter.py).
                 mention = db.query(Mention).filter(
-                    Mention.external_id == f"tw_{replied_to_id}",
+                    Mention.external_id == str(replied_to_id),
                     Mention.platform_id == platform.id,
                 ).first()
 
@@ -675,7 +701,7 @@ async def _detect_reply_interactions(db) -> dict:
                 db.flush()
                 total_detected += 1
                 logger.info(
-                    f"[ReplyTracker] @{account.username} respondió a tw_{replied_to_id}"
+                    f"[ReplyTracker] @{account.username} respondió a {replied_to_id}"
                 )
 
         except Exception as e:

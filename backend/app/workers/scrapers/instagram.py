@@ -14,7 +14,10 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.models.entity import Entity, Keyword
-from app.workers.scrapers.base import BaseScraper, build_search_terms, save_mention, upsert_account_profile
+from app.workers.scrapers.base import (
+    BaseScraper, build_search_terms, build_twitter_query, save_mention,
+    text_matches_any_term, upsert_account_profile,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -110,7 +113,14 @@ class InstagramScraper(BaseScraper):
         search_terms = build_search_terms(entity, keywords)
 
         for term, keyword_obj in search_terms:
-            hashtag = _normalize_hashtag(term)
+            # El hashtag debe derivarse del término primario únicamente: `term` puede
+            # venir con operadores AND/OR/NOT (build_twitter_query) para keywords con
+            # término secundario, y ese texto no existe como hashtag en Instagram.
+            # Las entradas de alias (`term` ya es el alias plano) se usan tal cual.
+            hashtag_source = term
+            if keyword_obj and term == build_twitter_query(keyword_obj):
+                hashtag_source = keyword_obj.keyword
+            hashtag = _normalize_hashtag(hashtag_source)
             if not hashtag:
                 continue
 
@@ -184,6 +194,17 @@ class InstagramScraper(BaseScraper):
                 return 0
 
         caption     = getattr(media, "caption_text", "") or ""
+
+        # Post-filtro: la búsqueda por hashtag es difusa (el hashtag puede ser una
+        # palabra ambigua, p. ej. "MIRA" = partido vs. mirar). Solo guardamos lo que
+        # cumple la keyword parametrizada o un alias de la entidad, igual que
+        # Twitter/YouTube/RSS/TikTok. No aplica a Instagram Explorer (keyword_obj=None
+        # en feeds por cuenta/hashtag explícito del admin).
+        if keyword_obj is not None:
+            alias_texts = [a.alias for a in (entity.aliases or [])]
+            if not text_matches_any_term(caption, [keyword_obj], alias_texts):
+                return 0
+
         media_pk    = str(getattr(media, "pk", ""))
         user        = getattr(media, "user", None)
         username    = getattr(user, "username", None) if user else None

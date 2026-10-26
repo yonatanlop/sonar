@@ -22,7 +22,9 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.models.entity import Entity, Keyword
-from app.workers.scrapers.base import BaseScraper, keyword_matches_text, save_mention
+from app.workers.scrapers.base import (
+    BaseScraper, build_search_terms, keyword_matches_text, save_mention, upsert_account_profile,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -224,6 +226,40 @@ def _parse_reach_number(text: str) -> int:
     elif mult == 'm':
         num *= 1_000_000
     return int(num)
+
+
+_REL_TIME_RE = re.compile(
+    r'^\s*(\d+)\s*(min|mins|h|hora|horas|d|d[ií]a|d[ií]as|sem|semana|semanas)\s*$',
+    re.IGNORECASE,
+)
+
+
+def _parse_relative_time(text: str, now: datetime) -> Optional[datetime]:
+    """Convierte el texto de tiempo relativo que Facebook muestra junto al permalink
+    ('2 h', '3 d', 'Ayer', 'Ahora') a un datetime aproximado. Las fechas largas/absolutas
+    ('16 de octubre') no se parsean (ambiguas sin año visible) y devuelven None — igual
+    que antes, esos posts quedan sin published_at en vez de descartarse."""
+    if not text:
+        return None
+    t = text.strip().lower()
+    if t in ("ahora", "justo ahora", "now"):
+        return now
+    if t.startswith("ayer"):
+        return now - timedelta(days=1)
+    m = _REL_TIME_RE.match(t)
+    if not m:
+        return None
+    n = int(m.group(1))
+    unit = m.group(2)
+    if unit in ("min", "mins"):
+        return now - timedelta(minutes=n)
+    if unit in ("h", "hora", "horas"):
+        return now - timedelta(hours=n)
+    if unit in ("d", "día", "días", "dia", "dias"):
+        return now - timedelta(days=n)
+    if unit in ("sem", "semana", "semanas"):
+        return now - timedelta(weeks=n)
+    return None
 
 
 def _diagnose_fb_page(page, term: str) -> None:
@@ -518,8 +554,11 @@ class FacebookScraper(BaseScraper):
             finally:
                 warmup.close()
 
-            for keyword_obj in keywords:
-                term = keyword_obj.keyword.strip()
+            # Igual que RSS/YouTube/Twitter/Instagram/TikTok: incluye término secundario,
+            # lógica AND/OR/NOT y alias de la entidad. Antes solo se buscaba keyword.keyword,
+            # así que Facebook nunca encontraba posts que solo coincidían por esos caminos.
+            for term, keyword_obj in build_search_terms(entity, keywords):
+                term = term.strip()
                 if not term or term in seen_terms:
                     continue
                 seen_terms.add(term)
@@ -570,7 +609,7 @@ class FacebookScraper(BaseScraper):
                 page.mouse.wheel(0, SEARCH_SCROLL_PIXELS)
                 page.wait_for_timeout(SEARCH_SCROLL_WAIT_MS)
 
-            saved, raw_count = self._process_feed_cards(page, entity, keyword_obj)
+            saved, raw_count = self._process_feed_cards(page, entity, keyword_obj, since)
 
         except Exception as e:
             logger.error(f"[Facebook] Error en _search_keyword('{term}'): {e}", exc_info=True)
@@ -580,7 +619,9 @@ class FacebookScraper(BaseScraper):
         logger.info(f"[Facebook] '{term}' → {raw_count} posts recibidos, {saved} guardados")
         return saved
 
-    def _process_feed_cards(self, page, entity: Entity, keyword_obj: Optional[Keyword]) -> tuple[int, int]:
+    def _process_feed_cards(
+        self, page, entity: Entity, keyword_obj: Optional[Keyword], since: Optional[datetime] = None,
+    ) -> tuple[int, int]:
         """
         Procesa las tarjetas de un feed de Facebook (`[role="feed"] > div`) y
         guarda cada post como mención. Si keyword_obj es None, no filtra por keyword
@@ -590,6 +631,7 @@ class FacebookScraper(BaseScraper):
         post_cards = page.query_selector_all('[role="feed"] > div')
         raw_count = len(post_cards)
         saved = 0
+        now = datetime.now(timezone.utc)
 
         for card in post_cards:
             # ── Texto del post ──────────────────────────────────
@@ -606,22 +648,40 @@ class FacebookScraper(BaseScraper):
             if keyword_obj is not None and not keyword_matches_text(text, keyword_obj):
                 continue
 
-            # ── URL del post ────────────────────────────────────
+            # ── URL del post + fecha ────────────────────────────
             # Tomar el primer permalink de publicación (la marca de tiempo),
             # excluyendo enlaces de perfil. Sin fallback a perfil: si no hay
             # permalink, se guarda sin URL (no se enlaza al perfil del autor).
+            # El texto visible de ese mismo enlace es casi siempre el tiempo
+            # relativo ("2 h", "3 d") que Facebook muestra junto al post.
             post_url = None
+            time_text = ""
             for a in card.query_selector_all("a[href]"):
                 href = a.get_attribute("href") or ""
                 if _is_post_permalink(href):
                     post_url = _normalize_fb_url(href)
+                    try:
+                        time_text = a.inner_text().strip()
+                    except Exception:
+                        time_text = ""
                     break
+
+            published_at = _parse_relative_time(time_text, now)
+            if since is not None and published_at is not None and published_at < since:
+                continue
 
             post_id = _extract_post_id(post_url or "", text)
 
             # ── Autor ───────────────────────────────────────────
             author_el = card.query_selector("h2 a, h3 a, strong a")
             username = author_el.inner_text().strip() if author_el else ""
+
+            if username:
+                upsert_account_profile(
+                    db=self.db,
+                    platform_id=self.platform.id,
+                    username=username,
+                )
 
             # ── Reach ───────────────────────────────────────────
             reactions = 0
@@ -647,7 +707,7 @@ class FacebookScraper(BaseScraper):
                     author_username=username or None,
                     author_ext_id=None,
                     url=post_url or None,
-                    published_at=None,
+                    published_at=published_at,
                     country_code=entity.country_code,
                     reach=reach,
                     matched_keywords=[keyword_obj] if keyword_obj else None,
@@ -661,7 +721,7 @@ class FacebookScraper(BaseScraper):
 
         return saved, raw_count
 
-    def _scrape_page(self, ctx, page_name: str, entity: Entity) -> int:
+    def _scrape_page(self, ctx, page_name: str, entity: Entity, since: Optional[datetime] = None) -> int:
         """Recolecta publicaciones de una página/perfil de Facebook (Explorer)."""
         page = ctx.new_page()
         saved = 0
@@ -680,7 +740,7 @@ class FacebookScraper(BaseScraper):
                 _diagnose_fb_page(page, page_name)
                 return 0
             page.wait_for_timeout(PAGE_LOAD_WAIT_MS)
-            saved, raw_count = self._process_feed_cards(page, entity, None)
+            saved, raw_count = self._process_feed_cards(page, entity, None, since)
         except Exception as e:
             logger.error(f"[Facebook] Error en _scrape_page('{page_name}'): {e}", exc_info=True)
         finally:
@@ -750,7 +810,7 @@ class FacebookScraper(BaseScraper):
                     continue
                 try:
                     if feed.feed_type == "page":
-                        saved = self._scrape_page(ctx, feed.term, entity)
+                        saved = self._scrape_page(ctx, feed.term, entity, since)
                     else:  # keyword
                         saved = self._search_keyword(ctx, feed.term, entity, None, since)
                     total_saved += saved

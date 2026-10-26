@@ -161,7 +161,10 @@ def save_mention(
     Guarda una mención nueva. Retorna None si ya existe (duplicado).
     Después de guardar, la encola en Redis para procesamiento NLP.
     """
-    # Verificar duplicado
+    external_id = truncate(external_id, 200)
+
+    # Verificar duplicado (chequeo rápido; la constraint de BD es la garantía real,
+    # ver manejo de IntegrityError abajo para el caso de carrera entre workers)
     exists = db.query(Mention.id).filter(
         Mention.platform_id == platform_id,
         Mention.external_id == external_id,
@@ -177,8 +180,8 @@ def save_mention(
         external_id=external_id,
         content=truncate(content),
         content_clean=truncate(content_clean),
-        author_username=author_username,
-        author_ext_id=author_ext_id,
+        author_username=truncate(author_username, 150) if author_username else author_username,
+        author_ext_id=truncate(author_ext_id, 150) if author_ext_id else author_ext_id,
         url=url[:1000] if url else url,   # columna VARCHAR(1000): las URLs de Google News la superan
         published_at=published_at,
         language=language[:2] if language else None,
@@ -189,11 +192,19 @@ def save_mention(
         conversation_id=conversation_id,
     )
     # SAVEPOINT: si esta mención no se puede guardar, solo se deshace ella y el resto del lote sigue.
-    with db.begin_nested():
-        db.add(mention)
-        if matched_keywords:
-            mention.keywords.extend(matched_keywords)
-        db.flush()
+    # Si dos tareas concurrentes (p. ej. scrape_twitter y scrape_twitter_feeds) capturan la misma
+    # mención casi al mismo tiempo, la constraint uq_platform_external_id puede violarse aunque el
+    # chequeo de arriba no la haya visto todavía; se trata igual que un duplicado normal.
+    try:
+        with db.begin_nested():
+            db.add(mention)
+            if matched_keywords:
+                mention.keywords.extend(matched_keywords)
+            db.flush()
+    except IntegrityError as exc:
+        if "uq_platform_external_id" not in str(exc.orig):
+            raise
+        return None
 
     # Encolar para NLP
     try:
@@ -250,6 +261,13 @@ def _contains_term(haystack: str, term: str) -> bool:
         if left_ok and right_ok:
             return True
         start = idx + 1
+
+
+def text_contains_term(text: str, term: str) -> bool:
+    """True si `term` aparece en `text` como palabra/frase completa (ver `_contains_term`).
+    Para usar con keywords "simples" que no tienen el esquema completo de `Keyword`
+    (sin keyword_secondary/logic_op/keyword_expression), p. ej. YoutubeChannelKeyword."""
+    return _contains_term(_fold(text), _fold(term))
 
 
 def _eval_expression_legacy(t: str, expr: str) -> bool:

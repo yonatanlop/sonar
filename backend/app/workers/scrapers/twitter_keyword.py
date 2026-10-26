@@ -9,6 +9,8 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
+from app.workers.scrapers.twitter import TWSCRAPE_TIMEOUT
+
 logger = logging.getLogger(__name__)
 
 # Corte: no guardar tweets anteriores a las 8 PM COT del 18 may 2026
@@ -173,7 +175,7 @@ async def search_keywords(db: Session) -> dict:
                     tw_api, query, platform.id, entity.id, db,
                     country_code="CO",
                 ),
-                timeout=15,
+                timeout=TWSCRAPE_TIMEOUT,
             )
             total_saved += saved
             logger.info("[TwitterKeyword] '%s' → %d nuevos tweets", t.term, saved)

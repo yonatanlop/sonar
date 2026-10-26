@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models.entity import Entity, Keyword
-from app.workers.scrapers.base import BaseScraper, keyword_matches_text, save_mention
+from app.workers.scrapers.base import BaseScraper, keyword_matches_text, save_mention, upsert_account_profile
 
 logger = logging.getLogger(__name__)
 
@@ -146,6 +146,17 @@ class TikTokScraper(BaseScraper):
                 int(stats.get("diggCount") or 0)
                 + int(stats.get("commentCount") or 0)
                 + int(stats.get("shareCount") or 0)
+            )
+
+            # Perfil del autor — igual que Reddit/RSS/Twitter/YouTube/Instagram, para
+            # que el clasificador de bots también tenga datos de cuentas de TikTok.
+            upsert_account_profile(
+                db=self.db,
+                platform_id=self.platform.id,
+                username=username,
+                external_user_id=author_id or None,
+                followers_count=author.get("followerCount"),
+                verified=author.get("verified", False),
             )
 
             media_url = None

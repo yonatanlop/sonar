@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.models.mention import SocialPlatform
 from app.models.youtube_channel import YoutubeChannel, YoutubeChannelKeyword
-from app.workers.scrapers.base import save_mention
+from app.workers.scrapers.base import save_mention, text_contains_term
 
 logger = logging.getLogger(__name__)
 
@@ -100,6 +100,13 @@ class YoutubeChannelScraper:
                 thumbs = sn.get("thumbnails", {})
                 thumb_url = (thumbs.get("high") or thumbs.get("medium") or thumbs.get("default") or {}).get("url")
 
+                # Post-filtro: la búsqueda de YouTube es difusa (igual que en el YouTube
+                # global) y puede devolver videos del canal sin relación real con la
+                # keyword buscada. Antes se guardaba cualquier resultado.
+                content = f"{title}\n\n{description}".strip()
+                if not text_contains_term(content, kw.keyword):
+                    continue
+
                 published_at = None
                 pub_str = sn.get("publishedAt")
                 if pub_str:
@@ -113,7 +120,7 @@ class YoutubeChannelScraper:
                     platform_id=self.platform.id,
                     entity_id=ch.entity_id,
                     external_id=f"video_{vid_id}",
-                    content=f"{title}\n\n{description}".strip(),
+                    content=content,
                     author_username=channel_title or channel_id_yt,
                     author_ext_id=channel_id_yt,
                     url=f"https://www.youtube.com/watch?v={vid_id}",
