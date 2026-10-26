@@ -756,6 +756,7 @@ def list_face_references(
 def add_face_reference(
     entity_id: uuid.UUID,
     data: FaceReferenceAdd,
+    db: Session = Depends(get_db),
     _=Depends(require_analyst),
 ):
     """
@@ -770,7 +771,7 @@ def add_face_reference(
             detail="FACE_RECOGNITION_ENABLED=false en .env. Actívalo para usar esta función.",
         )
     from app.workers.nlp.visual import add_face_reference as _add
-    ok = _add(str(entity_id), data.person_name.strip(), data.photo_url)
+    ok = _add(db, str(entity_id), data.person_name.strip(), data.photo_url)
     if not ok:
         raise HTTPException(
             status_code=422,

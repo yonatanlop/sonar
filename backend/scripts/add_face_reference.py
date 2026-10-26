@@ -59,6 +59,7 @@ def main():
         print("   Agrega FACE_RECOGNITION_ENABLED=true al .env y reinicia el backend.\n")
         sys.exit(1)
 
+    from app.database import SessionLocal
     from app.workers.nlp.visual import (
         add_face_reference, delete_face_reference, list_face_references,
     )
@@ -99,7 +100,11 @@ def main():
         sys.exit(1)
 
     print(f"\nAgregando foto de referencia para '{args.person}'...")
-    ok = add_face_reference(entity_id, args.person, source)
+    db = SessionLocal()
+    try:
+        ok = add_face_reference(db, entity_id, args.person, source)
+    finally:
+        db.close()
     if ok:
         print(f"✅ Foto agregada correctamente para '{args.person}'.")
         print(f"   El reconocimiento visual se activará en el próximo ciclo de Celery (30 min).")

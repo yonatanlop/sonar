@@ -28,6 +28,7 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
+from app.core.explorer import explorer_type_ids_subq
 from app.models.entity import Entity
 from app.models.mention import Mention
 
@@ -37,6 +38,7 @@ WINDOW_DAYS  = 7      # días hacia atrás a analizar
 MIN_MENTIONS = 10     # mínimo de menciones para ejecutar clustering
 MAX_TOPICS   = 8      # máximo de clusters
 TOP_TERMS    = 5      # términos por topic en la etiqueta
+LABEL_MAX_LEN = 120   # columna mentions.topic_label es VARCHAR(120)
 
 # ── Stopwords bilingüe (español + inglés) compactas ───────────────────────
 _STOPWORDS = {
@@ -160,7 +162,10 @@ def detect_topics_for_entity(db: Session, entity: Entity) -> dict:
         # Top N términos por peso TF-IDF en el centroide
         top_indices = centroid.argsort()[::-1][:TOP_TERMS]
         terms = [feature_names[i] for i in top_indices if centroid[i] > 0]
-        topic_labels[cluster_id] = ", ".join(terms) if terms else f"Tema {cluster_id + 1}"
+        label = ", ".join(terms) if terms else f"Tema {cluster_id + 1}"
+        # Con bigramas de palabras largas, 5 términos pueden superar los 120 caracteres
+        # de la columna — eso hacía fallar el UPDATE/INSERT (ver mejora en run_topic_detection).
+        topic_labels[cluster_id] = label[:LABEL_MAX_LEN]
 
     # ── Guardar en BD ─────────────────────────────────────────
     for mention, cluster_id in zip(valid_mentions, labels):
@@ -193,29 +198,32 @@ def run_topic_detection(db: Session) -> dict:
     Detecta temas para todas las entidades activas.
     Llamado por la tarea Celery cada hora.
     """
-    entities = db.query(Entity).filter(Entity.active == True).all()
+    # Las entidades internas de los Explorer ("Monitor ...") son búsquedas ad-hoc, no
+    # entidades parametrizadas — no deben gastar cómputo de clustering (igual que ya
+    # excluye summarizer.py).
+    entities = db.query(Entity).filter(
+        Entity.active == True,
+        ~Entity.entity_type_id.in_(explorer_type_ids_subq()),
+    ).all()
     total_topics     = 0
     total_mentions   = 0
     errors           = 0
 
     logger.info(f"[Topics] Iniciando detección sobre {len(entities)} entidades.")
 
+    # Commit por entidad (no uno al final para todas): si una entidad falla al guardar,
+    # no debe perderse el trabajo ya hecho de las demás (mismo patrón que el bug de NER).
     for entity in entities:
         try:
             result = detect_topics_for_entity(db, entity)
+            db.commit()
             if result.get("status") == "ok":
                 total_topics   += len(result.get("topics", []))
                 total_mentions += result.get("mentions_analyzed", 0)
         except Exception as exc:
+            db.rollback()
             logger.error(f"[Topics] Error en entidad {entity.name}: {exc}", exc_info=True)
             errors += 1
-
-    try:
-        db.commit()
-    except Exception as exc:
-        db.rollback()
-        logger.error(f"[Topics] Error en commit: {exc}", exc_info=True)
-        errors += 1
 
     summary = {
         "entities_processed": len(entities),

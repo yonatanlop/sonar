@@ -26,11 +26,14 @@ google-api-python-client==2.130.0
 feedparser==6.0.11
 # newspaper3k removido — feedparser ya cubre RSS/noticias sin compilar lxml desde fuente
 
-# ─── NLP (modo API — sin modelos locales) ────────────────────
-# NLP_MODE=api usa HuggingFace Inference API vía httpx (no requiere torch/transformers local).
-# Para NLP_MODE=local agregar al .env y descomentar:
-#   transformers==4.41.2
-#   torch==2.3.0        ← ~2 GB, solo necesario para modo local
+# ─── NLP (modo local — modelos en RAM, sin costo de API) ──────
+# NLP_MODE=local: sentiment.py y hate_speech.py cargan los modelos directamente
+# con transformers (no pasan por HuggingFace Inference Providers, así que no
+# consumen créditos). Requiere ~2GB extra en la imagen y RAM suficiente en el
+# contenedor worker (es el único que corre estas tareas).
+transformers==4.41.2
+torch==2.3.0        # ~2 GB
+sentencepiece==0.2.0
 langdetect==1.0.9
 # lingua-language-detector removido — compila Rust desde fuente (~40 min). langdetect cubre el mismo caso.
 wordcloud==1.9.3

@@ -20,6 +20,7 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
+from app.core.explorer import EXPLORER_TYPE_LIKE
 from app.workers.nlp.language_detector import detect_language
 from app.workers.nlp.sentiment import classify_text
 from app.workers.nlp.hate_speech import analyze_hate_speech
@@ -27,58 +28,14 @@ from app.workers.nlp.urgency import compute_urgency_score
 from app.models.mention import Mention
 from app.models.entity import Entity, EntityType
 
-_COSINE_THRESHOLD = 0.92   # similitud mínima para considerarlo duplicado
-
-
-def _is_near_duplicate(mention: Mention, limit: int = 1000) -> bool:
-    """
-    Compara el embedding de la mención contra las últimas `limit` menciones
-    con embedding de la misma entidad, excluyendo ella misma.
-    Devuelve True si hay otra mención con similitud coseno >= 0.92.
-    Requiere que la mención tenga embedding y que pgvector esté disponible.
-    """
-    try:
-        from pgvector.sqlalchemy import cosine_distance
-        from sqlalchemy import inspect
-        # Necesitamos la sesión — se obtiene a través del objeto instanciado
-        session = inspect(mention).session
-        if session is None:
-            return False
-
-        candidate = (
-            session.query(Mention)
-            .filter(
-                Mention.entity_id == mention.entity_id,
-                Mention.id != mention.id,
-                Mention.embedding.isnot(None),
-                Mention.is_duplicate == False,
-            )
-            .order_by(cosine_distance(Mention.embedding, mention.embedding))
-            .first()
-        )
-        if candidate is None:
-            return False
-
-        # cosine_distance devuelve 0 = idéntico, 2 = opuesto
-        # similitud coseno = 1 - distancia
-        dist = session.query(
-            cosine_distance(Mention.embedding, mention.embedding)
-        ).filter(Mention.id == candidate.id).scalar()
-
-        return dist is not None and (1.0 - float(dist)) >= _COSINE_THRESHOLD
-
-    except Exception as exc:
-        logger.debug(f"Dedup check omitido para {mention.id}: {exc}")
-        return False
-
 logger = logging.getLogger(__name__)
 
 BATCH_SIZE = 20   # menciones por lote
 
-# Corta-circuito: si el servicio de sentimiento no responde varias veces seguidas, se aborta la
-# corrida (las menciones quedan processed=False y se reintentan en la siguiente). El worker es
-# de concurrencia 1: reintentar cientos de llamadas caídas lo bloquearía todo (ver
-# project_worker_starvation).
+# Corta-circuito: si el servicio de sentimiento U odio no responde varias veces seguidas
+# (son los mismos proveedores: HF Inference API / Groq), se aborta la corrida (las menciones
+# quedan processed=False y se reintentan en la siguiente). El worker es de concurrencia 1:
+# reintentar cientos de llamadas caídas lo bloquearía todo (ver project_worker_starvation).
 _MAX_CONSECUTIVE_UNAVAILABLE = 3
 _consecutive_unavailable = 0
 
@@ -133,6 +90,14 @@ def process_mention(mention: Mention) -> bool:
 
         # ── 3. Detección de discurso de odio ────────────────
         hate = analyze_hate_speech(text, lang)
+        if hate is None:
+            # Igual que el sentimiento: si el servicio no respondió, NO guardar "no es
+            # odio" como si fuera un resultado real; queda pendiente y se reintenta.
+            _consecutive_unavailable += 1
+            logger.warning(f"Detección de odio no disponible para {mention.id}; se reintentará")
+            return False
+        _consecutive_unavailable = 0
+
         mention.hate_score      = Decimal(str(hate["hate_score"]))
         mention.is_hate_speech  = hate["is_hate"]
 
@@ -145,9 +110,9 @@ def process_mention(mention: Mention) -> bool:
             reach=mention.reach or 0,
         )
 
-        # ── 5. Deduplicación por embedding (si ya tiene embedding) ──
-        if mention.embedding is not None:
-            mention.is_duplicate = _is_near_duplicate(mention)
+        # La deduplicación por embedding (módulo 6.2) corre en embeddings.py, justo
+        # después de generar el embedding real — en este punto la mención todavía no
+        # tiene uno (se genera después, solo para menciones ya processed=True).
 
         # ── 6. Marcar como procesado ─────────────────────────
         mention.processed = True
@@ -159,13 +124,14 @@ def process_mention(mention: Mention) -> bool:
 
 
 def _feed_entity_ids(db: Session, entity_ids: set) -> set:
-    """Retorna el subconjunto de entity_ids que pertenecen al tipo 'Monitor Twitter'."""
+    """Retorna el subconjunto de entity_ids que pertenecen a un Explorer ('Monitor Twitter',
+    'Monitor Facebook', 'Monitor Instagram', 'Monitor TikTok', ...), no solo Twitter."""
     if not entity_ids:
         return set()
     rows = (
         db.query(Entity.id)
         .join(EntityType, Entity.entity_type_id == EntityType.id)
-        .filter(EntityType.name == "Monitor Twitter", Entity.id.in_(entity_ids))
+        .filter(EntityType.name.like(EXPLORER_TYPE_LIKE), Entity.id.in_(entity_ids))
         .all()
     )
     return {r[0] for r in rows}

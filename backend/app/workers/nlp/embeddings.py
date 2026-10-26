@@ -19,11 +19,13 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
-HF_MODEL         = "BAAI/bge-small-en-v1.5"
+HF_MODEL         = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 HF_EMBED_URL     = f"https://router.huggingface.co/hf-inference/models/{HF_MODEL}"
 BATCH_PER_RUN    = 15       # max menciones por ejecución (conserva free tier)
 DELAY_SECS       = 2.0      # pausa entre llamadas a HF API
 MAX_TEXT_CHARS   = 512      # truncar texto antes de enviar
+EMBEDDING_DIM    = 384      # dimensión esperada — debe coincidir con mentions.embedding (pgvector)
+_COSINE_THRESHOLD = 0.92    # similitud mínima para considerar dos menciones duplicadas
 
 
 # ── Generación de embedding via HF API ───────────────────────────
@@ -66,13 +68,26 @@ def get_embedding(text: str, token: str) -> list[float] | None:
         result = response.json()
 
         # HF puede retornar [[emb]] o [emb] según el modelo
+        embedding = None
         if isinstance(result, list) and result:
             if isinstance(result[0], list):
-                return result[0]   # [[384 floats]] → [384 floats]
-            if isinstance(result[0], float):
-                return result      # ya es [384 floats]
+                embedding = result[0]   # [[384 floats]] → [384 floats]
+            elif isinstance(result[0], float):
+                embedding = result      # ya es [384 floats]
 
-        return None
+        # Si el endpoint devolviera embeddings por token (una lista por token) en vez de
+        # un vector de oración ya "pooled", esto lo detecta en vez de guardar en silencio
+        # solo el primer elemento — eso rompería el commit del lote al chocar con la
+        # dimensión fija de la columna pgvector.
+        if embedding is None or len(embedding) != EMBEDDING_DIM:
+            logger.warning(
+                f"[Embeddings] Respuesta con forma inesperada "
+                f"(dim={len(embedding) if embedding is not None else 'N/A'}, "
+                f"esperado {EMBEDDING_DIM}); descartada."
+            )
+            return None
+
+        return embedding
 
     except Exception as exc:
         logger.warning(f"[Embeddings] Error al llamar HF API: {exc}")
@@ -143,6 +158,51 @@ def semantic_search(db, query_text: str, token: str,
         return []
 
 
+def _is_near_duplicate(mention, limit: int = 1000) -> bool:
+    """
+    Compara el embedding de la mención contra las últimas `limit` menciones con
+    embedding de la misma entidad, excluyendo ella misma. Devuelve True si hay otra
+    mención con similitud coseno >= _COSINE_THRESHOLD.
+
+    Movido aquí desde pipeline.py (módulo 6.2): antes se evaluaba sobre menciones
+    `processed=False`, pero el embedding solo se genera para menciones ya
+    `processed=True` — la condición nunca se cumplía y el feature nunca se ejecutaba.
+    Aquí sí corre justo después de asignar el embedding real.
+    """
+    from app.models.mention import Mention
+    try:
+        from pgvector.sqlalchemy import cosine_distance
+        from sqlalchemy import inspect
+        session = inspect(mention).session
+        if session is None:
+            return False
+
+        candidate = (
+            session.query(Mention)
+            .filter(
+                Mention.entity_id == mention.entity_id,
+                Mention.id != mention.id,
+                Mention.embedding.isnot(None),
+                Mention.is_duplicate == False,
+            )
+            .order_by(cosine_distance(Mention.embedding, mention.embedding))
+            .first()
+        )
+        if candidate is None:
+            return False
+
+        # cosine_distance devuelve 0 = idéntico, 2 = opuesto; similitud = 1 - distancia
+        dist = session.query(
+            cosine_distance(Mention.embedding, mention.embedding)
+        ).filter(Mention.id == candidate.id).scalar()
+
+        return dist is not None and (1.0 - float(dist)) >= _COSINE_THRESHOLD
+
+    except Exception as exc:
+        logger.debug(f"[Embeddings] Dedup check omitido para {mention.id}: {exc}")
+        return False
+
+
 # ── Generación batch ──────────────────────────────────────────────
 
 def run_embedding_generation(db) -> dict:
@@ -179,6 +239,7 @@ def run_embedding_generation(db) -> dict:
         emb  = get_embedding(text, settings.HUGGINGFACE_TOKEN)
         if emb:
             mention.embedding = emb
+            mention.is_duplicate = _is_near_duplicate(mention)
             generated += 1
         else:
             errors += 1

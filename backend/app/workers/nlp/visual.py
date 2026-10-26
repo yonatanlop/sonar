@@ -231,8 +231,11 @@ def run_visual_analysis(db: Session) -> dict:
                 matches += 1
             processed += 1
         except Exception as exc:
+            # No forzar "sin coincidencia": eso sería un falso negativo permanente ante un
+            # fallo transitorio (timeout de descarga, error puntual de face_recognition).
+            # Se deja visual_match en NULL para que la mención vuelva a la cola en el
+            # próximo ciclo (cada 30 min) en vez de perder la oportunidad de detectarla.
             logger.error(f"[Visual] Error analizando mención {mention.id}: {exc}")
-            mention.visual_match = False  # marcar para no reintentar
 
     db.commit()
     logger.info(f"[Visual] {processed} menciones analizadas, {matches} con coincidencia visual")
@@ -241,11 +244,15 @@ def run_visual_analysis(db: Session) -> dict:
 
 # ── Gestión de fotos de referencia (usada por el script CLI) ──
 
-def add_face_reference(entity_id: str, person_name: str, image_source: str) -> bool:
+def add_face_reference(db: Optional[Session], entity_id: str, person_name: str, image_source: str) -> bool:
     """
     Agrega una foto de referencia para una persona de la entidad.
     image_source puede ser una URL o una ruta local.
     Retorna True si se guardó correctamente y se detectó un rostro.
+
+    Si se pasa `db`, además vuelve a encolar (visual_match → NULL) las menciones de la
+    entidad que ya habían sido marcadas "sin coincidencia" antes de existir esta foto de
+    referencia — de lo contrario quedarían sin analizar para esta persona para siempre.
     """
     import face_recognition
     import numpy as np
@@ -288,6 +295,29 @@ def add_face_reference(entity_id: str, person_name: str, image_source: str) -> b
     pil_img.save(str(dest_path), "JPEG", quality=90)
     invalidate_cache(entity_id)
     logger.info(f"[Visual] Referencia guardada: {dest_path}")
+
+    if db is not None:
+        import uuid as _uuid
+        try:
+            updated = (
+                db.query(Mention)
+                .filter(
+                    Mention.entity_id    == _uuid.UUID(entity_id),
+                    Mention.visual_match == False,
+                    Mention.media_urls.isnot(None),
+                )
+                .update({"visual_match": None}, synchronize_session=False)
+            )
+            db.commit()
+            if updated:
+                logger.info(
+                    f"[Visual] {updated} menciones vuelven a la cola de análisis "
+                    f"tras agregar referencia de '{person_name}'"
+                )
+        except Exception as exc:
+            db.rollback()
+            logger.warning(f"[Visual] No se pudieron reencolar menciones tras nueva referencia: {exc}")
+
     return True
 
 

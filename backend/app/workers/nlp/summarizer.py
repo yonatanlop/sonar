@@ -188,8 +188,13 @@ def summarize_entity(db: Session, entity: Entity) -> DailySummary | None:
         model_used    = settings.SUMMARY_MODEL,
         mention_count = len(mentions),
     )
-    db.add(summary)
-    db.flush()
+    try:
+        db.add(summary)
+        db.flush()
+    except Exception as exc:
+        db.rollback()
+        logger.error(f"[Summary] {entity.name} — Error guardando resumen: {exc}", exc_info=True)
+        return None
 
     logger.info(
         f"[Summary] {entity.name} — resumen generado "
@@ -221,23 +226,20 @@ def run_daily_summaries(db: Session) -> dict:
 
     logger.info(f"[Summary] Iniciando generación para {len(entities)} entidades.")
 
+    # Commit por entidad (no uno al final para todas): si una falla al guardar, no debe
+    # perderse el resumen ya generado de las demás (mismo patrón que el bug de NER).
     for entity in entities:
         try:
             result = summarize_entity(db, entity)
+            db.commit()
             if result:
                 generated += 1
             else:
                 skipped += 1
         except Exception as exc:
+            db.rollback()
             logger.error(f"[Summary] Error en entidad {entity.name}: {exc}", exc_info=True)
             errors += 1
-
-    try:
-        db.commit()
-    except Exception as exc:
-        db.rollback()
-        logger.error(f"[Summary] Error en commit: {exc}", exc_info=True)
-        errors += 1
 
     summary = {
         "status":    "ok",

@@ -4,7 +4,7 @@ Programadas en celery_app.py (Beat):
   - detect_anomalies         → cada 30 min
   - generate_daily_summaries → diario a las 23:50
   - detect_topics            → cada hora
-  - classify_bots            → cada 6 horas
+  - classify_bots            → cada hora
   - compute_trends           → diario a las 00:30
 """
 import logging

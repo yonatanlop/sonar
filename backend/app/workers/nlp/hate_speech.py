@@ -88,7 +88,7 @@ def _normalize_hate_en(results: list) -> dict:
 
 # ── Análisis local ────────────────────────────────────────────
 
-def _analyze_local(text: str, lang: str) -> dict:
+def _analyze_local(text: str, lang: str) -> Optional[dict]:
     text = text[:MAX_CHARS]
     try:
         if lang == "es":
@@ -101,8 +101,10 @@ def _analyze_local(text: str, lang: str) -> dict:
             results = pipe(text)[0]
             return _normalize_hate_en(results)
     except Exception as e:
+        # No devolver "no hay odio" como si fuera un resultado real: el modelo falló,
+        # no concluyó nada. Igual que sentiment.py, se reintenta en la próxima corrida.
         logger.error(f"Error en análisis hate-speech local (lang={lang}): {e}")
-        return {"hate_score": 0.0, "is_hate": False, "indicators": {}}
+        return None
 
 
 # ── Análisis vía HuggingFace Inference API ────────────────────
@@ -134,7 +136,10 @@ def _hf_api_call(model: str, text: str) -> Optional[list]:
         return None
 
 
-def _analyze_api(text: str, lang: str) -> dict:
+def _analyze_api(text: str, lang: str) -> Optional[dict]:
+    """Detección de odio vía HF Inference API. Retorna None si el servicio no respondió
+    (token faltante, timeout, error HTTP) — igual que sentiment.py: un fallo del servicio
+    se reintenta después en vez de guardarse como "no es odio" falso."""
     model  = MODEL_HATE_ES if lang == "es" else MODEL_HATE_EN
     result = _hf_api_call(model, text)
 
@@ -145,12 +150,12 @@ def _analyze_api(text: str, lang: str) -> dict:
         else:
             return _normalize_hate_en(items)
 
-    return {"hate_score": 0.0, "is_hate": False, "indicators": {}}
+    return None
 
 
 # ── Punto de entrada público ──────────────────────────────────
 
-def analyze_hate_speech(text: str, lang: str = "es") -> dict:
+def analyze_hate_speech(text: str, lang: str = "es") -> Optional[dict]:
     """
     Analiza si un texto contiene discurso de odio.
 
@@ -164,6 +169,8 @@ def analyze_hate_speech(text: str, lang: str = "es") -> dict:
             "is_hate":    bool,    # True si supera HATE_THRESHOLD
             "indicators": dict,    # scores detallados por etiqueta
         }
+        o None si el servicio no está disponible — quien llama NO debe guardar esto como
+        "no es odio" ni marcar la mención como procesada; debe reintentar después.
     """
     if not text or len(text.strip()) < 3:
         return {"hate_score": 0.0, "is_hate": False, "indicators": {}}
