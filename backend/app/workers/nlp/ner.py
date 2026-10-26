@@ -20,6 +20,12 @@ ALLOWED_TYPES = {"PER", "ORG", "LOC"}
 # Mínimo de caracteres para considerar una entidad válida
 MIN_ENTITY_LEN = 3
 
+# Máximo de caracteres: spaCy a veces mal-segmenta texto ruidoso (tweets en
+# inglés, oraciones completas) y "extrae" frases largas que no son entidades
+# reales. Un nombre de persona/organización/lugar legítimo nunca se acerca a
+# esto; por debajo del límite de la columna (200) para dejar margen.
+MAX_ENTITY_LEN = 150
+
 # Límite de menciones por ejecución
 BATCH_LIMIT = 400
 
@@ -83,7 +89,7 @@ def extract_entities(text: str, entity_name: str = "") -> list[dict]:
         # Filtros
         if etype not in ALLOWED_TYPES:
             continue
-        if len(etext) < MIN_ENTITY_LEN:
+        if len(etext) < MIN_ENTITY_LEN or len(etext) > MAX_ENTITY_LEN:
             continue
         if etext.lower() == entity_lower:
             continue   # no incluir la propia entidad monitoreada
@@ -183,17 +189,12 @@ def run_ner_extraction(db, days: int = 7) -> dict:
     for mention in mentions:
         try:
             n = process_mention_ner(db, mention)
+            db.commit()
             total_entities += n
         except Exception as exc:
+            db.rollback()
             logger.error(f"[NER] Error en mención {mention.id}: {exc}", exc_info=True)
             errors += 1
-
-    try:
-        db.commit()
-    except Exception as exc:
-        db.rollback()
-        logger.error(f"[NER] Error en commit: {exc}", exc_info=True)
-        errors += 1
 
     result = {
         "mentions_processed": total_mentions,
